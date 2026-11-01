@@ -84,6 +84,53 @@ export interface PolicyOverrides {
   [key: string]: any;
 }
 
+export interface Type4Finding {
+  tx_hash: string;
+  block_number: number;
+  from_address?: string | null;
+  to_address?: string | null;
+  delegate_address?: string | null;
+  unique_delegates_count: number;
+  auth_count: number;
+  has_consecutive_nonces: boolean;
+  max_consecutive_nonces: number;
+  patterns: string[];
+  risk_score: number;
+  is_suspicious: boolean;
+  timestamp: number;
+  source: string;
+  description?: string | null;
+}
+
+export interface RadarScanResult {
+  source: string; // 'live_rpc' | 'cached_sample' | 'cached_fallback'
+  blocks_scanned: number;
+  latest_block: number;
+  findings_count: number;
+  suspicious_count: number;
+  findings: Type4Finding[];
+}
+
+export interface SensitivityPoint {
+  limit_multiplier: number;
+  single_tx_usd: number;
+  wallet_limit_usd: number;
+  global_limit_usd: number;
+  new_recipient_usd: number;
+  unprotected_loss_usd: number;
+  protected_loss_usd: number;
+  loss_prevented_usd: number;
+  loss_mitigated_pct: number;
+  false_positives_held: number;
+  time_to_contain_seconds: number;
+  breaker_final_state: string;
+}
+
+export interface SensitivityResponse {
+  matrix: SensitivityPoint[];
+  base_limits: Record<string, any>;
+}
+
 const API_BASE = '/api';
 
 export async function fetchHealth(): Promise<HealthResponse> {
@@ -117,6 +164,35 @@ export async function runReplay(params?: {
   });
   if (!res.ok) {
     throw new Error(`Replay failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function fetchRadar(params?: {
+  n_blocks?: number;
+  force_cached?: boolean;
+}): Promise<RadarScanResult> {
+  const n_blocks = params?.n_blocks ?? 5;
+  const force_cached = params?.force_cached ?? false;
+  const url = `${API_BASE}/radar?n_blocks=${n_blocks}&force_cached=${force_cached}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Radar scan failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function fetchSensitivityMatrix(params?: {
+  base_limits?: PolicyOverrides;
+  multipliers?: number[];
+}): Promise<SensitivityResponse> {
+  const res = await fetch(`${API_BASE}/policy/sensitivity`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params || {}),
+  });
+  if (!res.ok) {
+    throw new Error(`Sensitivity calculation failed: ${res.statusText}`);
   }
   return res.json();
 }

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
+import { Navbar, DashboardTab } from './components/Navbar';
 import { ReplayView } from './pages/ReplayView';
 import { LiveFeed } from './pages/LiveFeed';
+import { RadarView } from './pages/RadarView';
+import { PolicyLabView } from './pages/PolicyLabView';
 import { PolicySliders } from './components/PolicySliders';
 import { runReplay, resetSystem, ReplayResponse, PolicyOverrides, StepEvent, ReplayMetrics } from './api';
 import { Shield, AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState<'replay' | 'feed' | 'policy'>('replay');
+  const [currentTab, setCurrentTab] = useState<DashboardTab>('replay');
   const [replayData, setReplayData] = useState<ReplayResponse | null>(null);
   const [policyOverrides, setPolicyOverrides] = useState<PolicyOverrides>({
     single_tx_usd: 50_000,
@@ -111,40 +113,11 @@ export const App: React.FC = () => {
         {/* Tab 2: Live Decision Stream */}
         {currentTab === 'feed' && <LiveFeed steps={steps} />}
 
-        {/* Tab 3: Policy Simulator */}
-        {currentTab === 'policy' && (
-          <div className="space-y-6">
-            <PolicySliders
-              overrides={policyOverrides}
-              onChangeOverrides={setPolicyOverrides}
-              onApply={handleApplyPolicy}
-              isLoading={isLoading}
-            />
-            {/* Quick telemetry summary */}
-            {summary && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-mono uppercase block">Modelled Loss Prevented</span>
-                  <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">
-                    ${(summary.loss_prevented_usd / 1e9).toFixed(2)}B ({summary.loss_prevented_pct}%)
-                  </span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-mono uppercase block">Time-To-Contain</span>
-                  <span className="text-2xl font-bold font-mono text-cyan-400 mt-1 block">
-                    {summary.time_to_contain_seconds}s
-                  </span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-mono uppercase block">False Positive Rate</span>
-                  <span className="text-2xl font-bold font-mono text-slate-200 mt-1 block">
-                    {summary.false_positive_count} / {summary.normal_requests_count} normal txs
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Tab 3: 7702 Radar */}
+        {currentTab === 'radar' && <RadarView />}
+
+        {/* Tab 4: Policy Sensitivity Lab */}
+        {currentTab === 'lab' && <PolicyLabView />}
       </main>
 
       {/* Footer */}

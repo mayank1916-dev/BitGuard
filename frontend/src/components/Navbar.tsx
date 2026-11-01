@@ -2,9 +2,11 @@ import React from 'react';
 import { Shield, ShieldAlert, ShieldCheck, Activity, RefreshCw } from 'lucide-react';
 import { cn } from '../utils';
 
+export type DashboardTab = 'replay' | 'feed' | 'radar' | 'lab';
+
 interface NavbarProps {
-  currentTab: 'replay' | 'feed' | 'policy';
-  onSelectTab: (tab: 'replay' | 'feed' | 'policy') => void;
+  currentTab: DashboardTab;
+  onSelectTab: (tab: DashboardTab) => void;
   breakerState: 'Normal' | 'Elevated' | 'Hold' | 'Lockdown' | string;
   onReset: () => void;
   isResetting?: boolean;
@@ -87,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onSelectTab('replay')}
               className={cn(
-                'px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all',
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
                 currentTab === 'replay'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -98,24 +100,35 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onSelectTab('feed')}
               className={cn(
-                'px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all',
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
                 currentTab === 'feed'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
               )}
             >
-              Live Decision Stream
+              Live Feed
             </button>
             <button
-              onClick={() => onSelectTab('policy')}
+              onClick={() => onSelectTab('radar')}
               className={cn(
-                'px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all',
-                currentTab === 'policy'
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
+                currentTab === 'radar'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
               )}
             >
-              Policy Simulator
+              7702 Radar
+            </button>
+            <button
+              onClick={() => onSelectTab('lab')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
+                currentTab === 'lab'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              )}
+            >
+              Sensitivity Lab
             </button>
           </div>
 
@@ -136,7 +149,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={onReset}
               disabled={isResetting}
               title="Reset Breaker & Policy History"
-              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors disabled:opacity-50"
+              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={cn('w-4 h-4', isResetting && 'animate-spin')} />
             </button>

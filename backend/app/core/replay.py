@@ -48,6 +48,22 @@ class ReplayReport(BaseModel):
     steps: list[StepEvent]
 
 
+class SensitivityPoint(BaseModel):
+    """Result of sensitivity testing at a specific policy limit multiplier."""
+    limit_multiplier: float
+    single_tx_usd: float
+    wallet_limit_usd: float
+    global_limit_usd: float
+    new_recipient_usd: float
+    unprotected_loss_usd: float
+    protected_loss_usd: float
+    loss_prevented_usd: float
+    loss_mitigated_pct: float
+    false_positives_held: int
+    time_to_contain_seconds: float
+    breaker_final_state: str
+
+
 def create_engine_with_overrides(overrides: Optional[dict[str, Any]] = None) -> PolicyEngine:
     """Helper to construct a PolicyEngine with optional parameter overrides."""
     if not overrides:
@@ -238,3 +254,56 @@ class ReplayRunner:
         )
 
         return ReplayReport(summary=metrics, steps=steps)
+
+
+def run_sensitivity_matrix(
+    multipliers: Optional[list[float]] = None,
+    base_limits: Optional[dict[str, Any]] = None,
+    dataset_path: Optional[Union[str, Path]] = None,
+) -> list[SensitivityPoint]:
+    """
+    Evaluates the synthetic replay across multiple limit multipliers to produce
+    a sensitivity matrix comparing capital saved ($) vs. false positives held.
+    """
+    mults = multipliers or [0.25, 0.5, 1.0, 1.5, 2.0]
+    base = base_limits or {
+        "single_tx_usd": 50_000.0,
+        "wallet_limit_usd": 100_000.0,
+        "global_limit_usd": 500_000.0,
+        "new_recipient_usd": 10_000.0,
+    }
+
+    results: list[SensitivityPoint] = []
+
+    for m in mults:
+        scaled_overrides = {
+            "single_tx_usd": base.get("single_tx_usd", 50_000.0) * m,
+            "wallet_limit_usd": base.get("wallet_limit_usd", 100_000.0) * m,
+            "global_limit_usd": base.get("global_limit_usd", 500_000.0) * m,
+            "new_recipient_usd": base.get("new_recipient_usd", 10_000.0) * m,
+        }
+        runner = ReplayRunner(
+            dataset_path=dataset_path,
+            policy_overrides=scaled_overrides,
+        )
+        report = runner.run()
+        summary = report.summary
+
+        results.append(
+            SensitivityPoint(
+                limit_multiplier=m,
+                single_tx_usd=scaled_overrides["single_tx_usd"],
+                wallet_limit_usd=scaled_overrides["wallet_limit_usd"],
+                global_limit_usd=scaled_overrides["global_limit_usd"],
+                new_recipient_usd=scaled_overrides["new_recipient_usd"],
+                unprotected_loss_usd=summary.unprotected_loss_usd,
+                protected_loss_usd=summary.protected_loss_usd,
+                loss_prevented_usd=summary.loss_prevented_usd,
+                loss_mitigated_pct=summary.loss_prevented_pct,
+                false_positives_held=summary.false_positive_count,
+                time_to_contain_seconds=summary.time_to_contain_seconds,
+                breaker_final_state=summary.breaker_final_state,
+            )
+        )
+
+    return results

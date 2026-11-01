@@ -1,5 +1,5 @@
 from typing import Optional, Union, Any
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 
 from backend.app.models import SigningRequest, Decision
@@ -9,7 +9,14 @@ from backend.app.core.replay import (
     ReplayReport,
     ReplayMetrics,
     StepEvent,
+    SensitivityPoint,
+    run_sensitivity_matrix,
     create_engine_with_overrides,
+)
+from backend.app.core.radar import (
+    RadarScanner,
+    RadarScanResult,
+    Type4Finding,
 )
 
 
@@ -39,21 +46,32 @@ class EnhancedReplayResponse(BaseModel):
     denied_count: int
 
 
+class SensitivityRequest(BaseModel):
+    base_limits: Optional[dict[str, Any]] = None
+    multipliers: Optional[list[float]] = None
+
+
+class SensitivityResponse(BaseModel):
+    matrix: list[SensitivityPoint]
+    base_limits: dict[str, Any]
+
+
 def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
     app = FastAPI(
-        title="BitGuard Firewall & Replay Engine",
-        description="Autonomous signing-request firewall and incident-replay lab for exchange hot wallets",
-        version="0.2.0",
+        title="BitGuard Firewall, Replay & 7702 Radar",
+        description="Autonomous signing-request firewall, incident-replay lab, and EIP-7702 live radar for exchange hot wallets",
+        version="0.3.0",
     )
 
     app.state.engine = engine or PolicyEngine()
+    app.state.radar_scanner = RadarScanner()
 
     @app.get("/api/health")
     def health():
         return {
             "status": "ok",
             "service": "bitguard",
-            "version": "0.2.0",
+            "version": "0.3.0",
             "breaker_state": app.state.engine.breaker.state,
         }
 
@@ -81,7 +99,6 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
         )
         report: ReplayReport = runner.run()
 
-        # Update global app engine state with the replay's final breaker state if desired
         results = [s.protected_decision for s in report.steps]
         allowed = sum(1 for r in results if r.action == "allow")
         held = sum(1 for r in results if r.action == "hold")
@@ -97,6 +114,34 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
             held_count=held,
             denied_count=denied,
         )
+
+    @app.get("/api/radar", response_model=RadarScanResult)
+    def get_radar(
+        n_blocks: int = Query(default=5, ge=1, le=20),
+        force_cached: bool = Query(default=False),
+    ) -> RadarScanResult:
+        """
+        Polls recent Ethereum blocks for Type-4 (EIP-7702) transactions,
+        scoring authorization pattern heuristics.
+        Seamlessly falls back to cached offline dataset if RPC is unreachable.
+        """
+        scanner: RadarScanner = app.state.radar_scanner
+        return scanner.scan_recent_blocks(n_blocks=n_blocks, force_cached=force_cached)
+
+    @app.post("/api/policy/sensitivity", response_model=SensitivityResponse)
+    def get_sensitivity(payload: Optional[SensitivityRequest] = None) -> SensitivityResponse:
+        """
+        Runs sensitivity analysis across limit multipliers, charting capital saved vs false positives.
+        """
+        base = (payload.base_limits if payload else None) or {
+            "single_tx_usd": 50_000.0,
+            "wallet_limit_usd": 100_000.0,
+            "global_limit_usd": 500_000.0,
+            "new_recipient_usd": 10_000.0,
+        }
+        multipliers = payload.multipliers if payload and payload.multipliers else [0.25, 0.5, 1.0, 1.5, 2.0]
+        matrix = run_sensitivity_matrix(multipliers=multipliers, base_limits=base)
+        return SensitivityResponse(matrix=matrix, base_limits=base)
 
     @app.post("/api/reset")
     def reset():
