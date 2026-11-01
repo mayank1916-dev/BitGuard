@@ -177,6 +177,11 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
             elif payload.new_recipient_usd is not None:
                 base["new_recipient_usd"] = float(payload.new_recipient_usd)
 
+        base["base_single_tx_usd"] = base["single_tx_usd"]
+        base["base_wallet_limit_usd"] = base["wallet_limit_usd"]
+        base["base_global_limit_usd"] = base["global_limit_usd"]
+        base["base_new_recipient_usd"] = base["new_recipient_usd"]
+
         multipliers = (
             payload.multipliers
             if (payload and payload.multipliers)

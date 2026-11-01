@@ -124,6 +124,14 @@ export interface SensitivityPoint {
   false_positives_held: number;
   time_to_contain_seconds: number;
   breaker_final_state: string;
+
+  // Additional aliases
+  multiplier?: number;
+  effective_single_tx_cap?: number;
+  capital_saved_usd?: number;
+  mitigated_pct?: number;
+  false_positives_count?: number;
+  breaker_state?: string;
 }
 
 export interface SensitivityResponse {

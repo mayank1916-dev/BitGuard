@@ -172,10 +172,19 @@ def test_policy_sensitivity_dynamic_slider_overrides():
     assert m05["single_tx_usd"] == 50000.0
     assert m05["wallet_limit_usd"] == 100000.0
     assert m05["global_limit_usd"] == 500000.0
+    # Assert newly supported alias fields
+    assert m05["multiplier"] == 0.5
+    assert m05["effective_single_tx_cap"] == 50000.0
+    assert m05["capital_saved_usd"] > 4_300_000_000.0
+    assert m05["mitigated_pct"] >= 99.0
+    assert m05["false_positives_count"] >= 0
+    assert "breaker_state" in m05
 
     m10 = body["matrix"][1]
     assert m10["limit_multiplier"] == 1.0
     assert m10["single_tx_usd"] == 100000.0
     assert m10["wallet_limit_usd"] == 200000.0
     assert m10["global_limit_usd"] == 1000000.0
+    assert m10["multiplier"] == 1.0
+    assert m10["effective_single_tx_cap"] == 100000.0
 

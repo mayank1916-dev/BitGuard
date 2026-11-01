@@ -63,6 +63,14 @@ class SensitivityPoint(BaseModel):
     time_to_contain_seconds: float
     breaker_final_state: str
 
+    # Direct requested naming aliases
+    multiplier: Optional[float] = None
+    effective_single_tx_cap: Optional[float] = None
+    capital_saved_usd: Optional[float] = None
+    mitigated_pct: Optional[float] = None
+    false_positives_count: Optional[int] = None
+    breaker_state: Optional[str] = None
+
 
 def create_engine_with_overrides(overrides: Optional[dict[str, Any]] = None) -> PolicyEngine:
     """Helper to construct a PolicyEngine with optional parameter overrides."""
@@ -321,6 +329,13 @@ def run_sensitivity_matrix(
                 false_positives_held=summary.false_positive_count,
                 time_to_contain_seconds=summary.time_to_contain_seconds,
                 breaker_final_state=summary.breaker_final_state,
+                # Explicit requested aliases
+                multiplier=m,
+                effective_single_tx_cap=scaled_overrides["single_tx_usd"],
+                capital_saved_usd=summary.loss_prevented_usd,
+                mitigated_pct=summary.loss_prevented_pct,
+                false_positives_count=summary.false_positive_count,
+                breaker_state=summary.breaker_final_state,
             )
         )
 
