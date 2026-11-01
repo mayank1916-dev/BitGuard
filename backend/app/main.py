@@ -1,5 +1,6 @@
 from typing import Optional, Union, Any
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from backend.app.models import SigningRequest, Decision
@@ -18,6 +19,8 @@ from backend.app.core.radar import (
     RadarScanResult,
     Type4Finding,
 )
+from backend.app.core.audit import AuditLog, AuditEntry
+from backend.app.core.report import generate_post_mortem_pdf
 
 
 class ReplayBatchRequest(BaseModel):
@@ -69,24 +72,36 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
     app = FastAPI(
         title="BitGuard Firewall, Replay & 7702 Radar",
         description="Autonomous signing-request firewall, incident-replay lab, and EIP-7702 live radar for exchange hot wallets",
-        version="0.3.1",
+        version="0.4.0",
     )
 
     app.state.engine = engine or PolicyEngine()
     app.state.radar_scanner = RadarScanner()
+    app.state.audit_log = AuditLog()
+    app.state.last_replay_report = None
+
+    def ensure_audit_chain_seeded() -> None:
+        if not app.state.audit_log.entries:
+            runner = ReplayRunner()
+            rep = runner.run()
+            app.state.last_replay_report = rep
+            for s in rep.steps:
+                app.state.audit_log.append_decision(s.protected_decision, timestamp=s.ts)
 
     @app.get("/api/health")
     def health():
         return {
             "status": "ok",
             "service": "bitguard",
-            "version": "0.3.1",
+            "version": "0.4.0",
             "breaker_state": app.state.engine.breaker.state,
         }
 
     @app.post("/api/evaluate", response_model=Decision)
     def evaluate(request: SigningRequest) -> Decision:
-        return app.state.engine.evaluate(request)
+        decision = app.state.engine.evaluate(request)
+        app.state.audit_log.append_decision(decision, timestamp=request.ts)
+        return decision
 
     @app.post("/api/replay", response_model=EnhancedReplayResponse)
     def replay(
@@ -107,6 +122,11 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
             policy_overrides=policy_overrides,
         )
         report: ReplayReport = runner.run()
+        app.state.last_replay_report = report
+
+        # Ensure decisions are appended to audit chain
+        for s in report.steps:
+            app.state.audit_log.append_decision(s.protected_decision, timestamp=s.ts)
 
         results = [s.protected_decision for s in report.steps]
         allowed = sum(1 for r in results if r.action == "allow")
@@ -189,6 +209,96 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
         )
         matrix = run_sensitivity_matrix(multipliers=multipliers, base_limits=base)
         return SensitivityResponse(matrix=matrix, base_limits=base)
+
+    @app.get("/api/audit/records")
+    def get_audit_records():
+        """Returns recent tamper-evident append-only audit records and current root hash."""
+        ensure_audit_chain_seeded()
+        return {
+            "root_hash": app.state.audit_log.get_root_hash(),
+            "total_records": len(app.state.audit_log.entries),
+            "records": [e.model_dump() for e in app.state.audit_log.entries],
+        }
+
+    @app.get("/api/audit/verify")
+    def verify_audit():
+        """Verifies cryptographic hash chain integrity."""
+        ensure_audit_chain_seeded()
+        valid, corrupted_idx = app.state.audit_log.verify_integrity()
+        return {
+            "valid": valid,
+            "corrupted_index": corrupted_idx,
+            "root_hash": app.state.audit_log.get_root_hash(),
+            "total_records": len(app.state.audit_log.entries),
+        }
+
+    @app.post("/api/audit/simulate-tamper")
+    def simulate_tamper(index: Optional[int] = Query(default=None)):
+        """Modifies a stored record's payload to demonstrate live tamper detection."""
+        ensure_audit_chain_seeded()
+        if not app.state.audit_log.entries:
+            raise HTTPException(status_code=400, detail="Audit chain is empty")
+        target_idx = index if index is not None else (len(app.state.audit_log.entries) // 2)
+        corrupted = app.state.audit_log.tamper_test_corrupt_entry(target_idx)
+        valid, corrupted_idx = app.state.audit_log.verify_integrity()
+        return {
+            "status": "tampered",
+            "tampered_index": target_idx,
+            "is_chain_valid": valid,
+            "detected_corrupted_index": corrupted_idx,
+            "root_hash": app.state.audit_log.get_root_hash(),
+        }
+
+    @app.post("/api/audit/reset")
+    def reset_audit():
+        """Restores the original untampered audit chain."""
+        app.state.audit_log.reset()
+        valid, corrupted_idx = app.state.audit_log.verify_integrity()
+        return {
+            "status": "restored",
+            "valid": valid,
+            "corrupted_index": corrupted_idx,
+            "root_hash": app.state.audit_log.get_root_hash(),
+            "total_records": len(app.state.audit_log.entries),
+        }
+
+    @app.get("/api/report/download")
+    def download_report():
+        """Generates and streams the PDF post-mortem report directly to the browser."""
+        ensure_audit_chain_seeded()
+        report = getattr(app.state, "last_replay_report", None)
+        if not report:
+            runner = ReplayRunner()
+            report = runner.run()
+            app.state.last_replay_report = report
+
+        summary_dict = report.summary.model_dump()
+        recent_decisions = [
+            {
+                "chain": s.chain,
+                "kind": s.kind,
+                "wallet": s.wallet,
+                "amount_usd": s.amount_usd,
+                "action": s.protected_decision.action,
+                "risk": s.protected_decision.risk,
+                "rule_hits": [r.get("rule") for r in s.protected_decision.reasons if isinstance(r, dict)],
+            }
+            for s in report.steps
+            if s.protected_decision.action in ("deny", "hold")
+        ]
+        root_hash = app.state.audit_log.get_root_hash()
+        pdf_bytes = generate_post_mortem_pdf(
+            replay_summary=summary_dict,
+            recent_decisions=recent_decisions,
+            audit_root_hash=root_hash,
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="bitguard_incident_report.pdf"'
+            },
+        )
 
     @app.post("/api/reset")
     def reset():

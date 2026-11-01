@@ -4,6 +4,7 @@ import { ReplayView } from './pages/ReplayView';
 import { LiveFeed } from './pages/LiveFeed';
 import { RadarView } from './pages/RadarView';
 import { PolicyLabView } from './pages/PolicyLabView';
+import { ReportsView } from './pages/ReportsView';
 import { PolicySliders } from './components/PolicySliders';
 import { runReplay, resetSystem, ReplayResponse, PolicyOverrides, StepEvent, ReplayMetrics } from './api';
 import { Shield, AlertCircle } from 'lucide-react';
@@ -118,6 +119,9 @@ export const App: React.FC = () => {
 
         {/* Tab 4: Policy Sensitivity Lab */}
         {currentTab === 'lab' && <PolicyLabView />}
+
+        {/* Tab 5: Cryptographic Audit & Reports */}
+        {currentTab === 'reports' && <ReportsView />}
       </main>
 
       {/* Footer */}

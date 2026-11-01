@@ -221,3 +221,64 @@ export async function resetSystem(): Promise<{ status: string; breaker_state: st
   }
   return res.json();
 }
+
+export interface AuditRecord {
+  index: number;
+  timestamp: number;
+  request_id: string;
+  action: 'allow' | 'hold' | 'deny';
+  risk: number;
+  rule_hits: string[];
+  prev_hash: string;
+  entry_hash: string;
+}
+
+export interface AuditChainResponse {
+  root_hash: string;
+  total_records: number;
+  records: AuditRecord[];
+}
+
+export interface AuditVerifyResponse {
+  valid: boolean;
+  corrupted_index: number | null;
+  root_hash: string;
+  total_records: number;
+}
+
+export async function fetchAuditRecords(): Promise<AuditChainResponse> {
+  const res = await fetch(`${API_BASE}/audit/records`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch audit records: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function verifyAuditIntegrity(): Promise<AuditVerifyResponse> {
+  const res = await fetch(`${API_BASE}/audit/verify`);
+  if (!res.ok) {
+    throw new Error(`Failed to verify audit chain: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function simulateAuditTamper(index?: number): Promise<any> {
+  const url = index !== undefined ? `${API_BASE}/audit/simulate-tamper?index=${index}` : `${API_BASE}/audit/simulate-tamper`;
+  const res = await fetch(url, { method: 'POST' });
+  if (!res.ok) {
+    throw new Error(`Failed to simulate tamper: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function resetAuditChain(): Promise<AuditVerifyResponse> {
+  const res = await fetch(`${API_BASE}/audit/reset`, { method: 'POST' });
+  if (!res.ok) {
+    throw new Error(`Failed to reset audit chain: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export function getReportDownloadUrl(): string {
+  return `${API_BASE}/report/download`;
+}
