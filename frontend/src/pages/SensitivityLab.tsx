@@ -17,7 +17,7 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { fetchSensitivityMatrix, SensitivityPoint } from '../api';
+import { fetchSensitivityMatrix } from '../api';
 import { formatCurrency, formatFullCurrency, cn } from '../utils';
 
 export interface BaseLimitsPayload {
@@ -28,37 +28,64 @@ export interface BaseLimitsPayload {
 }
 
 export const SensitivityLab: React.FC = () => {
-  // 1. All 4 sliders stored in active React state
-  const [baseSingleTxUsd, setBaseSingleTxUsd] = useState<number>(50_000);
-  const [baseWalletLimitUsd, setBaseWalletLimitUsd] = useState<number>(100_000);
-  const [baseGlobalLimitUsd, setBaseGlobalLimitUsd] = useState<number>(500_000);
-  const [baseNewRecipientUsd, setBaseNewRecipientUsd] = useState<number>(10_000);
+  // 1. Slider inputs stored in active numeric state
+  const [singleTx, setSingleTx] = useState<number>(50_000);
+  const [walletLimit, setWalletLimit] = useState<number>(100_000);
+  const [globalLimit, setGlobalLimit] = useState<number>(500_000);
+  const [unseenLimit, setUnseenLimit] = useState<number>(10_000);
 
-  const [matrixData, setMatrixData] = useState<SensitivityPoint[]>([]);
+  // 2. Active state hook for normalized sensitivity results
+  const [sensitivityResults, setSensitivityResults] = useState<any[]>([]);
   const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const latestReqIdRef = useRef<number>(0);
 
-  // Execute recalculation against backend
-  const executeCalculation = async (limits: BaseLimitsPayload) => {
+  // Execute recalculation against backend & normalize response keys
+  const executeCalculation = async (
+    currentSingleTx: number,
+    currentWalletLimit: number,
+    currentGlobalLimit: number,
+    currentUnseenLimit: number
+  ) => {
     const reqId = ++latestReqIdRef.current;
     setIsRecalculating(true);
     setError(null);
 
     try {
-      const res = await fetchSensitivityMatrix({
-        base_single_tx_usd: limits.base_single_tx_usd,
-        base_wallet_limit_usd: limits.base_wallet_limit_usd,
-        base_global_limit_usd: limits.base_global_limit_usd,
-        base_new_recipient_usd: limits.base_new_recipient_usd,
+      const res: any = await fetchSensitivityMatrix({
+        base_single_tx_usd: currentSingleTx,
+        base_wallet_limit_usd: currentWalletLimit,
+        base_global_limit_usd: currentGlobalLimit,
+        base_new_recipient_usd: currentUnseenLimit,
         multipliers: [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0],
       });
 
+      // Normalize response so property names strictly match what Recharts and the table expect
+      const rawList = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+        ? res.data
+        : (res?.tiers || res?.matrix || res?.data?.tiers || res?.data?.matrix || []);
+
+      const normalized = rawList.map((tier: any) => ({
+        multiplier:
+          typeof tier.multiplier === 'number'
+            ? `${tier.multiplier}x`
+            : typeof tier.limit_multiplier === 'number'
+            ? `${tier.limit_multiplier}x`
+            : String(tier.multiplier ?? tier.limit_multiplier ?? '1x'),
+        capitalSaved: Number(tier.capital_saved_usd ?? tier.capitalSaved ?? tier.loss_prevented_usd ?? 0),
+        falsePositives: Number(tier.false_positives ?? tier.falsePositives ?? tier.false_positives_count ?? tier.false_positives_held ?? 0),
+        singleTxCap: Number(tier.effective_single_tx_cap ?? tier.singleTxCap ?? tier.single_tx_usd ?? 0),
+        breakerState: String(tier.breaker_state ?? tier.breakerState ?? tier.breaker_final_state ?? 'NORMAL').toUpperCase(),
+        raw: tier,
+      }));
+
       // Ignore if a newer request was dispatched
       if (reqId === latestReqIdRef.current) {
-        setMatrixData(res.matrix);
+        setSensitivityResults(normalized);
       }
     } catch (err: any) {
       if (reqId === latestReqIdRef.current) {
@@ -72,7 +99,7 @@ export const SensitivityLab: React.FC = () => {
     }
   };
 
-  // 2. 150ms debounce on ANY of the 4 slider value changes
+  // 3. Debounced useEffect (150ms) listening to [singleTx, walletLimit, globalLimit, unseenLimit]
   useEffect(() => {
     setIsRecalculating(true);
     if (debounceTimerRef.current) {
@@ -80,12 +107,7 @@ export const SensitivityLab: React.FC = () => {
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      executeCalculation({
-        base_single_tx_usd: baseSingleTxUsd,
-        base_wallet_limit_usd: baseWalletLimitUsd,
-        base_global_limit_usd: baseGlobalLimitUsd,
-        base_new_recipient_usd: baseNewRecipientUsd,
-      });
+      executeCalculation(singleTx, walletLimit, globalLimit, unseenLimit);
     }, 150);
 
     return () => {
@@ -93,60 +115,40 @@ export const SensitivityLab: React.FC = () => {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [baseSingleTxUsd, baseWalletLimitUsd, baseGlobalLimitUsd, baseNewRecipientUsd]);
+  }, [singleTx, walletLimit, globalLimit, unseenLimit]);
 
   const handlePreset = (preset: 'strict' | 'default' | 'permissive' | 'relaxed') => {
     switch (preset) {
       case 'strict':
-        setBaseSingleTxUsd(15_000);
-        setBaseWalletLimitUsd(35_000);
-        setBaseGlobalLimitUsd(100_000);
-        setBaseNewRecipientUsd(5_000);
+        setSingleTx(15_000);
+        setWalletLimit(35_000);
+        setGlobalLimit(100_000);
+        setUnseenLimit(5_000);
         break;
       case 'default':
-        setBaseSingleTxUsd(50_000);
-        setBaseWalletLimitUsd(100_000);
-        setBaseGlobalLimitUsd(500_000);
-        setBaseNewRecipientUsd(10_000);
+        setSingleTx(50_000);
+        setWalletLimit(100_000);
+        setGlobalLimit(500_000);
+        setUnseenLimit(10_000);
         break;
       case 'permissive':
-        setBaseSingleTxUsd(500_000);
-        setBaseWalletLimitUsd(1_000_000);
-        setBaseGlobalLimitUsd(5_000_000);
-        setBaseNewRecipientUsd(100_000);
+        setSingleTx(500_000);
+        setWalletLimit(1_000_000);
+        setGlobalLimit(5_000_000);
+        setUnseenLimit(100_000);
         break;
       case 'relaxed':
-        setBaseSingleTxUsd(25_000_000);
-        setBaseWalletLimitUsd(50_000_000);
-        setBaseGlobalLimitUsd(100_000_000);
-        setBaseNewRecipientUsd(1_000_000);
+        setSingleTx(25_000_000);
+        setWalletLimit(50_000_000);
+        setGlobalLimit(100_000_000);
+        setUnseenLimit(1_000_000);
         break;
     }
   };
 
-  // Recharts dataset with both capitalSaved and capitalSavedB, and falsePositives
-  const chartData = matrixData.map((pt) => {
-    const mult = pt.multiplier ?? pt.limit_multiplier;
-    const capitalSavedUsd = pt.capital_saved_usd ?? pt.loss_prevented_usd;
-    const falsePos = pt.false_positives_count ?? pt.false_positives_held;
-    const singleTx = pt.effective_single_tx_cap ?? pt.single_tx_usd;
-    const mitigated = pt.mitigated_pct ?? pt.loss_mitigated_pct;
-
-    return {
-      multiplier: `${mult}x`,
-      capitalSaved: Number((capitalSavedUsd / 1e9).toFixed(3)),
-      capitalSavedB: Number((capitalSavedUsd / 1e9).toFixed(3)),
-      mitigatedPct: mitigated,
-      falsePositives: falsePos,
-      singleTxLimit: singleTx,
-      walletLimit: pt.wallet_limit_usd,
-      raw: pt,
-    };
-  });
-
   // Identify baseline (1.0x) stats
-  const baselinePoint = matrixData.find(
-    (p) => (p.multiplier ?? p.limit_multiplier) === 1.0
+  const baselinePoint = sensitivityResults.find(
+    (p) => p.multiplier === '1x' || p.multiplier === '1.0x' || p.multiplier === 1 || p.multiplier === 1.0
   );
 
   return (
@@ -246,15 +248,19 @@ export const SensitivityLab: React.FC = () => {
           </div>
         </div>
 
-        {/* Recharts Container */}
+        {/* Recharts Container with dynamic key to force repaint on state update */}
         <div
           className={cn(
             'h-80 w-full mt-6 transition-opacity duration-200',
             isRecalculating ? 'opacity-70' : 'opacity-100'
           )}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+          <ResponsiveContainer
+            key={`chart-render-${sensitivityResults.length}-${singleTx}-${walletLimit}-${globalLimit}-${unseenLimit}`}
+            width="100%"
+            height={320}
+          >
+            <ComposedChart data={sensitivityResults} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
               <defs>
                 <linearGradient id="capitalGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4} />
@@ -267,12 +273,12 @@ export const SensitivityLab: React.FC = () => {
                 stroke="#64748b"
                 tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'monospace' }}
               />
-              {/* Y Axis Left: Capital Saved ($B) */}
+              {/* Y Axis Left: Capital Saved ($) */}
               <YAxis
                 yAxisId="left"
                 stroke="#06b6d4"
                 tick={{ fill: '#06b6d4', fontSize: 11, fontFamily: 'monospace' }}
-                unit="B"
+                tickFormatter={(v) => (v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(0)}M` : `$${v}`)}
                 domain={[0, 'auto']}
               />
               {/* Y Axis Right: False Positives */}
@@ -294,28 +300,34 @@ export const SensitivityLab: React.FC = () => {
                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
                 }}
                 formatter={(value: any, name: any) => {
-                  if (name === 'Capital Saved ($B)' || name === 'Capital Saved') return [`$${value} Billion`, 'Capital Saved ($B)'];
-                  if (name === 'False Positives (Held)' || name === 'False Positives') return [`${value} legitimate txs held`, 'False Positives (Held)'];
+                  if (name === 'capitalSaved' || name === 'Capital Saved' || name === 'Capital Saved ($B)') {
+                    const num = Number(value);
+                    const inB = num >= 1e6 ? (num / 1e9).toFixed(2) : num.toFixed(2);
+                    return [`$${inB} Billion`, 'Capital Saved'];
+                  }
+                  if (name === 'falsePositives' || name === 'False Positives' || name === 'False Positives (Held)') {
+                    return [`${value} legitimate txs held`, 'False Positives'];
+                  }
                   return [value, name];
                 }}
               />
               <Area
                 yAxisId="left"
-                type="monotone"
+                type="stepAfter"
                 dataKey="capitalSaved"
-                name="Capital Saved ($B)"
-                stroke="#06b6d4"
-                fillOpacity={1}
-                fill="url(#capitalGradient)"
+                name="Capital Saved"
+                stroke="#0891b2"
+                fill="#06b6d4"
+                fillOpacity={0.35}
                 strokeWidth={2}
               />
               <Line
                 yAxisId="right"
                 type="stepAfter"
                 dataKey="falsePositives"
-                name="False Positives (Held)"
+                name="False Positives"
                 stroke="#f59e0b"
-                strokeWidth={2.5}
+                strokeWidth={3}
                 dot={{ r: 4, fill: '#f59e0b' }}
               />
             </ComposedChart>
@@ -344,7 +356,7 @@ export const SensitivityLab: React.FC = () => {
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-slate-300 font-medium">Single TX USD (single_tx_usd)</span>
                   <span className="text-cyan-400 font-mono font-bold">
-                    {formatFullCurrency(baseSingleTxUsd)}
+                    {formatFullCurrency(singleTx)}
                   </span>
                 </div>
                 <input
@@ -352,8 +364,8 @@ export const SensitivityLab: React.FC = () => {
                   min={5_000}
                   max={30_000_000}
                   step={5_000}
-                  value={baseSingleTxUsd}
-                  onChange={(e) => setBaseSingleTxUsd(Number(e.target.value))}
+                  value={singleTx}
+                  onChange={(e) => setSingleTx(Number(e.target.value))}
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                 />
                 <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
@@ -368,7 +380,7 @@ export const SensitivityLab: React.FC = () => {
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-slate-300 font-medium">Wallet Velocity Limit (1h)</span>
                   <span className="text-cyan-400 font-mono font-bold">
-                    {formatFullCurrency(baseWalletLimitUsd)}
+                    {formatFullCurrency(walletLimit)}
                   </span>
                 </div>
                 <input
@@ -376,8 +388,8 @@ export const SensitivityLab: React.FC = () => {
                   min={20_000}
                   max={50_000_000}
                   step={10_000}
-                  value={baseWalletLimitUsd}
-                  onChange={(e) => setBaseWalletLimitUsd(Number(e.target.value))}
+                  value={walletLimit}
+                  onChange={(e) => setWalletLimit(Number(e.target.value))}
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                 />
                 <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
@@ -392,7 +404,7 @@ export const SensitivityLab: React.FC = () => {
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-slate-300 font-medium">Global Multi-Chain Cap</span>
                   <span className="text-cyan-400 font-mono font-bold">
-                    {formatFullCurrency(baseGlobalLimitUsd)}
+                    {formatFullCurrency(globalLimit)}
                   </span>
                 </div>
                 <input
@@ -400,8 +412,8 @@ export const SensitivityLab: React.FC = () => {
                   min={50_000}
                   max={100_000_000}
                   step={50_000}
-                  value={baseGlobalLimitUsd}
-                  onChange={(e) => setBaseGlobalLimitUsd(Number(e.target.value))}
+                  value={globalLimit}
+                  onChange={(e) => setGlobalLimit(Number(e.target.value))}
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                 />
                 <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
@@ -416,7 +428,7 @@ export const SensitivityLab: React.FC = () => {
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-slate-300 font-medium">Unseen Recipient Limit</span>
                   <span className="text-cyan-400 font-mono font-bold">
-                    {formatFullCurrency(baseNewRecipientUsd)}
+                    {formatFullCurrency(unseenLimit)}
                   </span>
                 </div>
                 <input
@@ -424,8 +436,8 @@ export const SensitivityLab: React.FC = () => {
                   min={1_000}
                   max={200_000}
                   step={1_000}
-                  value={baseNewRecipientUsd}
-                  onChange={(e) => setBaseNewRecipientUsd(Number(e.target.value))}
+                  value={unseenLimit}
+                  onChange={(e) => setUnseenLimit(Number(e.target.value))}
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                 />
                 <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
@@ -446,7 +458,7 @@ export const SensitivityLab: React.FC = () => {
             <p className="text-[11px] text-emerald-200/80 leading-relaxed">
               {baselinePoint ? (
                 <>
-                  Prevents <strong>{formatCurrency(baselinePoint.capital_saved_usd ?? baselinePoint.loss_prevented_usd)} ({(baselinePoint.mitigated_pct ?? baselinePoint.loss_mitigated_pct).toFixed(1)}%)</strong> of exploit loss with <strong>{baselinePoint.false_positives_count ?? baselinePoint.false_positives_held} false positive hold(s)</strong>.
+                  Prevents <strong>{formatCurrency(baselinePoint.capitalSaved)} ({((baselinePoint.capitalSaved / 4.39e9) * 100).toFixed(1)}%)</strong> of exploit loss with <strong>{baselinePoint.falsePositives} false positive hold(s)</strong>.
                 </>
               ) : (
                 'Recalculating status...'
@@ -462,7 +474,7 @@ export const SensitivityLab: React.FC = () => {
               Sensitivity Evaluation Matrix
             </h4>
             <span className="text-[10px] font-mono text-slate-500">
-              {matrixData.length} Multiplier Tiers Evaluated
+              {sensitivityResults.length} Multiplier Tiers Evaluated
             </span>
           </div>
 
@@ -479,25 +491,18 @@ export const SensitivityLab: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {matrixData.map((row) => {
-                  const mult = row.multiplier ?? row.limit_multiplier;
-                  const isSweetSpot = mult === 1.0;
-                  const singleTx = row.effective_single_tx_cap ?? row.single_tx_usd;
-                  const saved = row.capital_saved_usd ?? row.loss_prevented_usd;
-                  const mitigated = row.mitigated_pct ?? row.loss_mitigated_pct;
-                  const falsePos = row.false_positives_count ?? row.false_positives_held;
-                  const state = row.breaker_state ?? row.breaker_final_state;
-
+                {sensitivityResults.map((tier: any) => {
+                  const isSweetSpot = tier.multiplier === '1x' || tier.multiplier === '1.0x' || tier.multiplier === 1 || tier.multiplier === 1.0;
                   return (
                     <tr
-                      key={mult}
+                      key={tier.multiplier}
                       className={cn(
                         'hover:bg-slate-800/40 transition-colors',
                         isSweetSpot && 'bg-cyan-500/10 font-bold'
                       )}
                     >
                       <td className="px-4 py-2.5 text-slate-200">
-                        {mult}x
+                        {tier.multiplier}
                         {isSweetSpot && (
                           <span className="ml-1.5 text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
                             BASELINE
@@ -505,36 +510,36 @@ export const SensitivityLab: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-slate-300">
-                        {formatFullCurrency(singleTx)}
+                        ${tier.singleTxCap.toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5 font-bold text-emerald-400">
-                        {formatCurrency(saved)}
+                        ${(tier.capitalSaved / 1e9).toFixed(2)}B
                       </td>
                       <td className="px-4 py-2.5 text-center text-emerald-300 font-bold">
-                        {mitigated.toFixed(1)}%
+                        {((tier.capitalSaved / 4.39e9) * 100).toFixed(1)}%
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <span
                           className={cn(
                             'px-2 py-0.5 rounded text-[10px] font-bold border',
-                            falsePos === 0
+                            tier.falsePositives === 0
                               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                               : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                           )}
                         >
-                          {falsePos} txs
+                          {tier.falsePositives} txs
                         </span>
                       </td>
                       <td className="px-4 py-2.5">
                         <span
                           className={cn(
                             'px-2 py-0.5 rounded text-[10px] font-bold border uppercase',
-                            state === 'Lockdown'
+                            tier.breakerState === 'LOCKDOWN'
                               ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                               : 'bg-slate-800 text-slate-300 border-slate-700'
                           )}
                         >
-                          {state}
+                          {tier.breakerState}
                         </span>
                       </td>
                     </tr>
