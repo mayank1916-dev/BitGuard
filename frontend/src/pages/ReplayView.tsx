@@ -15,9 +15,15 @@ interface ReplayViewProps {
   summary?: ReplayMetrics | null;
   onRunSimulation?: () => void;
   isLoading?: boolean;
+  onStepChange?: (step: number) => void;
+  onPlayStateChange?: (playing: boolean) => void;
 }
 
-export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
+export const ReplayView: React.FC<ReplayViewProps> = ({
+  steps,
+  onStepChange,
+  onPlayStateChange,
+}) => {
   const events = steps;
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -27,6 +33,14 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
   const rightListRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+    onStepChange?.(currentIndex);
+  }, [currentIndex, onStepChange]);
+
+  useEffect(() => {
+    onPlayStateChange?.(isPlaying);
+  }, [isPlaying, onPlayStateChange]);
+
   const clearPlaybackTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -34,15 +48,15 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
     }
   };
 
-  // Playback timer loop: 1x -> 400ms, 5x -> 100ms, 10x -> 40ms
+  // Playback timer loop: 1x -> 400ms, 5x -> 80ms, 10x -> 30ms
   useEffect(() => {
     clearPlaybackTimer();
 
     if (!isPlaying || events.length === 0) return;
 
     let intervalTime = 400;
-    if (playbackSpeed === 5) intervalTime = 100;
-    else if (playbackSpeed === 10) intervalTime = 40;
+    if (playbackSpeed === 5) intervalTime = 80;
+    else if (playbackSpeed === 10) intervalTime = 30;
 
     timerRef.current = setInterval(() => {
       setCurrentIndex((prev) => {
@@ -71,8 +85,8 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
   const visibleSteps = events.slice(0, currentIndex + 1);
 
   // Dynamic Simulation Clock
-  const currentTs = events[currentIndex]?.ts ?? (events[0]?.ts ?? 1729867400);
-  const formattedClock = new Date(currentTs * 1000).toISOString().substr(11, 8) + ' UTC';
+  const currentTs = events[currentIndex]?.ts || (1730299400 + currentIndex * 30);
+  const clockDisplay = new Date(currentTs * 1000).toISOString().substring(11, 19) + " UTC";
 
   // In reset state (index 0 and not playing), reset loss counters to $0.00 and breaker to NORMAL
   const isResetState = currentIndex === 0 && !isPlaying;
@@ -182,13 +196,13 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
             <div>
               <span className="text-slate-500">EVENT PROGRESS: </span>
               <span className="text-white font-bold">
-                {events.length > 0 ? currentIndex + 1 : 0} / {events.length}
+                {events.length > 0 ? (currentIndex === 0 && !isPlaying ? 0 : (isPlaying ? currentIndex + 1 : currentIndex)) : 0} / {events.length}
               </span>
             </div>
             <div>
               <span className="text-slate-500">SIMULATION CLOCK: </span>
               <span className="text-cyan-400 font-bold font-mono">
-                {formattedClock}
+                {clockDisplay}
               </span>
             </div>
             <div>

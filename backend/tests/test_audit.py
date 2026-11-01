@@ -119,6 +119,7 @@ def test_audit_api_endpoints_and_pdf_download():
     # 6. Verify restored
     res_verify_clean = client.get("/api/audit/verify")
     assert res_verify_clean.json()["valid"] is True
+    assert res_verify_clean.json()["corrupted_index"] is None
 
     # 7. Post-mortem PDF stream
     res_pdf = client.get("/api/report/download")

@@ -22,6 +22,8 @@ export const App: React.FC = () => {
   const [breakerState, setBreakerState] = useState<string>('Normal');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [replayStep, setReplayStep] = useState<number>(0);
+  const [isReplayPlaying, setIsReplayPlaying] = useState<boolean>(false);
 
   // Load initial simulation data
   const loadSimulation = async (overrides?: PolicyOverrides) => {
@@ -98,6 +100,8 @@ export const App: React.FC = () => {
               summary={summary}
               onRunSimulation={() => loadSimulation()}
               isLoading={isLoading}
+              onStepChange={setReplayStep}
+              onPlayStateChange={setIsReplayPlaying}
             />
             {/* Embedded Policy Tuning section at the bottom for quick access */}
             <div className="pt-4">
@@ -112,7 +116,13 @@ export const App: React.FC = () => {
         )}
 
         {/* Tab 2: Live Decision Stream */}
-        {currentTab === 'feed' && <LiveFeed steps={steps} />}
+        {currentTab === 'feed' && (
+          <LiveFeed
+            steps={steps}
+            currentStep={replayStep}
+            isPlaying={isReplayPlaying}
+          />
+        )}
 
         {/* Tab 3: 7702 Radar */}
         {currentTab === 'radar' && <RadarView />}

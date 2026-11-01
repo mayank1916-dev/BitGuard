@@ -73,13 +73,23 @@ export const ReportsView: React.FC = () => {
 
   const handleRestoreLedger = async () => {
     setIsActionLoading(true);
+    setError(null);
     try {
-      const resetRes = await resetAuditChain();
-      setIsValid(resetRes.valid);
-      setCorruptedIndex(null);
-      setRootHash(resetRes.root_hash);
-      const recordsRes = await fetchAuditRecords();
+      // 1. Call POST /api/audit/reset
+      await resetAuditChain();
+
+      // 2. Await response and immediately re-fetch verify and records
+      const [verifyRes, recordsRes] = await Promise.all([
+        verifyAuditIntegrity(),
+        fetchAuditRecords(),
+      ]);
+
+      // 3. Update the UI state: clear error banners, set valid, and flip to green INTEGRITY VERIFIED
+      setIsValid(verifyRes.valid);
+      setCorruptedIndex(verifyRes.corrupted_index);
+      setRootHash(recordsRes.root_hash);
       setRecords(recordsRes.records);
+      setError(null);
     } catch (err: any) {
       console.error('Failed to restore audit chain:', err);
       setError('Failed to restore ledger integrity.');

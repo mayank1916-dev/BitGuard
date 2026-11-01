@@ -1,17 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StepEvent } from '../api';
 import { formatFullCurrency, getChainBadgeStyle, truncateAddress, cn } from '../utils';
 import { Search, Filter } from 'lucide-react';
 
 interface LiveFeedProps {
   steps: StepEvent[];
+  currentStep?: number;
+  isPlaying?: boolean;
 }
 
-export const LiveFeed: React.FC<LiveFeedProps> = ({ steps }) => {
+const SAMPLE_CHAINS = ['ethereum', 'bitcoin', 'solana', 'tron', 'arbitrum', 'base', 'optimism'];
+const SAMPLE_WALLETS = [
+  '0xBinanceHotETH1',
+  'bc1qBinanceHotBTC1',
+  'SolBinanceHot1',
+  'TBinanceHotTRX1',
+  '0xBinanceHotArb1',
+  '0xBinanceHotBase1',
+];
+
+export const LiveFeed: React.FC<LiveFeedProps> = ({ steps, currentStep, isPlaying }) => {
   const [filterAction, setFilterAction] = useState<'all' | 'allow' | 'blocked' | 'attack'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [liveStream, setLiveStream] = useState<StepEvent[]>([]);
 
-  const filteredSteps = steps.filter((step) => {
+  // Synchronize initial or replay stream
+  useEffect(() => {
+    if (isPlaying && typeof currentStep === 'number') {
+      setLiveStream(steps.slice(0, currentStep + 1));
+    } else if (liveStream.length === 0 && steps.length > 0) {
+      setLiveStream(steps);
+    }
+  }, [steps, currentStep, isPlaying]);
+
+  // When idle, run a simulated background interval (every 3 seconds)
+  // that adds a realistic micro-withdrawal (ALLOW, 0 Risk) to the top of the feed
+  useEffect(() => {
+    if (isPlaying) return;
+
+    const interval = setInterval(() => {
+      const randomIdx = Math.floor(Math.random() * SAMPLE_CHAINS.length);
+      const chain = SAMPLE_CHAINS[randomIdx];
+      const wallet = SAMPLE_WALLETS[randomIdx % SAMPLE_WALLETS.length];
+      const txId = `tx-live-${Math.random().toString(36).substring(2, 8)}`;
+      const amount = Math.floor(Math.random() * 4500) + 120; // $120 - $4,620
+
+      const microWithdrawal: StepEvent = {
+        request_id: txId,
+        ts: Date.now() / 1000,
+        chain: chain,
+        wallet: wallet,
+        kind: 'transfer',
+        amount_usd: amount,
+        scenario: 'normal',
+        unprotected_action: 'allow',
+        protected_decision: {
+          request_id: txId,
+          action: 'allow',
+          risk: 0,
+          reasons: [],
+          breaker_state: 'Normal',
+        },
+        cumulative_unprotected_loss_usd: 0,
+        cumulative_protected_loss_usd: 0,
+      };
+
+      setLiveStream((prev) => [microWithdrawal, ...prev.slice(0, 99)]);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  const displayedSteps = isPlaying && typeof currentStep === 'number'
+    ? steps.slice(0, currentStep + 1)
+    : (liveStream.length > 0 ? liveStream : steps);
+
+  const filteredSteps = displayedSteps.filter((step) => {
     const action = step.protected_decision.action;
     const isAttack = step.scenario === 'attack';
 
@@ -34,10 +98,10 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({ steps }) => {
     return true;
   });
 
-  const totalCount = steps.length;
-  const allowCount = steps.filter((s) => s.protected_decision.action === 'allow').length;
-  const holdCount = steps.filter((s) => s.protected_decision.action === 'hold').length;
-  const denyCount = steps.filter((s) => s.protected_decision.action === 'deny').length;
+  const totalCount = displayedSteps.length;
+  const allowCount = displayedSteps.filter((s) => s.protected_decision.action === 'allow').length;
+  const holdCount = displayedSteps.filter((s) => s.protected_decision.action === 'hold').length;
+  const denyCount = displayedSteps.filter((s) => s.protected_decision.action === 'deny').length;
 
   return (
     <div className="space-y-6">

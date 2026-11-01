@@ -47,6 +47,7 @@ class AuditLog:
     def __init__(self) -> None:
         self.entries: list[AuditEntry] = []
         self._backup_entries: list[AuditEntry] = []
+        self.is_tampered: bool = False
 
     def append_entry(
         self,
@@ -159,12 +160,38 @@ class AuditLog:
             entry_hash=target.entry_hash,
         )
         self.entries[index] = mutated
+        self.is_tampered = True
         return True
 
-    def reset(self) -> None:
-        """Restores the original untampered chain from backup."""
+    def reset_ledger(self) -> None:
+        """
+        Clears all tampered entries, restores or rebuilds the pristine chain
+        from the genesis block, and marks is_tampered = False.
+        """
         if self._backup_entries:
             self.entries = copy.deepcopy(self._backup_entries)
+
+        # Re-chain and compute deterministic hashes from genesis block
+        prev_h = self.GENESIS_PREV_HASH
+        for idx, entry in enumerate(self.entries):
+            entry.index = idx
+            entry.prev_hash = prev_h
+            entry.entry_hash = compute_entry_hash(
+                prev_hash=entry.prev_hash,
+                timestamp=entry.timestamp,
+                request_id=entry.request_id,
+                action=entry.action,
+                risk=entry.risk,
+                rule_hits=entry.rule_hits,
+            )
+            prev_h = entry.entry_hash
+
+        self.is_tampered = False
+        self._snapshot_backup()
+
+    def reset(self) -> None:
+        """Alias for reset_ledger."""
+        self.reset_ledger()
 
     def get_root_hash(self) -> str:
         """Returns the latest head/root hash of the chain."""

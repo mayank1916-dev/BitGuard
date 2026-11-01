@@ -230,6 +230,7 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
             "corrupted_index": corrupted_idx,
             "root_hash": app.state.audit_log.get_root_hash(),
             "total_records": len(app.state.audit_log.entries),
+            "is_tampered": getattr(app.state.audit_log, "is_tampered", False),
         }
 
     @app.post("/api/audit/simulate-tamper")
@@ -247,12 +248,13 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
             "is_chain_valid": valid,
             "detected_corrupted_index": corrupted_idx,
             "root_hash": app.state.audit_log.get_root_hash(),
+            "is_tampered": getattr(app.state.audit_log, "is_tampered", True),
         }
 
     @app.post("/api/audit/reset")
     def reset_audit():
         """Restores the original untampered audit chain."""
-        app.state.audit_log.reset()
+        app.state.audit_log.reset_ledger()
         valid, corrupted_idx = app.state.audit_log.verify_integrity()
         return {
             "status": "restored",
@@ -260,6 +262,7 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
             "corrupted_index": corrupted_idx,
             "root_hash": app.state.audit_log.get_root_hash(),
             "total_records": len(app.state.audit_log.entries),
+            "is_tampered": getattr(app.state.audit_log, "is_tampered", False),
         }
 
     @app.get("/api/report/download")

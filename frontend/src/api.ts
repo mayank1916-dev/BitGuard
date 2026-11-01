@@ -183,7 +183,7 @@ export async function fetchRadar(params?: {
 }): Promise<RadarScanResult> {
   const n_blocks = params?.n_blocks ?? 5;
   const force_cached = params?.force_cached ?? false;
-  const url = `${API_BASE}/radar?n_blocks=${n_blocks}&force_cached=${force_cached}`;
+  const url = `${API_BASE}/radar?n_blocks=${n_blocks}&force_cached=${force_cached}&_t=${Date.now()}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Radar scan failed: ${res.statusText}`);
