@@ -182,10 +182,17 @@ export async function fetchRadar(params?: {
   return res.json();
 }
 
-export async function fetchSensitivityMatrix(params?: {
+export interface SensitivityRequestParams {
   base_limits?: PolicyOverrides;
   multipliers?: number[];
-}): Promise<SensitivityResponse> {
+  base_single_tx_usd?: number;
+  base_wallet_limit_usd?: number;
+  base_global_limit_usd?: number;
+  base_new_recipient_usd?: number;
+  [key: string]: any;
+}
+
+export async function fetchSensitivityMatrix(params?: SensitivityRequestParams): Promise<SensitivityResponse> {
   const res = await fetch(`${API_BASE}/policy/sensitivity`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

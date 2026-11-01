@@ -149,3 +149,33 @@ def test_policy_sensitivity_matrix_and_api():
     assert p1["single_tx_usd"] == 25000.0
     assert p1["loss_prevented_usd"] > 4_300_000_000.0
     assert p1["loss_mitigated_pct"] >= 99.0
+
+
+def test_policy_sensitivity_dynamic_slider_overrides():
+    """Verify that custom top-level base limits from UI sliders dynamically re-scale the sensitivity matrix."""
+    client = TestClient(app)
+    req_body = {
+        "multipliers": [0.5, 1.0],
+        "base_single_tx_usd": 100000.0,
+        "base_wallet_limit_usd": 200000.0,
+        "base_global_limit_usd": 1000000.0,
+        "base_new_recipient_usd": 20000.0,
+    }
+    res = client.post("/api/policy/sensitivity", json=req_body)
+    assert res.status_code == 200
+    body = res.json()
+    assert "matrix" in body
+    assert len(body["matrix"]) == 2
+
+    m05 = body["matrix"][0]
+    assert m05["limit_multiplier"] == 0.5
+    assert m05["single_tx_usd"] == 50000.0
+    assert m05["wallet_limit_usd"] == 100000.0
+    assert m05["global_limit_usd"] == 500000.0
+
+    m10 = body["matrix"][1]
+    assert m10["limit_multiplier"] == 1.0
+    assert m10["single_tx_usd"] == 100000.0
+    assert m10["wallet_limit_usd"] == 200000.0
+    assert m10["global_limit_usd"] == 1000000.0
+

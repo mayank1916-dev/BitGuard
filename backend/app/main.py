@@ -49,6 +49,15 @@ class EnhancedReplayResponse(BaseModel):
 class SensitivityRequest(BaseModel):
     base_limits: Optional[dict[str, Any]] = None
     multipliers: Optional[list[float]] = None
+    # Direct custom base values supported for slider updates
+    base_single_tx_usd: Optional[float] = None
+    base_wallet_limit_usd: Optional[float] = None
+    base_global_limit_usd: Optional[float] = None
+    base_new_recipient_usd: Optional[float] = None
+    single_tx_usd: Optional[float] = None
+    wallet_limit_usd: Optional[float] = None
+    global_limit_usd: Optional[float] = None
+    new_recipient_usd: Optional[float] = None
 
 
 class SensitivityResponse(BaseModel):
@@ -60,7 +69,7 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
     app = FastAPI(
         title="BitGuard Firewall, Replay & 7702 Radar",
         description="Autonomous signing-request firewall, incident-replay lab, and EIP-7702 live radar for exchange hot wallets",
-        version="0.3.0",
+        version="0.3.1",
     )
 
     app.state.engine = engine or PolicyEngine()
@@ -71,7 +80,7 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
         return {
             "status": "ok",
             "service": "bitguard",
-            "version": "0.3.0",
+            "version": "0.3.1",
             "breaker_state": app.state.engine.breaker.state,
         }
 
@@ -132,14 +141,47 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
     def get_sensitivity(payload: Optional[SensitivityRequest] = None) -> SensitivityResponse:
         """
         Runs sensitivity analysis across limit multipliers, charting capital saved vs false positives.
+        Accepts custom base limits dynamically from interactive sliders.
         """
-        base = (payload.base_limits if payload else None) or {
+        base: dict[str, float] = {
             "single_tx_usd": 50_000.0,
             "wallet_limit_usd": 100_000.0,
             "global_limit_usd": 500_000.0,
             "new_recipient_usd": 10_000.0,
         }
-        multipliers = payload.multipliers if payload and payload.multipliers else [0.25, 0.5, 1.0, 1.5, 2.0]
+
+        if payload:
+            if payload.base_limits:
+                for k, v in payload.base_limits.items():
+                    if v is not None:
+                        clean_k = k.replace("base_", "")
+                        base[clean_k] = float(v)
+
+            if payload.base_single_tx_usd is not None:
+                base["single_tx_usd"] = float(payload.base_single_tx_usd)
+            elif payload.single_tx_usd is not None:
+                base["single_tx_usd"] = float(payload.single_tx_usd)
+
+            if payload.base_wallet_limit_usd is not None:
+                base["wallet_limit_usd"] = float(payload.base_wallet_limit_usd)
+            elif payload.wallet_limit_usd is not None:
+                base["wallet_limit_usd"] = float(payload.wallet_limit_usd)
+
+            if payload.base_global_limit_usd is not None:
+                base["global_limit_usd"] = float(payload.base_global_limit_usd)
+            elif payload.global_limit_usd is not None:
+                base["global_limit_usd"] = float(payload.global_limit_usd)
+
+            if payload.base_new_recipient_usd is not None:
+                base["new_recipient_usd"] = float(payload.base_new_recipient_usd)
+            elif payload.new_recipient_usd is not None:
+                base["new_recipient_usd"] = float(payload.new_recipient_usd)
+
+        multipliers = (
+            payload.multipliers
+            if (payload and payload.multipliers)
+            else [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0]
+        )
         matrix = run_sensitivity_matrix(multipliers=multipliers, base_limits=base)
         return SensitivityResponse(matrix=matrix, base_limits=base)
 

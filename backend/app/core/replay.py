@@ -264,23 +264,41 @@ def run_sensitivity_matrix(
     """
     Evaluates the synthetic replay across multiple limit multipliers to produce
     a sensitivity matrix comparing capital saved ($) vs. false positives held.
+    Supports dynamic base limit overrides.
     """
-    mults = multipliers or [0.25, 0.5, 1.0, 1.5, 2.0]
-    base = base_limits or {
-        "single_tx_usd": 50_000.0,
-        "wallet_limit_usd": 100_000.0,
-        "global_limit_usd": 500_000.0,
-        "new_recipient_usd": 10_000.0,
-    }
+    mults = multipliers or [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0]
+    raw_base = base_limits or {}
+
+    # Support both base_single_tx_usd and single_tx_usd keys
+    single_tx_base = float(
+        raw_base.get("base_single_tx_usd")
+        if raw_base.get("base_single_tx_usd") is not None
+        else raw_base.get("single_tx_usd", 50_000.0)
+    )
+    wallet_limit_base = float(
+        raw_base.get("base_wallet_limit_usd")
+        if raw_base.get("base_wallet_limit_usd") is not None
+        else raw_base.get("wallet_limit_usd", 100_000.0)
+    )
+    global_limit_base = float(
+        raw_base.get("base_global_limit_usd")
+        if raw_base.get("base_global_limit_usd") is not None
+        else raw_base.get("global_limit_usd", 500_000.0)
+    )
+    new_recipient_base = float(
+        raw_base.get("base_new_recipient_usd")
+        if raw_base.get("base_new_recipient_usd") is not None
+        else raw_base.get("new_recipient_usd", 10_000.0)
+    )
 
     results: list[SensitivityPoint] = []
 
     for m in mults:
         scaled_overrides = {
-            "single_tx_usd": base.get("single_tx_usd", 50_000.0) * m,
-            "wallet_limit_usd": base.get("wallet_limit_usd", 100_000.0) * m,
-            "global_limit_usd": base.get("global_limit_usd", 500_000.0) * m,
-            "new_recipient_usd": base.get("new_recipient_usd", 10_000.0) * m,
+            "single_tx_usd": single_tx_base * m,
+            "wallet_limit_usd": wallet_limit_base * m,
+            "global_limit_usd": global_limit_base * m,
+            "new_recipient_usd": new_recipient_base * m,
         }
         runner = ReplayRunner(
             dataset_path=dataset_path,

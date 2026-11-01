@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -15,12 +15,20 @@ import {
   CheckCircle2,
   RefreshCw,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
-import { fetchSensitivityMatrix, SensitivityPoint, PolicyOverrides } from '../api';
+import { fetchSensitivityMatrix, SensitivityPoint } from '../api';
 import { formatCurrency, formatFullCurrency, cn } from '../utils';
 
+interface BaseLimitsState {
+  single_tx_usd: number;
+  wallet_limit_usd: number;
+  global_limit_usd: number;
+  new_recipient_usd: number;
+}
+
 export const PolicyLabView: React.FC = () => {
-  const [baseLimits, setBaseLimits] = useState<PolicyOverrides>({
+  const [baseLimits, setBaseLimits] = useState<BaseLimitsState>({
     single_tx_usd: 50_000,
     wallet_limit_usd: 100_000,
     global_limit_usd: 500_000,
@@ -28,32 +36,105 @@ export const PolicyLabView: React.FC = () => {
   });
 
   const [matrixData, setMatrixData] = useState<SensitivityPoint[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadMatrix = async (limits?: PolicyOverrides) => {
-    setIsLoading(true);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestReqIdRef = useRef<number>(0);
+
+  // Execute recalculation against backend
+  const executeCalculation = async (limits: BaseLimitsState) => {
+    const reqId = ++latestReqIdRef.current;
+    setIsRecalculating(true);
     setError(null);
+
     try {
-      const activeLimits = limits ?? baseLimits;
       const res = await fetchSensitivityMatrix({
-        base_limits: activeLimits,
+        base_single_tx_usd: limits.single_tx_usd,
+        base_wallet_limit_usd: limits.wallet_limit_usd,
+        base_global_limit_usd: limits.global_limit_usd,
+        base_new_recipient_usd: limits.new_recipient_usd,
+        base_limits: limits,
         multipliers: [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0],
       });
-      setMatrixData(res.matrix);
+
+      // Ignore if a newer request was dispatched
+      if (reqId === latestReqIdRef.current) {
+        setMatrixData(res.matrix);
+      }
     } catch (err: any) {
-      console.error('Failed to load sensitivity matrix:', err);
-      setError('Could not connect to backend sensitivity endpoint.');
+      if (reqId === latestReqIdRef.current) {
+        console.error('Sensitivity matrix calculation error:', err);
+        setError('Failed to recalculate sensitivity curve from backend.');
+      }
     } finally {
-      setIsLoading(false);
+      if (reqId === latestReqIdRef.current) {
+        setIsRecalculating(false);
+      }
     }
   };
 
+  // 200ms debounce on slider changes
   useEffect(() => {
-    loadMatrix();
-  }, []);
+    setIsRecalculating(true);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
 
-  // Format data for Recharts
+    debounceTimerRef.current = setTimeout(() => {
+      executeCalculation(baseLimits);
+    }, 200);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [
+    baseLimits.single_tx_usd,
+    baseLimits.wallet_limit_usd,
+    baseLimits.global_limit_usd,
+    baseLimits.new_recipient_usd,
+  ]);
+
+  const handlePreset = (preset: 'strict' | 'default' | 'permissive' | 'relaxed') => {
+    switch (preset) {
+      case 'strict':
+        setBaseLimits({
+          single_tx_usd: 15_000,
+          wallet_limit_usd: 35_000,
+          global_limit_usd: 100_000,
+          new_recipient_usd: 5_000,
+        });
+        break;
+      case 'default':
+        setBaseLimits({
+          single_tx_usd: 50_000,
+          wallet_limit_usd: 100_000,
+          global_limit_usd: 500_000,
+          new_recipient_usd: 10_000,
+        });
+        break;
+      case 'permissive':
+        setBaseLimits({
+          single_tx_usd: 500_000,
+          wallet_limit_usd: 1_000_000,
+          global_limit_usd: 5_000_000,
+          new_recipient_usd: 100_000,
+        });
+        break;
+      case 'relaxed':
+        setBaseLimits({
+          single_tx_usd: 25_000_000,
+          wallet_limit_usd: 50_000_000,
+          global_limit_usd: 100_000_000,
+          new_recipient_usd: 1_000_000,
+        });
+        break;
+    }
+  };
+
+  // Recharts data mapped directly from matrixData state
   const chartData = matrixData.map((pt) => ({
     multiplier: `${pt.limit_multiplier}x`,
     capitalSavedB: Number((pt.loss_prevented_usd / 1e9).toFixed(3)),
@@ -63,6 +144,9 @@ export const PolicyLabView: React.FC = () => {
     walletLimit: pt.wallet_limit_usd,
     raw: pt,
   }));
+
+  // Identify baseline (1.0x) stats
+  const baselinePoint = matrixData.find((p) => p.limit_multiplier === 1.0);
 
   return (
     <div className="space-y-6">
@@ -75,25 +159,44 @@ export const PolicyLabView: React.FC = () => {
             </div>
             <div>
               <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
-                Policy Sensitivity Lab & Frontier Curve
+                Policy Sensitivity Lab & Dynamic Frontier Curve
                 <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-800/50 text-cyan-300 font-mono">
-                  Pareto Trade-off Analytics
+                  Live Dynamic Recalculation
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Quantify the tradeoff between capital protected during an exploit cascade versus operational friction from legitimate customer withdrawal holds.
+                Drag any slider to dynamically simulate and visualize the Pareto tradeoff: Capital Protected during an exploit vs. False Positives from customer withdrawal holds.
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => loadMatrix()}
-            disabled={isLoading}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-cyan-500/20 disabled:opacity-50 cursor-pointer self-start sm:self-auto"
-          >
-            <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} />
-            <span>{isLoading ? 'Recalculating...' : 'Refresh Curve'}</span>
-          </button>
+          {/* Quick Presets */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handlePreset('strict')}
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 transition-all cursor-pointer"
+            >
+              Strict Defense
+            </button>
+            <button
+              onClick={() => handlePreset('default')}
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer"
+            >
+              Default (50k)
+            </button>
+            <button
+              onClick={() => handlePreset('permissive')}
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer"
+            >
+              Permissive (500k)
+            </button>
+            <button
+              onClick={() => handlePreset('relaxed')}
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer"
+            >
+              Stress Test (25M)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -104,17 +207,32 @@ export const PolicyLabView: React.FC = () => {
         </div>
       )}
 
-      {/* Main Frontier Chart */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-2">
+      {/* Main Frontier Chart Card */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 shadow-xl relative overflow-hidden">
+        {/* Dynamic Updating Overlay / Badge */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
           <div>
-            <h3 className="text-sm font-bold text-white tracking-wide">
-              Exchange Risk Frontier: Capital Saved ($B) vs. False Positives (Txs Held)
-            </h3>
-            <p className="text-xs text-slate-400">
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-sm font-bold text-white tracking-wide">
+                Exchange Risk Frontier: Capital Saved ($B) vs. False Positives (Txs Held)
+              </h3>
+              {isRecalculating ? (
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/50 text-[11px] font-mono text-cyan-300 animate-pulse">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span>Recalculating frontier...</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-[10px] font-mono text-emerald-300">
+                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  <span>Dynamic Live Curve</span>
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
               Left Axis (Teal Area): Loss Prevented in $ Billions. Right Axis (Amber Line): Normal retail customer withdrawals held for review.
             </p>
           </div>
+
           <div className="flex items-center space-x-4 text-xs font-mono">
             <div className="flex items-center space-x-1.5">
               <span className="w-3 h-3 rounded-sm bg-cyan-500/30 border border-cyan-400" />
@@ -128,7 +246,12 @@ export const PolicyLabView: React.FC = () => {
         </div>
 
         {/* Recharts Container */}
-        <div className="h-80 w-full mt-6">
+        <div
+          className={cn(
+            'h-80 w-full mt-6 transition-opacity duration-200',
+            isRecalculating ? 'opacity-70' : 'opacity-100'
+          )}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
               <defs>
@@ -204,76 +327,119 @@ export const PolicyLabView: React.FC = () => {
         {/* Sliders for Base Limits */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col justify-between">
           <div>
-            <div className="flex items-center space-x-2 text-white font-bold text-sm mb-4 pb-2 border-b border-slate-800">
-              <Sliders className="w-4 h-4 text-cyan-400" />
-              <span>Base Limit Tuning (1.0x Reference)</span>
+            <div className="flex items-center justify-between pb-2 mb-4 border-b border-slate-800">
+              <div className="flex items-center space-x-2 text-white font-bold text-sm">
+                <Sliders className="w-4 h-4 text-cyan-400" />
+                <span>Base Limit Tuning (1.0x Reference)</span>
+              </div>
+              {isRecalculating && (
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+              )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Slider 1: Single TX USD */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-300 font-medium">Single TX USD</span>
+                  <span className="text-slate-300 font-medium">Single TX USD (single_tx_usd)</span>
                   <span className="text-cyan-400 font-mono font-bold">
-                    {formatFullCurrency(baseLimits.single_tx_usd ?? 50000)}
+                    {formatFullCurrency(baseLimits.single_tx_usd)}
                   </span>
                 </div>
                 <input
                   type="range"
-                  min={10000}
-                  max={200000}
-                  step={5000}
-                  value={baseLimits.single_tx_usd ?? 50000}
-                  onChange={(e) => {
-                    const updated = { ...baseLimits, single_tx_usd: Number(e.target.value) };
-                    setBaseLimits(updated);
-                    loadMatrix(updated);
-                  }}
+                  min={5_000}
+                  max={30_000_000}
+                  step={5_000}
+                  value={baseLimits.single_tx_usd}
+                  onChange={(e) =>
+                    setBaseLimits((prev) => ({ ...prev, single_tx_usd: Number(e.target.value) }))
+                  }
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                 />
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                  <span>$5k</span>
+                  <span>$50k (Def)</span>
+                  <span>$30M</span>
+                </div>
               </div>
 
+              {/* Slider 2: Wallet Limit USD */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-300 font-medium">Wallet Limit USD</span>
+                  <span className="text-slate-300 font-medium">Wallet Velocity Limit (1h)</span>
                   <span className="text-cyan-400 font-mono font-bold">
-                    {formatFullCurrency(baseLimits.wallet_limit_usd ?? 100000)}
+                    {formatFullCurrency(baseLimits.wallet_limit_usd)}
                   </span>
                 </div>
                 <input
                   type="range"
-                  min={25000}
-                  max={500000}
-                  step={10000}
-                  value={baseLimits.wallet_limit_usd ?? 100000}
-                  onChange={(e) => {
-                    const updated = { ...baseLimits, wallet_limit_usd: Number(e.target.value) };
-                    setBaseLimits(updated);
-                    loadMatrix(updated);
-                  }}
+                  min={20_000}
+                  max={50_000_000}
+                  step={10_000}
+                  value={baseLimits.wallet_limit_usd}
+                  onChange={(e) =>
+                    setBaseLimits((prev) => ({ ...prev, wallet_limit_usd: Number(e.target.value) }))
+                  }
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                 />
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                  <span>$20k</span>
+                  <span>$100k (Def)</span>
+                  <span>$50M</span>
+                </div>
               </div>
 
+              {/* Slider 3: Global Limit USD */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-300 font-medium">Global Limit USD</span>
+                  <span className="text-slate-300 font-medium">Global Multi-Chain Cap</span>
                   <span className="text-cyan-400 font-mono font-bold">
-                    {formatFullCurrency(baseLimits.global_limit_usd ?? 500000)}
+                    {formatFullCurrency(baseLimits.global_limit_usd)}
                   </span>
                 </div>
                 <input
                   type="range"
-                  min={100000}
-                  max={2000000}
-                  step={50000}
-                  value={baseLimits.global_limit_usd ?? 500000}
-                  onChange={(e) => {
-                    const updated = { ...baseLimits, global_limit_usd: Number(e.target.value) };
-                    setBaseLimits(updated);
-                    loadMatrix(updated);
-                  }}
+                  min={50_000}
+                  max={100_000_000}
+                  step={50_000}
+                  value={baseLimits.global_limit_usd}
+                  onChange={(e) =>
+                    setBaseLimits((prev) => ({ ...prev, global_limit_usd: Number(e.target.value) }))
+                  }
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                 />
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                  <span>$50k</span>
+                  <span>$500k (Def)</span>
+                  <span>$100M</span>
+                </div>
+              </div>
+
+              {/* Slider 4: New Recipient USD */}
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-300 font-medium">Unseen Recipient Limit</span>
+                  <span className="text-cyan-400 font-mono font-bold">
+                    {formatFullCurrency(baseLimits.new_recipient_usd)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1_000}
+                  max={200_000}
+                  step={1_000}
+                  value={baseLimits.new_recipient_usd}
+                  onChange={(e) =>
+                    setBaseLimits((prev) => ({ ...prev, new_recipient_usd: Number(e.target.value) }))
+                  }
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                  <span>$1k</span>
+                  <span>$10k (Def)</span>
+                  <span>$200k</span>
+                </div>
               </div>
             </div>
           </div>
@@ -282,10 +448,16 @@ export const PolicyLabView: React.FC = () => {
           <div className="mt-6 p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300">
             <div className="flex items-center space-x-1.5 font-bold mb-1">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Recommended Sweet Spot (1.0x)</span>
+              <span>Current 1.0x Baseline Status</span>
             </div>
             <p className="text-[11px] text-emerald-200/80 leading-relaxed">
-              At 1.0x multiplier, BitGuard mitigates <strong>100.0% of the $4.39B exploit</strong> while maintaining <strong>0 false positives</strong> across all legitimate customer withdrawals.
+              {baselinePoint ? (
+                <>
+                  Prevents <strong>{formatCurrency(baselinePoint.loss_prevented_usd)} ({baselinePoint.loss_mitigated_pct.toFixed(1)}%)</strong> of exploit loss with <strong>{baselinePoint.false_positives_held} false positive hold(s)</strong>.
+                </>
+              ) : (
+                'Recalculating status...'
+              )}
             </p>
           </div>
         </div>
