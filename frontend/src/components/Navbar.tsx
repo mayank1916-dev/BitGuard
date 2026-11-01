@@ -73,9 +73,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </h1>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                    SYNTHETIC (Modelled on Oct 2026 Binance incident)
-                  </span>
                   <span className="text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-800/40">
                     DEFENSIVE SIMULATION
                   </span>

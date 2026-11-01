@@ -31,6 +31,7 @@ export interface StepEvent {
   chain: string;
   wallet: string;
   kind: string;
+  asset?: string;
   amount_usd: number;
   scenario: string; // 'normal' | 'attack'
   unprotected_action: string;

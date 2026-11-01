@@ -18,21 +18,35 @@ interface ReplayViewProps {
 }
 
 export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
+  const events = steps;
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 1x, 5x, 10x
 
   const leftListRef = useRef<HTMLDivElement>(null);
   const rightListRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Playback timer loop
+  const clearPlaybackTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  // Playback timer loop: 1x -> 400ms, 5x -> 100ms, 10x -> 40ms
   useEffect(() => {
-    if (!isPlaying || steps.length === 0) return;
+    clearPlaybackTimer();
 
-    const intervalTime = Math.max(20, Math.floor(250 / playbackSpeed));
-    const timer = setInterval(() => {
+    if (!isPlaying || events.length === 0) return;
+
+    let intervalTime = 400;
+    if (playbackSpeed === 5) intervalTime = 100;
+    else if (playbackSpeed === 10) intervalTime = 40;
+
+    timerRef.current = setInterval(() => {
       setCurrentIndex((prev) => {
-        if (prev >= steps.length - 1) {
+        if (prev >= events.length - 1) {
           setIsPlaying(false);
           return prev;
         }
@@ -40,8 +54,8 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
       });
     }, intervalTime);
 
-    return () => clearInterval(timer);
-  }, [isPlaying, playbackSpeed, steps.length]);
+    return () => clearPlaybackTimer();
+  }, [isPlaying, playbackSpeed, events.length]);
 
   // Auto-scroll list as new steps appear
   useEffect(() => {
@@ -53,45 +67,56 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
     }
   }, [currentIndex]);
 
-  const currentStep: StepEvent | undefined = steps[currentIndex];
-  const visibleSteps = steps.slice(0, currentIndex + 1);
+  const currentStep: StepEvent | undefined = events[currentIndex];
+  const visibleSteps = events.slice(0, currentIndex + 1);
 
-  // Ticking metrics at the current playback index
-  const currentUnprotectedLoss = currentStep?.cumulative_unprotected_loss_usd ?? 0;
-  const currentProtectedLoss = currentStep?.cumulative_protected_loss_usd ?? 0;
+  // Dynamic Simulation Clock
+  const currentTs = events[currentIndex]?.ts ?? (events[0]?.ts ?? 1729867400);
+  const formattedClock = new Date(currentTs * 1000).toISOString().substr(11, 8) + ' UTC';
+
+  // In reset state (index 0 and not playing), reset loss counters to $0.00 and breaker to NORMAL
+  const isResetState = currentIndex === 0 && !isPlaying;
+  const currentUnprotectedLoss = isResetState ? 0 : (currentStep?.cumulative_unprotected_loss_usd ?? 0);
+  const currentProtectedLoss = isResetState ? 0 : (currentStep?.cumulative_protected_loss_usd ?? 0);
   const currentLossPrevented = Math.max(0, currentUnprotectedLoss - currentProtectedLoss);
   const currentPreventedPct =
     currentUnprotectedLoss > 0 ? (currentLossPrevented / currentUnprotectedLoss) * 100 : 100;
 
   // Identify tripwire event if one has fired by this step
-  const tripwireStep = visibleSteps.find(
-    (s) => s.protected_decision.action === 'hold' || s.protected_decision.action === 'deny'
-  );
+  const tripwireStep = isResetState
+    ? undefined
+    : visibleSteps.find(
+        (s) => s.protected_decision.action === 'hold' || s.protected_decision.action === 'deny'
+      );
 
-  const currentBreakerState = currentStep?.protected_decision.breaker_state || 'Normal';
+  const currentBreakerState = isResetState
+    ? 'Normal'
+    : (currentStep?.protected_decision.breaker_state || 'Normal');
 
-  // Key Incident Markers for timeline scrubber
+  // Key Incident Markers for timeline scrubber with exact target step indices
   const timelineMarkers = [
-    { label: 'Baseline', index: 0, tag: 'T -600s' },
-    { label: 'XRP Outflow ($120M)', index: 12, tag: 'T 0s' },
-    { label: 'Multi-Chain Drain', index: 17, tag: 'T +35s' },
-    { label: 'EIP-7702 Spray', index: 22, tag: 'T +110s' },
-    { label: 'Massive Sweep ($2.18B)', index: 72, tag: 'T +180s' },
-    { label: 'Secondary Pulls', index: 73, tag: 'T +35m' },
+    { label: 'Baseline', step: 0, tag: 'T -600s' },
+    { label: 'XRP Outflow ($120M)', step: 12, tag: 'T 0s' },
+    { label: 'Multi-Chain Drain', step: 25, tag: 'T +35s' },
+    { label: 'EIP-7702 Spray', step: 45, tag: 'T +110s' },
+    { label: 'Massive Sweep ($2.18B)', step: 60, tag: 'T +180s' },
+    { label: 'Secondary Pulls', step: 70, tag: 'T +35m' },
   ];
 
   const handleStart = () => {
-    if (currentIndex >= steps.length - 1) {
+    if (currentIndex >= events.length - 1) {
       setCurrentIndex(0);
     }
     setIsPlaying(true);
   };
 
   const handlePause = () => {
+    clearPlaybackTimer();
     setIsPlaying(false);
   };
 
   const handleReset = () => {
+    clearPlaybackTimer();
     setIsPlaying(false);
     setCurrentIndex(0);
   };
@@ -157,13 +182,13 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
             <div>
               <span className="text-slate-500">EVENT PROGRESS: </span>
               <span className="text-white font-bold">
-                {steps.length > 0 ? currentIndex + 1 : 0} / {steps.length}
+                {events.length > 0 ? currentIndex + 1 : 0} / {events.length}
               </span>
             </div>
             <div>
               <span className="text-slate-500">SIMULATION CLOCK: </span>
-              <span className="text-cyan-400 font-bold">
-                {currentStep ? new Date(currentStep.ts * 1000).toISOString().slice(11, 19) + ' UTC' : '—'}
+              <span className="text-cyan-400 font-bold font-mono">
+                {formattedClock}
               </span>
             </div>
             <div>
@@ -190,34 +215,41 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
             <input
               type="range"
               min={0}
-              max={Math.max(0, steps.length - 1)}
+              max={Math.max(0, events.length - 1)}
               value={currentIndex}
               onChange={handleScrub}
               className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
             />
-            {/* Markers */}
+            {/* Markers with progressive glow */}
             <div className="flex justify-between items-center mt-2.5 px-1">
               {timelineMarkers.map((marker) => {
-                const isActive = currentIndex >= marker.index;
+                const isPassed = currentIndex >= marker.step;
                 return (
                   <button
                     key={marker.label}
-                    onClick={() => setCurrentIndex(Math.min(marker.index, steps.length - 1))}
+                    onClick={() => setCurrentIndex(Math.min(marker.step, events.length - 1))}
                     className={cn(
                       'text-left transition-colors group cursor-pointer focus:outline-none',
-                      isActive ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300'
+                      isPassed ? 'text-cyan-200 font-semibold' : 'text-slate-500 hover:text-slate-400'
                     )}
                   >
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-1.5">
                       <span
                         className={cn(
-                          'w-2 h-2 rounded-full transition-transform group-hover:scale-125',
-                          isActive ? 'bg-cyan-400' : 'bg-slate-700'
+                          'w-2 h-2 rounded-full transition-all duration-200',
+                          isPassed
+                            ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]'
+                            : 'bg-slate-700'
                         )}
                       />
-                      <span className="text-[11px] font-semibold">{marker.label}</span>
+                      <span className="text-[11px]">{marker.label}</span>
                     </div>
-                    <span className="text-[9px] font-mono text-slate-500 block pl-3">
+                    <span
+                      className={cn(
+                        'text-[9px] font-mono block pl-3.5 transition-colors',
+                        isPassed ? 'text-cyan-400/80' : 'text-slate-500'
+                      )}
+                    >
                       {marker.tag}
                     </span>
                   </button>
@@ -303,20 +335,19 @@ export const ReplayView: React.FC<ReplayViewProps> = ({ steps }) => {
                     </span>
                     <span className="text-slate-400 text-[11px]">{truncateAddress(step.wallet)}</span>
                     <span className="text-slate-600">→</span>
-                    <span className="text-slate-400 text-[11px]">{truncateAddress(step.request_id)}</span>
+                    <span className="text-slate-400 text-[11px]">
+                      {truncateAddress(step.request_id)}
+                    </span>
                   </div>
 
                   <div className="flex items-center space-x-3">
                     <div className="text-right">
-                      <span
-                        className={cn(
-                          'font-bold text-xs block',
-                          isAttack ? 'text-rose-400' : 'text-slate-300'
-                        )}
-                      >
+                      <span className="font-bold text-xs text-rose-400 block">
                         {step.amount_usd > 0 ? formatFullCurrency(step.amount_usd) : '7702 Auth'}
                       </span>
-                      <span className="text-[10px] text-slate-500 uppercase">{step.kind}</span>
+                      <span className="text-[10px] text-slate-500 uppercase">
+                        {(step as any).asset ? `${(step as any).asset} Outflow` : `${step.chain.toUpperCase()} Outflow`}
+                      </span>
                     </div>
 
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
