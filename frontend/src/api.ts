@@ -535,10 +535,46 @@ export interface LoginResponse {
 
 export interface BreakerStatusResponse {
   state: 'NORMAL' | 'ELEVATED' | 'HOLD' | 'LOCKDOWN' | string;
-  mode?: string;
+  reason?: string;
+  updated_at?: string;
+  updated_by?: string;
   token_epoch?: number;
+  active_deescalation_request_id?: string | null;
+  data_label?: 'REAL' | 'SYNTHETIC' | 'REPORTED' | string;
+  mode?: string;
   triggers?: any[];
   last_transition?: string;
+}
+
+export interface DeescalationApproval {
+  approver_id: string;
+  timestamp: number;
+  signature: string;
+}
+
+export interface DeescalationRequestModel {
+  id: string;
+  current_state: string;
+  target_state: string;
+  reason: string;
+  requested_by: string;
+  challenge: string;
+  status: string;
+  approvals: DeescalationApproval[];
+  created_at: string;
+  resolved_at?: string | null;
+  required_approvals: number;
+  data_label?: string;
+}
+
+export interface DeescalateApprovalResult {
+  request_id: string;
+  status: string;
+  approvals_count: number;
+  required_approvals: number;
+  message: string;
+  new_breaker_state?: string | null;
+  data_label?: string;
 }
 
 // Default API Prefix
@@ -774,9 +810,13 @@ export async function getBreaker(): Promise<BreakerStatusResponse> {
     const health = await fetchHealth().catch(() => ({ breaker_state: 'Normal' }));
     return {
       state: health.breaker_state || 'Normal',
+      reason: 'Nominal operations (Simulation)',
+      updated_by: 'system',
+      updated_at: new Date().toISOString(),
       mode: 'ENFORCE',
       token_epoch: 1,
       triggers: [],
+      data_label: 'SYNTHETIC',
     };
   }
 
@@ -794,7 +834,8 @@ export async function getBreaker(): Promise<BreakerStatusResponse> {
  */
 export async function escalateBreaker(
   targetState: string = 'LOCKDOWN',
-  reason: string = 'Manual escalation from console'
+  reason: string = 'Manual escalation from console',
+  explicitToken?: string
 ): Promise<{ status: string; new_breaker_state: string; reason: string }> {
   if (DATA_SOURCE === 'demo') {
     return {
@@ -807,12 +848,117 @@ export async function escalateBreaker(
   // Live API Mode: POST /v1/breaker/escalate
   const res = await fetch(`${API_BASE}/v1/breaker/escalate`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders(explicitToken),
     body: JSON.stringify({ target_state: targetState, reason }),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.detail || `Escalation failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Creates a circuit breaker de-escalation request requiring 2-approver WebAuthn quorum.
+ */
+export async function createDeescalationRequest(
+  targetState: string = 'NORMAL',
+  reason: string = 'Investigation resolved; nominal operations safe to resume',
+  explicitToken?: string
+): Promise<DeescalationRequestModel> {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      id: 'brk-req-demo-01',
+      current_state: 'LOCKDOWN',
+      target_state: targetState,
+      reason,
+      requested_by: 'usr-secops-01',
+      challenge: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      status: 'PENDING',
+      approvals: [],
+      created_at: new Date().toISOString(),
+      required_approvals: 2,
+      data_label: 'SYNTHETIC',
+    };
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-request`, {
+    method: 'POST',
+    headers: getAuthHeaders(explicitToken),
+    body: JSON.stringify({ target_state: targetState, reason }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `De-escalation request failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Submits a WebAuthn approval over the de-escalation challenge.
+ */
+export async function approveDeescalation(
+  requestId: string,
+  assertion: WebAuthnAssertionPayload,
+  explicitToken?: string
+): Promise<DeescalateApprovalResult> {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      request_id: requestId,
+      status: 'APPROVED',
+      approvals_count: 2,
+      required_approvals: 2,
+      message: 'Quorum reached (2 of 2 in demo). Breaker de-escalated.',
+      new_breaker_state: 'NORMAL',
+      data_label: 'SYNTHETIC',
+    };
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-approve`, {
+    method: 'POST',
+    headers: getAuthHeaders(explicitToken),
+    body: JSON.stringify({ request_id: requestId, assertion }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Approval failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Retrieves the currently active pending de-escalation request.
+ */
+export async function fetchActiveDeescalationRequest(explicitToken?: string): Promise<DeescalationRequestModel | null> {
+  if (DATA_SOURCE === 'demo') {
+    return null;
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-requests/active`, {
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to fetch active de-escalation request: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Retrieves a de-escalation request by ID.
+ */
+export async function fetchDeescalationRequestById(requestId: string, explicitToken?: string): Promise<DeescalationRequestModel> {
+  if (DATA_SOURCE === 'demo') {
+    throw new Error(`Demo mode request '${requestId}' not found`);
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-requests/${requestId}`, {
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to fetch de-escalation request: ${res.statusText}`);
   }
   return res.json();
 }

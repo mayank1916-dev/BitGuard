@@ -12,6 +12,7 @@ interface NavbarProps {
   onReset: () => void;
   isResetting?: boolean;
   mode?: string;
+  onOpenBreakerModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,31 +22,33 @@ export const Navbar: React.FC<NavbarProps> = ({
   onReset,
   isResetting,
   mode,
+  onOpenBreakerModal,
 }) => {
   const getBreakerBadge = (state: string) => {
-    switch (state) {
-      case 'Normal':
+    const s = (state || 'NORMAL').toUpperCase();
+    switch (s) {
+      case 'NORMAL':
         return {
           icon: <ShieldCheck className="w-4 h-4 text-emerald-400" />,
           label: 'NORMAL OPERATION',
           bg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
           dot: 'bg-emerald-400',
         };
-      case 'Elevated':
+      case 'ELEVATED':
         return {
           icon: <Activity className="w-4 h-4 text-amber-400 animate-pulse" />,
           label: 'ELEVATED SCRUTINY',
           bg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
           dot: 'bg-amber-400',
         };
-      case 'Hold':
+      case 'HOLD':
         return {
           icon: <ShieldAlert className="w-4 h-4 text-amber-500" />,
           label: 'MANUAL HOLD ACTIVE',
           bg: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
           dot: 'bg-amber-500',
         };
-      case 'Lockdown':
+      case 'LOCKDOWN':
       default:
         return {
           icon: <ShieldAlert className="w-4 h-4 text-rose-400 animate-bounce" />,
@@ -168,15 +171,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Status Indicator & Reset */}
           <div className="flex items-center space-x-3">
             {/* Breaker Badge */}
-            <div
+            <button
+              type="button"
+              onClick={onOpenBreakerModal}
+              title="Click to view and manage Circuit Breaker Controls"
               className={cn(
-                'flex items-center space-x-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all',
+                'flex items-center space-x-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer hover:brightness-110 active:scale-95',
                 badge.bg
               )}
             >
               <span className={cn('w-2 h-2 rounded-full', badge.dot)} />
               <span>{badge.label}</span>
-            </div>
+            </button>
 
             <button
               onClick={onReset}

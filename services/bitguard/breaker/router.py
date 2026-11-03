@@ -147,3 +147,34 @@ def approve_deescalation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal error processing de-escalation approval: {exc}",
         ) from exc
+
+
+@router.get(
+    "/deescalate-requests/active",
+    response_model=DeescalationRequestModel | None,
+    summary="Get active de-escalation request",
+    description="Returns the currently pending circuit breaker de-escalation request, or null if none is active.",
+)
+def get_active_deescalation_request(
+    current_user: UserResponse = Depends(require_permission(Permission.READ_BREAKER)),
+) -> DeescalationRequestModel | None:
+    return distributed_breaker_store.get_active_deescalation_request()
+
+
+@router.get(
+    "/deescalate-requests/{request_id}",
+    response_model=DeescalationRequestModel,
+    summary="Get de-escalation request by ID",
+    description="Returns de-escalation request details including challenge and recorded approvals.",
+)
+def get_deescalation_request_by_id(
+    request_id: str,
+    current_user: UserResponse = Depends(require_permission(Permission.READ_BREAKER)),
+) -> DeescalationRequestModel:
+    req = distributed_breaker_store.get_deescalation_request(request_id)
+    if req is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"De-escalation request '{request_id}' not found",
+        )
+    return req

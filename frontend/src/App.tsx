@@ -7,7 +7,19 @@ import { PolicyLabView } from './pages/PolicyLabView';
 import { ReportsView } from './pages/ReportsView';
 import { ApprovalView } from './pages/ApprovalView';
 import { PolicySliders } from './components/PolicySliders';
-import { runReplay, resetSystem, ReplayResponse, PolicyOverrides, StepEvent, ReplayMetrics, fetchCurrentMode } from './api';
+import {
+  runReplay,
+  resetSystem,
+  ReplayResponse,
+  PolicyOverrides,
+  StepEvent,
+  ReplayMetrics,
+  fetchCurrentMode,
+  getBreaker,
+  openStream,
+  DATA_SOURCE,
+} from './api';
+import { BreakerModal } from './components/BreakerModal';
 import { Shield, AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -21,6 +33,7 @@ export const App: React.FC = () => {
     spray_threshold: 50,
   });
   const [breakerState, setBreakerState] = useState<string>('Normal');
+  const [isBreakerModalOpen, setIsBreakerModalOpen] = useState<boolean>(false);
   const [currentMode, setCurrentMode] = useState<string>('SIMULATION');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +47,9 @@ export const App: React.FC = () => {
     try {
       const data = await runReplay({ policy_overrides: overrides ?? policyOverrides });
       setReplayData(data);
-      setBreakerState(data.summary.breaker_final_state);
+      if (DATA_SOURCE !== 'api') {
+        setBreakerState(data.summary.breaker_final_state);
+      }
     } catch (err: any) {
       console.warn('API fetch warning, using local simulation data fallback:', err);
       setError('Backend API offline or unreachable. Please start backend on http://localhost:8000.');
@@ -46,6 +61,26 @@ export const App: React.FC = () => {
   useEffect(() => {
     loadSimulation();
     fetchCurrentMode().then(setCurrentMode).catch(() => {});
+
+    if (DATA_SOURCE === 'api') {
+      getBreaker()
+        .then((b) => {
+          if (b.state) setBreakerState(b.state);
+        })
+        .catch(() => {});
+
+      const closeStream = openStream((event: any) => {
+        if (event.type === 'breaker_state_change' && event.payload?.state) {
+          setBreakerState(event.payload.state);
+        } else if (event.type === 'decision' && event.payload?.breaker_state) {
+          setBreakerState(event.payload.breaker_state);
+        }
+      });
+
+      return () => {
+        closeStream();
+      };
+    }
   }, []);
 
   const handleReset = async () => {
@@ -77,6 +112,15 @@ export const App: React.FC = () => {
         onReset={handleReset}
         isResetting={isLoading}
         mode={currentMode}
+        onOpenBreakerModal={() => setIsBreakerModalOpen(true)}
+      />
+
+      {/* Circuit Breaker Controls Modal (Task U6) */}
+      <BreakerModal
+        isOpen={isBreakerModalOpen}
+        onClose={() => setIsBreakerModalOpen(false)}
+        currentState={breakerState}
+        onStateChanged={(newState) => setBreakerState(newState)}
       />
 
       {/* Main Content Area */}

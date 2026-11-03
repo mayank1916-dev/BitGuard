@@ -315,7 +315,7 @@ export async function getBreaker() {
 /**
  * 5. escalateBreaker(targetState, reason)
  */
-export async function escalateBreaker(targetState = 'LOCKDOWN', reason = 'Manual escalation') {
+export async function escalateBreaker(targetState = 'LOCKDOWN', reason = 'Manual escalation', explicitToken) {
   if (getDataSource() === 'demo') {
     return {
       status: 'escalated',
@@ -326,12 +326,113 @@ export async function escalateBreaker(targetState = 'LOCKDOWN', reason = 'Manual
 
   const res = await fetch(`${API_BASE}/v1/breaker/escalate`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders(explicitToken),
     body: JSON.stringify({ target_state: targetState, reason }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `Escalation failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Creates a circuit breaker de-escalation proposal requiring 2-approver WebAuthn quorum.
+ */
+export async function createDeescalationRequest(
+  targetState = 'NORMAL',
+  reason = 'Investigation resolved; nominal operations safe to resume',
+  explicitToken
+) {
+  if (getDataSource() === 'demo') {
+    return {
+      id: 'brk-req-demo-01',
+      current_state: 'LOCKDOWN',
+      target_state: targetState,
+      reason,
+      requested_by: 'usr-secops-01',
+      challenge: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      status: 'PENDING',
+      approvals: [],
+      created_at: new Date().toISOString(),
+      required_approvals: 2,
+      data_label: 'SYNTHETIC',
+    };
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-request`, {
+    method: 'POST',
+    headers: getAuthHeaders(explicitToken),
+    body: JSON.stringify({ target_state: targetState, reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `De-escalation request failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Submits a WebAuthn approval over the de-escalation challenge.
+ */
+export async function approveDeescalation(requestId, assertion, explicitToken) {
+  if (getDataSource() === 'demo') {
+    return {
+      request_id: requestId,
+      status: 'APPROVED',
+      approvals_count: 2,
+      required_approvals: 2,
+      message: 'Quorum reached (2 of 2 in demo). Breaker de-escalated.',
+      new_breaker_state: 'NORMAL',
+      data_label: 'SYNTHETIC',
+    };
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-approve`, {
+    method: 'POST',
+    headers: getAuthHeaders(explicitToken),
+    body: JSON.stringify({ request_id: requestId, assertion }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Approval failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Retrieves the currently active pending de-escalation request.
+ */
+export async function fetchActiveDeescalationRequest(explicitToken) {
+  if (getDataSource() === 'demo') {
+    return null;
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-requests/active`, {
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to fetch active de-escalation request: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Retrieves a de-escalation request by ID.
+ */
+export async function fetchDeescalationRequestById(requestId, explicitToken) {
+  if (getDataSource() === 'demo') {
+    throw new Error(`Demo mode request '${requestId}' not found`);
+  }
+
+  const res = await fetch(`${API_BASE}/v1/breaker/deescalate-requests/${requestId}`, {
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to fetch de-escalation request: ${res.statusText}`);
   }
   return res.json();
 }
@@ -845,4 +946,8 @@ export default {
   fetchTimelocks,
   cancelTimelock,
   fetchChainOutflows,
+  createDeescalationRequest,
+  approveDeescalation,
+  fetchActiveDeescalationRequest,
+  fetchDeescalationRequestById,
 };

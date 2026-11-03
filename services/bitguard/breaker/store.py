@@ -375,6 +375,55 @@ class DistributedBreakerStore(BreakerStore):
 
         return request_model
 
+    def _lookup_request(self, request_id: str) -> DeescalationRequestModel | None:
+        """Looks up a de-escalation proposal in memory or PostgreSQL."""
+        req = self._requests.get(request_id)
+        if req is not None:
+            return req
+
+        try:
+            with self._get_session() as session:
+                db_rec = session.query(DeescalationRequestRecord).filter_by(id=request_id).first()
+                if db_rec:
+                    apprs = [
+                        DeescalationApprovalModel(**a)
+                        for a in json.loads(db_rec.approvals_json or "[]")
+                    ]
+                    req = DeescalationRequestModel(
+                        id=db_rec.id,
+                        current_state=BreakerStateEnum(db_rec.current_state),
+                        target_state=BreakerStateEnum(db_rec.target_state),
+                        reason=db_rec.reason,
+                        requested_by=db_rec.requested_by,
+                        challenge=db_rec.challenge,
+                        status=db_rec.status,
+                        approvals=apprs,
+                        created_at=db_rec.created_at,
+                        resolved_at=db_rec.resolved_at,
+                        required_approvals=2,
+                    )
+                    self._requests[request_id] = req
+                    return req
+        except Exception as exc:
+            logger.warning("db_lookup_deescalation_req_failed: %s", exc)
+
+        return None
+
+    def get_deescalation_request(self, request_id: str) -> DeescalationRequestModel | None:
+        """Retrieves a specific de-escalation request by ID."""
+        with self._lock:
+            return self._lookup_request(request_id)
+
+    def get_active_deescalation_request(self) -> DeescalationRequestModel | None:
+        """Retrieves the active de-escalation request if one is currently pending."""
+        with self._lock:
+            if not self._active_deescalation_id:
+                return None
+            req = self._lookup_request(self._active_deescalation_id)
+            if req and req.status == "PENDING":
+                return req
+            return None
+
     def approve_deescalation(
         self,
         request_id: str,
@@ -391,34 +440,7 @@ class DistributedBreakerStore(BreakerStore):
         """
         with self._lock:
             # 1. Lookup request
-            req = self._requests.get(request_id)
-            if req is None:
-                # Try fetching from DB
-                try:
-                    with self._get_session() as session:
-                        db_rec = session.query(DeescalationRequestRecord).filter_by(id=request_id).first()
-                        if db_rec:
-                            apprs = [
-                                DeescalationApprovalModel(**a)
-                                for a in json.loads(db_rec.approvals_json or "[]")
-                            ]
-                            req = DeescalationRequestModel(
-                                id=db_rec.id,
-                                current_state=BreakerStateEnum(db_rec.current_state),
-                                target_state=BreakerStateEnum(db_rec.target_state),
-                                reason=db_rec.reason,
-                                requested_by=db_rec.requested_by,
-                                challenge=db_rec.challenge,
-                                status=db_rec.status,
-                                approvals=apprs,
-                                created_at=db_rec.created_at,
-                                resolved_at=db_rec.resolved_at,
-                                required_approvals=2,
-                            )
-                            self._requests[request_id] = req
-                except Exception as exc:
-                    logger.warning("db_lookup_deescalation_req_failed: %s", exc)
-
+            req = self._lookup_request(request_id)
             if req is None:
                 raise ValueError(f"De-escalation request '{request_id}' not found")
 

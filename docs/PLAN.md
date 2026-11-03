@@ -80,7 +80,7 @@
 - [x] U3 Incident Replay: source selector and real-engine replay
 - [x] U4 Simulate Custom TX calls the real dry-run endpoint
 - [x] U5 Live Feed: WebSocket stream, HOLD queue and chain outflow bars
-- [ ] U6 Circuit breaker pill and BREAKER LOCKDOWN with real effect
+- [x] U6 Circuit breaker pill and BREAKER LOCKDOWN with real effect
 - [ ] U7 7702 Radar: multi-provider scan and 'My addresses' panel
 - [ ] U8 Sensitivity Lab: backtests, signed policy editor, diff and RBAC
 - [ ] U9 Reports and Audit tab: chain verification, anchors, timeline, exports
