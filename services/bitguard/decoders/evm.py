@@ -301,11 +301,27 @@ class EvmDecoder(ChainDecoder):
             auth_address = to_checksum_address(auth_addr_bytes)
             auth_nonce = int_from_bytes(auth[2])
 
+            authority: str | None = None
+            if len(auth) >= 6:
+                try:
+                    y_parity = int_from_bytes(auth[3])
+                    r = int_from_bytes(auth[4])
+                    s = int_from_bytes(auth[5])
+                    if r > 0 and s > 0:
+                        v = y_parity if y_parity in [27, 28] else (27 + (y_parity % 2))
+                        auth_digest = keccak(
+                            b"\x05" + rlp.encode([auth_chain_id, auth_addr_bytes, auth_nonce])
+                        )
+                        authority = Account._recover_hash(auth_digest, vrs=(v, r, s))
+                except Exception:
+                    authority = None
+
             authorizations.append(
                 AuthorizationItem(
                     chain_id=auth_chain_id,
                     address=auth_address,
                     nonce=auth_nonce,
+                    authority=authority,
                 )
             )
 

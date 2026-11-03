@@ -61,6 +61,7 @@ class AuthorizationItem(BaseModel):
     chain_id: int
     address: str
     nonce: int
+    authority: str | None = None
 
 
 class FeeDetail(BaseModel):

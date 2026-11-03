@@ -95,6 +95,18 @@
             "title": "Address",
             "type": "string"
           },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Authority"
+          },
           "chain_id": {
             "title": "Chain Id",
             "type": "integer"

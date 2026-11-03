@@ -21,6 +21,9 @@ from services.bitguard.models import (
     Verdict,
     WalletGroupConfig,
 )
+from services.bitguard.rpc.base import RpcClient
+from services.bitguard.rpc.client import HttpRpcClient
+from services.bitguard.rules.delegation import DelegationPolicy, check_delegations
 
 
 class ModeService:
@@ -41,6 +44,16 @@ class ModeService:
         self._wallet_to_group: dict[str, str] = {}
         self._metrics: dict[str, DailyGroupMetrics] = {}  # key: f"{wallet_group}:{date}"
         self._decisions: dict[str, Decision] = {}
+        self.delegation_policy: DelegationPolicy = DelegationPolicy()
+        self.rpc_client: RpcClient = HttpRpcClient(rpc_url=settings.anvil_url)
+
+    def set_delegation_policy(self, policy: DelegationPolicy) -> None:
+        """Sets the active EIP-7702 delegation policy."""
+        self.delegation_policy = policy
+
+    def set_rpc_client(self, client: RpcClient) -> None:
+        """Sets the active RPC client for contract inspections."""
+        self.rpc_client = client
 
     def get_wallet_group(self, group_id_or_wallet: str) -> WalletGroupConfig:
         """Finds wallet group by identifier or wallet address. Falls back to 'default'."""
@@ -354,8 +367,8 @@ class ModeService:
 
         # Stage: Withdrawal Intent Reconciliation (Milestone S08 / F2)
         # Invariant #3 & #4: Fail-closed verification against custody ledger intent
+        decoded: DecodedTx | None = None
         if request.intent_id or request.metadata.get("require_intent_check"):
-            decoded: DecodedTx | None = None
             if "decoded_tx" in request.metadata:
                 decoded = DecodedTx.model_validate(request.metadata["decoded_tx"])
             else:
@@ -396,6 +409,65 @@ class ModeService:
                             code=intent_res.code or "INTENT_CHECK_FAILED",
                             weight=100,
                             detail=intent_res.detail or "Intent reconciliation failed.",
+                        )
+                    ],
+                    mode=active_mode,
+                    policy_version="v1.0.0",
+                    data_label=DataLabel.SYNTHETIC,
+                    wallet_group=group.id,
+                    created_at=start_time,
+                    evaluation_latency_ms=0.4,
+                )
+                return self.save_decision(dec)
+
+        # Stage: EIP-7702 Delegation Guard (Milestone S09)
+        # Evaluated strictly on DecodedTx.authorizations
+        if decoded is None and (
+            raw_tx.startswith("0x04")
+            or "decoded_tx" in request.metadata
+            or request.metadata.get("require_delegation_check")
+        ):
+            if "decoded_tx" in request.metadata:
+                decoded = DecodedTx.model_validate(request.metadata["decoded_tx"])
+            else:
+                try:
+                    decoded = evm_decoder.decode(raw_tx)
+                except DecodeError as exc:
+                    self.record_decode_failure(group.id)
+                    dec = Decision(
+                        request_id=request.id,
+                        verdict=Verdict.DENY,
+                        would_have_verdict=None,
+                        risk_score=100,
+                        reasons=[
+                            DecisionReason(
+                                code="DECODE_ERROR",
+                                weight=100,
+                                detail=f"Failed to decode Type-4 transaction bytes: {exc}",
+                            )
+                        ],
+                        mode=active_mode,
+                        policy_version="v1.0.0",
+                        data_label=DataLabel.SYNTHETIC,
+                        wallet_group=group.id,
+                        created_at=start_time,
+                        evaluation_latency_ms=0.4,
+                    )
+                    return self.save_decision(dec)
+
+        if decoded and decoded.authorizations:
+            del_res = check_delegations(decoded, self.delegation_policy, self.rpc_client)
+            if not del_res.passed:
+                dec = Decision(
+                    request_id=request.id,
+                    verdict=Verdict.DENY,
+                    would_have_verdict=None,
+                    risk_score=100,
+                    reasons=[
+                        DecisionReason(
+                            code=del_res.code or "SUSPICIOUS_DELEGATION",
+                            weight=100,
+                            detail=del_res.detail or "EIP-7702 delegation policy violation.",
                         )
                     ],
                     mode=active_mode,

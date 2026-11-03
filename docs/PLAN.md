@@ -47,7 +47,7 @@
 - [x] S06 EVM transaction decoder with canonical record (F4)
 - [x] S07 Atomic distributed limit store (F3)
 - [x] S08 Mock ledger and withdrawal intent reconciliation (F2)
-- [ ] S09 EIP-7702 delegation guard in the engine
+- [x] S09 EIP-7702 delegation guard in the engine
 - [ ] S10 Decision engine: pipeline, risk score, reasons, fail-closed
 - [ ] S11 Approval token and signer shim (F1) with bypass protection
 - [ ] S12 Signing gateway: mTLS identity and JSON-RPC interface
