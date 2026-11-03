@@ -32,6 +32,7 @@ services:
       - redis_data:/data
     networks:
       - public
+      - signer_internal
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -80,6 +81,7 @@ services:
       SIGNER_SHIM_PORT: 8001
       SIGNER_SHIM_ENVIRONMENT: "development"
       SIGNER_SHIM_ANVIL_URL: "http://anvil:8545"
+      SIGNER_SHIM_REDIS_URL: "redis://redis:6379/0"
     # Port 8001 is EXPOSED internally to signer_internal, NEVER published to host
     expose:
       - "8001"
@@ -87,6 +89,7 @@ services:
       - signer_internal
     depends_on:
       - anvil
+      - redis
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/healthz\")'"]
       interval: 5s

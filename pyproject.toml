@@ -21,6 +21,7 @@ dependencies = [
     "pyyaml>=6.0.1",
     "eth-account>=0.11.0",
     "rlp>=4.0.0",
+    "pynacl>=1.5.0",
 ]
 
 [project.optional-dependencies]
