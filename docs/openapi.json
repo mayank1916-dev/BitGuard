@@ -329,6 +329,17 @@
           "data_label": {
             "$ref": "#/components/schemas/DataLabel"
           },
+          "decoded_tx": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecodedTx"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Decoded transaction payload if available"
+          },
           "evaluation_latency_ms": {
             "anyOf": [
               {
@@ -362,6 +373,18 @@
           "request_id": {
             "title": "Request Id",
             "type": "string"
+          },
+          "reservation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Active limit reservation ID if reserved",
+            "title": "Reservation Id"
           },
           "risk_score": {
             "maximum": 100.0,
@@ -703,6 +726,148 @@
         "title": "IntentMetricsResponse",
         "type": "object"
       },
+      "JsonRpcError": {
+        "description": "Standardized JSON-RPC 2.0 error object.",
+        "properties": {
+          "code": {
+            "description": "Standard or application error code",
+            "title": "Code",
+            "type": "integer"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Structured diagnostics, decision reasons, or hold details",
+            "title": "Data"
+          },
+          "message": {
+            "description": "Short human-readable summary of the error",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "JsonRpcError",
+        "type": "object"
+      },
+      "JsonRpcRequest": {
+        "description": "JSON-RPC 2.0 incoming request payload.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 1,
+            "description": "Client-assigned correlation identifier",
+            "title": "Id"
+          },
+          "jsonrpc": {
+            "default": "2.0",
+            "description": "JSON-RPC protocol version",
+            "title": "Jsonrpc",
+            "type": "string"
+          },
+          "method": {
+            "description": "Remote procedure method name",
+            "title": "Method",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Method invocation parameters",
+            "title": "Params"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "title": "JsonRpcRequest",
+        "type": "object"
+      },
+      "JsonRpcResponse": {
+        "description": "Standardized JSON-RPC 2.0 response envelope.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JsonRpcError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Error payload if procedure failed or denied"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Client-assigned correlation identifier echoed back",
+            "title": "Id"
+          },
+          "jsonrpc": {
+            "default": "2.0",
+            "description": "JSON-RPC protocol version",
+            "title": "Jsonrpc",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Successful procedure result payload",
+            "title": "Result"
+          }
+        },
+        "title": "JsonRpcResponse",
+        "type": "object"
+      },
       "OperationMode": {
         "description": "BitGuard operational mode.",
         "enum": [
@@ -893,6 +1058,112 @@
         ],
         "title": "Role",
         "type": "string"
+      },
+      "SignTransactionParams": {
+        "description": "Parameters for the 'bitguard_signTransaction' JSON-RPC method.",
+        "properties": {
+          "amount_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional USD equivalent transfer value",
+            "title": "Amount Usd"
+          },
+          "chain": {
+            "description": "Target blockchain (e.g. ethereum-sepolia, base, optimism)",
+            "title": "Chain",
+            "type": "string"
+          },
+          "intent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Pre-registered custody withdrawal intent ID",
+            "title": "Intent Id"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "description": "Supplementary auditing metadata",
+            "title": "Metadata",
+            "type": "object"
+          },
+          "raw_tx": {
+            "description": "Raw unsigned transaction payload hex string",
+            "title": "Raw Tx",
+            "type": "string"
+          },
+          "wallet_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Target wallet group (defaults to group mapped to wallet)",
+            "title": "Wallet Group"
+          }
+        },
+        "required": [
+          "chain",
+          "raw_tx"
+        ],
+        "title": "SignTransactionParams",
+        "type": "object"
+      },
+      "SignTransactionResult": {
+        "description": "Successful signing result returned to the authorized caller.",
+        "properties": {
+          "decision_id": {
+            "description": "BitGuard decision request ID for auditing",
+            "title": "Decision Id",
+            "type": "string"
+          },
+          "signature": {
+            "description": "Serialized ECDSA signature or signed raw transaction",
+            "title": "Signature",
+            "type": "string"
+          },
+          "status": {
+            "default": "SIGNED",
+            "description": "Signing execution status",
+            "title": "Status",
+            "type": "string"
+          },
+          "tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Computed transaction keccak256 hash",
+            "title": "Tx Hash"
+          }
+        },
+        "required": [
+          "signature",
+          "decision_id"
+        ],
+        "title": "SignTransactionResult",
+        "type": "object"
       },
       "SigningRequest": {
         "description": "Incoming transaction signing request dispatched to BitGuard.",
@@ -1238,6 +1509,28 @@
         "summary": "Healthz",
         "tags": [
           "Health"
+        ]
+      }
+    },
+    "/rpc": {
+      "post": {
+        "description": "Production JSON-RPC 2.0 interface for custodial signing requests. Method 'bitguard_signTransaction' executes the 6-stage policy pipeline (decode -> intent -> delegation -> limits -> enrichment -> decide) under mTLS caller authentication. ALLOW returns the signature; HOLD returns error -32004; DENY returns error -32003.",
+        "operationId": "json_rpc_endpoint_rpc_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonRpcResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "JSON-RPC 2.0 Transaction Signing Gateway",
+        "tags": [
+          "JSON-RPC Gateway"
         ]
       }
     },

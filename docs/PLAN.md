@@ -50,7 +50,7 @@
 - [x] S09 EIP-7702 delegation guard in the engine
 - [x] S10 Decision engine: pipeline, risk score, reasons, fail-closed
 - [x] S11 Approval token and signer shim (F1) with bypass protection
-- [ ] S12 Signing gateway: mTLS identity and JSON-RPC interface
+- [x] S12 Signing gateway: mTLS identity and JSON-RPC interface
 - [ ] S13 Decision persistence and live WebSocket stream
 - [ ] S14 Durable quarantine and HOLD state machine
 - [ ] S15 Full authentication: OIDC SSO and WebAuthn hardware keys (F9)

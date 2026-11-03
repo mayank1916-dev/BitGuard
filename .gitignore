@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# Lab generated PKI / certificates
+lab/certs/

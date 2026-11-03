@@ -223,6 +223,8 @@ class DecisionEngine:
 
         try:
             context.decoded_tx = evm_decoder.decode(raw_tx)
+            if context.decoded_tx and context.decoded_tx.from_address:
+                context.request.wallet = context.decoded_tx.from_address
         except DecodeError as exc:
             # Handle legacy test fixtures with simulated metadata where raw_tx was a stub string
             if (
@@ -523,6 +525,8 @@ class DecisionEngine:
             created_at=start_time,
             evaluation_latency_ms=0.0,
             timings={},
+            reservation_id=context.reservation_id,
+            decoded_tx=context.decoded_tx,
         )
 
         from services.bitguard.mode_service import mode_service

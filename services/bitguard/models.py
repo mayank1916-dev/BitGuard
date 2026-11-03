@@ -137,6 +137,8 @@ class Decision(BaseModel):
         default_factory=dict,
         description="Stage execution latencies in milliseconds",
     )
+    reservation_id: str | None = Field(default=None, description="Active limit reservation ID if reserved")
+    decoded_tx: DecodedTx | None = Field(default=None, description="Decoded transaction payload if available")
 
 
 class HoldTicket(BaseModel):

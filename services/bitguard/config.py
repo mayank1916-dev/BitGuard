@@ -25,7 +25,16 @@ class BitGuardSettings(BaseSettings):
 
     # Internal service endpoints
     signer_shim_url: str = "http://signer_shim:8001"
+    signer_shim_internal_auth_token: str = "bitguard-shim-internal-lab-token-2026"
     ledger_mock_url: str = "http://ledger_mock:8002"
+
+    # Gateway mTLS settings (S12)
+    mtls_ca_cert_path: str = ""
+    mtls_allowed_sans: list[str] = [
+        "spiffe://exchange.internal/workload/custody",
+        "custody.exchange.internal",
+        "demo_custody",
+    ]
 
     # Policy and evaluation defaults
     approval_token_ttl_seconds: int = 60

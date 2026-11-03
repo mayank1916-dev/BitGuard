@@ -12,6 +12,14 @@ from pydantic import BaseModel
 
 from backend.app.main import create_app as create_legacy_api_app
 from services.bitguard.config import settings
+from services.bitguard.gateway.models import (
+    JsonRpcError,
+    JsonRpcRequest,
+    JsonRpcResponse,
+    SignTransactionParams,
+    SignTransactionResult,
+)
+from services.bitguard.gateway.router import router as gateway_router
 from services.bitguard.logging import setup_json_logging
 from services.bitguard.models import (
     Approval,
@@ -84,6 +92,9 @@ def create_app() -> FastAPI:
     # Include V1 canonical API routes
     app.include_router(v1_router, prefix="/v1")
 
+    # Include JSON-RPC 2.0 Gateway routes (Milestone S12)
+    app.include_router(gateway_router)
+
     # Custom OpenAPI schema hook guaranteeing all canonical data models are documented
     def custom_openapi() -> dict[str, Any]:
         if app.openapi_schema:
@@ -112,6 +123,11 @@ def create_app() -> FastAPI:
             WalletGroupConfig,
             WalletGroupModeUpdate,
             WatchedAddress,
+            JsonRpcRequest,
+            JsonRpcResponse,
+            JsonRpcError,
+            SignTransactionParams,
+            SignTransactionResult,
         ]
         for model_cls in canonical_models:
             model_schema = model_cls.model_json_schema(ref_template="#/components/schemas/{model}")
