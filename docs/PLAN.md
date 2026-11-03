@@ -45,7 +45,7 @@
 - [x] S04 Mode flag: SIMULATION / SHADOW / ENFORCE (F7)
 - [x] S05 Basic roles and permission checks (F9 basic)
 - [x] S06 EVM transaction decoder with canonical record (F4)
-- [ ] S07 Atomic distributed limit store (F3)
+- [x] S07 Atomic distributed limit store (F3)
 - [ ] S08 Mock ledger and withdrawal intent reconciliation (F2)
 - [ ] S09 EIP-7702 delegation guard in the engine
 - [ ] S10 Decision engine: pipeline, risk score, reasons, fail-closed

@@ -34,6 +34,13 @@ class BitGuardSettings(BaseSettings):
     global_limit_usd_default: float = 500_000.0
     new_recipient_usd_default: float = 10_000.0
 
+    # Limit store defaults (F3 / S07)
+    limit_reservation_ttl_seconds: int = 120
+    limit_sliding_window_seconds: int = 3600
+    local_caps_enabled: bool = True
+    local_fallback_cap: int = 10_000  # Conservative local cap (smallest integer units)
+    local_fallback_wallet_cap: int = 5_000
+
     # Shadow mode and promotion defaults (F7)
     shadow_min_days: int = 14
     shadow_max_false_positive_rate: float = 0.001
