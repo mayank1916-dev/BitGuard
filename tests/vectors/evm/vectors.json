@@ -1,0 +1,280 @@
+[
+  {
+    "id": "legacy_eip155_native_transfer",
+    "raw_hex": "0xec018504a817c80082520894742d35cc6634c0532925a3b844bc454e4438f44e880de0b6b3a764000080018080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "asset": "ETH",
+    "amount": "1000000000000000000",
+    "call_type": "NATIVE_TRANSFER"
+  },
+  {
+    "id": "legacy_pre155_native_transfer",
+    "raw_hex": "0xe9028505d21dba0082520894742d35cc6634c0532925a3b844bc454e4438f44e8806f05b59d3b2000080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "asset": "ETH",
+    "amount": "500000000000000000",
+    "call_type": "NATIVE_TRANSFER"
+  },
+  {
+    "id": "legacy_erc20_transfer",
+    "raw_hex": "0xf869038504a817c80082fde894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844a9059cbb0000000000000000000000001111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000003b9aca00018080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "1000000000",
+    "call_type": "ERC20_TRANSFER"
+  },
+  {
+    "id": "legacy_erc20_approve",
+    "raw_hex": "0xf869048504a817c80082afc894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844095ea7b30000000000000000000000002222222222222222222222222222222222222222000000000000000000000000000000000000000000000000000000001dcd6500018080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "500000000",
+    "call_type": "ERC20_APPROVE",
+    "is_unlimited": false
+  },
+  {
+    "id": "legacy_erc20_approve_unlimited",
+    "raw_hex": "0xf869058504a817c80082afc894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844095ea7b30000000000000000000000002222222222222222222222222222222222222222ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff018080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+    "call_type": "ERC20_APPROVE",
+    "is_unlimited": true,
+    "flag": "UNLIMITED_APPROVAL"
+  },
+  {
+    "id": "legacy_erc20_transfer_from",
+    "raw_hex": "0xf88a068504a817c800830124f894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b86423b872dd00000000000000000000000033333333333333333333333333333333333333330000000000000000000000001111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000000ee6b280018080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "250000000",
+    "call_type": "ERC20_TRANSFER_FROM"
+  },
+  {
+    "id": "legacy_contract_creation",
+    "raw_hex": "0xe2078504a817c800830249f08080916080604052348015600f57600080fd5b50018080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": null,
+    "asset": "ETH",
+    "amount": "0",
+    "call_type": "RAW_CALL"
+  },
+  {
+    "id": "legacy_unknown_selector",
+    "raw_hex": "0xf848088504a817c80082c35094742d35cc6634c0532925a3b844bc454e4438f44e80a4deadbeef0000000000000000000000001234567890123456789012345678901234567890018080",
+    "is_valid": true,
+    "type": "legacy",
+    "to": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "asset": "ETH",
+    "amount": "0",
+    "call_type": "RAW_CALL",
+    "flag": "UNKNOWN_SELECTOR"
+  },
+  {
+    "id": "eip2930_native_transfer",
+    "raw_hex": "0x01eb01098504a817c80082520894742d35cc6634c0532925a3b844bc454e4438f44e881bc16d674ec8000080c0",
+    "is_valid": true,
+    "type": "0x01",
+    "to": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "asset": "ETH",
+    "amount": "2000000000000000000",
+    "call_type": "NATIVE_TRANSFER"
+  },
+  {
+    "id": "eip2930_erc20_transfer",
+    "raw_hex": "0x01f868010a8504a817c80082fde894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844a9059cbb0000000000000000000000001111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000003b9aca00c0",
+    "is_valid": true,
+    "type": "0x01",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "1000000000",
+    "call_type": "ERC20_TRANSFER"
+  },
+  {
+    "id": "eip2930_with_access_list",
+    "raw_hex": "0x01f85c010b8504a817c80082753094742d35cc6634c0532925a3b844bc454e4438f44e6480f838f794742d35cc6634c0532925a3b844bc454e4438f44ee1a00000000000000000000000000000000000000000000000000000000000000001",
+    "is_valid": true,
+    "type": "0x01",
+    "to": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "asset": "ETH",
+    "amount": "100"
+  },
+  {
+    "id": "eip1559_native_transfer",
+    "raw_hex": "0x02f0010c843b9aca008506fc23ac0082520894742d35cc6634c0532925a3b844bc454e4438f44e880de0b6b3a764000080c0",
+    "is_valid": true,
+    "type": "0x02",
+    "to": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "asset": "ETH",
+    "amount": "1000000000000000000",
+    "call_type": "NATIVE_TRANSFER"
+  },
+  {
+    "id": "eip1559_erc20_transfer",
+    "raw_hex": "0x02f86d010d8459682f00850826299e0082fde894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844a9059cbb0000000000000000000000001111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000003b9aca00c0",
+    "is_valid": true,
+    "type": "0x02",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "1000000000",
+    "call_type": "ERC20_TRANSFER"
+  },
+  {
+    "id": "eip1559_erc20_approve",
+    "raw_hex": "0x02f86d010e843b9aca008506fc23ac0082afc894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844095ea7b30000000000000000000000002222222222222222222222222222222222222222000000000000000000000000000000000000000000000000000000001dcd6500c0",
+    "is_valid": true,
+    "type": "0x02",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "500000000",
+    "call_type": "ERC20_APPROVE",
+    "is_unlimited": false
+  },
+  {
+    "id": "eip1559_erc20_approve_unlimited",
+    "raw_hex": "0x02f86d010f843b9aca008506fc23ac0082afc894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844095ea7b30000000000000000000000002222222222222222222222222222222222222222ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc0",
+    "is_valid": true,
+    "type": "0x02",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+    "call_type": "ERC20_APPROVE",
+    "is_unlimited": true,
+    "flag": "UNLIMITED_APPROVAL"
+  },
+  {
+    "id": "eip1559_erc20_transfer_from",
+    "raw_hex": "0x02f88e0110843b9aca008506fc23ac00830124f894a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b86423b872dd00000000000000000000000033333333333333333333333333333333333333330000000000000000000000001111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000000ee6b280c0",
+    "is_valid": true,
+    "type": "0x02",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "250000000",
+    "call_type": "ERC20_TRANSFER_FROM"
+  },
+  {
+    "id": "eip1559_with_access_list",
+    "raw_hex": "0x02f8610111843b9aca008506fc23ac0082753094742d35cc6634c0532925a3b844bc454e4438f44e6480f838f794742d35cc6634c0532925a3b844bc454e4438f44ee1a00000000000000000000000000000000000000000000000000000000000000001",
+    "is_valid": true,
+    "type": "0x02",
+    "to": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "asset": "ETH",
+    "amount": "100"
+  },
+  {
+    "id": "eip7702_single_authorization",
+    "raw_hex": "0x04f8410112843b9aca008506fc23ac0082c35094742d35cc6634c0532925a3b844bc454e4438f44e8080c0d8d70194111111111111111111111111111111111111111180",
+    "is_valid": true,
+    "type": "0x04",
+    "authorizations_count": 1,
+    "auth_0_address": "0x1111111111111111111111111111111111111111",
+    "auth_0_nonce": 0
+  },
+  {
+    "id": "eip7702_two_authorizations",
+    "raw_hex": "0x04f8590113843b9aca008506fc23ac0082ea6094742d35cc6634c0532925a3b844bc454e4438f44e8080c0f0d70194111111111111111111111111111111111111111180d70194222222222222222222222222222222222222222205",
+    "is_valid": true,
+    "type": "0x04",
+    "authorizations_count": 2,
+    "auth_0_address": "0x1111111111111111111111111111111111111111",
+    "auth_0_nonce": 0,
+    "auth_1_address": "0x2222222222222222222222222222222222222222",
+    "auth_1_nonce": 5
+  },
+  {
+    "id": "eip7702_with_erc20_transfer",
+    "raw_hex": "0x04f89f0114843b9aca008506fc23ac0083015f9094a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844a9059cbb0000000000000000000000001111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000003b9aca00c0f0d70194111111111111111111111111111111111111111180d70194222222222222222222222222222222222222222205",
+    "is_valid": true,
+    "type": "0x04",
+    "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "amount": "1000000000",
+    "call_type": "ERC20_TRANSFER",
+    "authorizations_count": 2
+  },
+  {
+    "id": "malformed_empty",
+    "raw_hex": "0x",
+    "is_valid": false,
+    "expected_error": "Empty"
+  },
+  {
+    "id": "malformed_non_hex",
+    "raw_hex": "0xnot_a_valid_hex_string_12345",
+    "is_valid": false,
+    "expected_error": "Invalid hexadecimal"
+  },
+  {
+    "id": "malformed_unknown_tx_type_03",
+    "raw_hex": "0x03de01016482520894742d35cc6634c0532925a3b844bc454e4438f44e8080c0",
+    "is_valid": false,
+    "expected_error": "Unsupported or invalid transaction envelope prefix: 0x03"
+  },
+  {
+    "id": "malformed_unknown_tx_type_05",
+    "raw_hex": "0x05de01016482520894742d35cc6634c0532925a3b844bc454e4438f44e8080c0",
+    "is_valid": false,
+    "expected_error": "Unsupported or invalid transaction envelope prefix: 0x05"
+  },
+  {
+    "id": "malformed_legacy_trailing_garbage",
+    "raw_hex": "0xec018504a817c80082520894742d35cc6634c0532925a3b844bc454e4438f44e880de0b6b3a764000080018080deadbeef",
+    "is_valid": false,
+    "expected_error": "Trailing garbage"
+  },
+  {
+    "id": "malformed_1559_trailing_garbage",
+    "raw_hex": "0x02f0010c843b9aca008506fc23ac0082520894742d35cc6634c0532925a3b844bc454e4438f44e880de0b6b3a764000080c0cafebabe1234",
+    "is_valid": false,
+    "expected_error": "Trailing garbage"
+  },
+  {
+    "id": "malformed_truncated_rlp",
+    "raw_hex": "0x02f0010c843b9aca008506fc23ac0082520894742d35cc6634",
+    "is_valid": false,
+    "expected_error": "RLP decoding failure"
+  },
+  {
+    "id": "malformed_invalid_address_length",
+    "raw_hex": "0x02e201018203e8820bb882520893742d35cc6634c0532925a3b844bc454e4438f48080c0",
+    "is_valid": false,
+    "expected_error": "Invalid EVM address length"
+  },
+  {
+    "id": "malformed_erc20_truncated_calldata",
+    "raw_hex": "0x02f701018203e8820bb882520894742d35cc6634c0532925a3b844bc454e4438f44e8094a9059cbb11111111111111111111111111111111c0",
+    "is_valid": false,
+    "expected_error": "ERC-20 transfer calldata must be exactly 68 bytes"
+  },
+  {
+    "id": "malformed_erc20_transfer_from_truncated",
+    "raw_hex": "0x02f86801018203e8820bb882520894742d35cc6634c0532925a3b844bc454e4438f44e80b84423b872dd00000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111111c0",
+    "is_valid": false,
+    "expected_error": "ERC-20 transferFrom calldata must be exactly 100 bytes"
+  },
+  {
+    "id": "malformed_7702_invalid_delegate_address",
+    "raw_hex": "0x04f83a01018203e8820bb882520894742d35cc6634c0532925a3b844bc454e4438f44e8080c0d6d5019211111111111111111111111111111111111180",
+    "is_valid": false,
+    "expected_error": "EIP-7702 delegate address in item #0 must be 20 bytes"
+  },
+  {
+    "id": "malformed_non_canonical_integer",
+    "raw_hex": "0x02e5018200058203e8820bb882520894742d35cc6634c0532925a3b844bc454e4438f44e8080c0",
+    "is_valid": false,
+    "expected_error": "Non-canonical integer encoding: leading zeroes present"
+  }
+]

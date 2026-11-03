@@ -159,6 +159,23 @@
       "CallItem": {
         "description": "Sub-call in a batch or multicall transaction.",
         "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "call_type": {
+            "default": "NATIVE_TRANSFER",
+            "title": "Call Type",
+            "type": "string"
+          },
           "data": {
             "anyOf": [
               {
@@ -170,6 +187,59 @@
             ],
             "default": null,
             "title": "Data"
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flag"
+          },
+          "is_unlimited_approval": {
+            "default": false,
+            "title": "Is Unlimited Approval",
+            "type": "boolean"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recipient"
+          },
+          "selector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Selector"
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sender"
           },
           "to": {
             "title": "To",

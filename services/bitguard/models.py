@@ -46,6 +46,13 @@ class CallItem(BaseModel):
     to: str
     value: str = "0"
     data: str | None = None
+    selector: str | None = None
+    call_type: str = "NATIVE_TRANSFER"
+    recipient: str | None = None
+    amount: str | None = None
+    sender: str | None = None
+    is_unlimited_approval: bool = False
+    flag: str | None = None
 
 
 class AuthorizationItem(BaseModel):
@@ -97,8 +104,8 @@ class DecodedTx(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     chain: str
-    from_address: str = Field(alias="from")
-    to_address: str | None = Field(default=None, alias="to")
+    from_address: str = Field(validation_alias="from", serialization_alias="from")
+    to_address: str | None = Field(default=None, validation_alias="to", serialization_alias="to")
     asset: str
     amount: str
     calls: list[CallItem] = Field(default_factory=list)
