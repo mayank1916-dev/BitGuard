@@ -1,0 +1,70 @@
+# BitGuard UI Visual Stability Checklist (Milestone U1)
+
+## Purpose & Strict Invariants
+
+Under **AGENTS.md Invariant #10 (Visual Stability)**:
+> *"The existing UI look stays unchanged: do not edit existing CSS tokens, colours, fonts or layout. New UI elements must reuse existing classes."*
+
+When adding or updating the API client layer (`web/api.js` / `frontend/src/api.ts` / `DATA_SOURCE`):
+- When `DATA_SOURCE='demo'`, existing demo simulation behavior must remain **100% identical**.
+- Zero visual drift across layout, typography, palette, borders, shadows, or existing class names.
+
+---
+
+## Data Source Toggle
+
+The client layer selects between demo simulation and live API via:
+- **Demo Mode (default):** `http://localhost:3000/?datasource=demo` (or default without query param)
+- **Live API Mode:** `http://localhost:3000/?datasource=api`
+- **Config Storage:** `localStorage.setItem('DATA_SOURCE', 'demo' | 'api')`
+
+---
+
+## Visual Verification Checklist by Tab
+
+| View / Component | Key Visual Elements | Expected Classes & Styling | Pass / Fail |
+| :--- | :--- | :--- | :--- |
+| **Top Navigation Bar** | BitGuard Shield Logo (`text-cyan-400`), title `BitGuard \| Hot Wallet Signing Firewall`, badge `DEFENSIVE SIMULATION`, Breaker Pill (`NORMAL OPERATION` emerald-500/10), Reset Button (`Reset System`) | `border-slate-800 bg-slate-950/80 backdrop-blur`, `font-sans`, exact padding | [ ] |
+| **Tab 1: Incident Replay** (`replay`) | Split-screen loss cards: Unprotected loss ($30.4M) in red/rose, BitGuard protected loss in emerald/cyan; interactive step slider; playback controls (`Run Simulation`, `Next Step`); Policy Sliders at footer | `bg-slate-900/60 border-slate-800`, monospace numbers `font-mono`, unchanged colors | [ ] |
+| **Tab 2: Live Decision Stream** (`feed`) | Real-time verdict cards (`ALLOW`, `HOLD`, `DENY`), risk percentage meters, transaction detail rows, per-chain outflow velocity bars | Dark slate card background, colored verdict badges (`bg-emerald-500/20`, `bg-rose-500/20`) | [ ] |
+| **Tab 3: 7702 Radar** (`radar`) | Block scanner controls, scan depth buttons (`5 blocks`, `10 blocks`), delegation findings cards, suspicious pattern tags (`UNAPPROVED_BYTECODE`) | Emerald/cyan borders on clean delegates; amber tags on suspicious contracts | [ ] |
+| **Tab 4: Policy Sensitivity Lab** (`lab`) | Multiplier sliders, 2D sensitivity table, loss mitigated percentage curves, false positives count | Recharts SVG graphs without layout shift, slate table borders | [ ] |
+| **Tab 5: Cryptographic Audit** (`reports`) | Chain integrity badge (`INTEGRITY VERIFIED`), root hash box, simulate tamper buttons, audit entry timeline, export buttons | Monospace hash text, green/red verified badges, download action links | [ ] |
+| **Tab 6: Quorum Approvals** (`approvals`) | Quarantined tickets list, ticket inspector, raw tx decoding breakdown, dual-approver role selector, WebAuthn approve button | Amber quarantine badges, 2-approver progress step dots, monospace hex bytes | [ ] |
+
+---
+
+## Screenshot Comparison Protocol
+
+To ensure zero visual regression:
+
+1. **Environment Setup:**
+   - Launch backend: `uvicorn services.bitguard.main:app --host 0.0.0.0 --port 8000`
+   - Launch frontend: `npm run dev --prefix frontend` (accessible at `http://localhost:3000`)
+   - Browser Viewport: Set browser window size to **1440 x 900** (standard desktop benchmark).
+
+2. **Capture Baseline (Before):**
+   - Take full-page screenshots for each tab in `DATA_SOURCE=demo` mode:
+     - `screenshots/baseline/01_navbar_and_replay.png`
+     - `screenshots/baseline/02_live_feed.png`
+     - `screenshots/baseline/03_radar.png`
+     - `screenshots/baseline/04_sensitivity_lab.png`
+     - `screenshots/baseline/05_audit_reports.png`
+     - `screenshots/baseline/06_approvals.png`
+
+3. **Capture Comparison (After):**
+   - Take matching screenshots with updated client module at identical viewport.
+
+4. **Automated Image Diff:**
+   - Compare before and after screenshots using an image comparison tool or perceptual diff (e.g. `pixelmatch` or `compare -metric AE`).
+   - **Acceptance Criterion:** 0 pixels changed on layout, containers, typography, or styling tokens.
+
+---
+
+## Build & Test Quality Gate
+
+Run frontend build to verify zero compile or bundle warnings:
+```bash
+npm run build --prefix frontend
+```
+Verify that `dist/assets/index-*.css` remains unchanged in size and classes.

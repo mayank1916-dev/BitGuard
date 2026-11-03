@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldAlert,
   ShieldCheck,
   CheckCircle2,
   XCircle,
@@ -9,8 +8,6 @@ import {
   FileCode2,
   AlertTriangle,
   Lock,
-  ArrowRight,
-  ExternalLink,
   UserCheck,
 } from 'lucide-react';
 import {
@@ -36,7 +33,7 @@ export const ApprovalView: React.FC = () => {
   // Approver credentials state
   const [activeApproverRole, setActiveApproverRole] = useState<'usr-approver-01' | 'usr-approver-02' | 'usr-admin-01'>('usr-approver-01');
   const [confirmedTruth, setConfirmedTruth] = useState<boolean>(false);
-  const [denyReason, setDenyReason] = useState<string>('Destination mismatch during visual review');
+  const denyReason = 'Destination mismatch during visual review';
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Load holds
@@ -175,7 +172,7 @@ export const ApprovalView: React.FC = () => {
     setError(null);
     try {
       const token = await fetchDevToken('Approver', activeApproverRole);
-      const res = await denyHold(holdDetails.hold_id, denyReason, token);
+      await denyHold(holdDetails.hold_id, denyReason, token);
       setSuccessMsg(`Quarantine hold denied. Policy tightened immediately.`);
       await loadHoldDetails(holdDetails.hold_id);
       await loadHolds();
