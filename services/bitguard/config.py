@@ -38,5 +38,11 @@ class BitGuardSettings(BaseSettings):
     shadow_min_days: int = 14
     shadow_max_false_positive_rate: float = 0.001
 
+    # RBAC and JWT Authentication settings (F9 basic / S05)
+    jwt_secret: str = "bitguard-dev-secret-key-32-chars-min-at-least-256-bits"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_seconds: int = 3600
+    dev_auth_bypass: bool = True
+
 
 settings = BitGuardSettings()

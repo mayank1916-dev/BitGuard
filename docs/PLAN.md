@@ -43,7 +43,7 @@
 - [x] S02 Scaffold the backend, signer shim and lab environment
 - [x] S03 Canonical data model, API contract and dry-run evaluate endpoint
 - [x] S04 Mode flag: SIMULATION / SHADOW / ENFORCE (F7)
-- [ ] S05 Basic roles and permission checks (F9 basic)
+- [x] S05 Basic roles and permission checks (F9 basic)
 - [ ] S06 EVM transaction decoder with canonical record (F4)
 - [ ] S07 Atomic distributed limit store (F3)
 - [ ] S08 Mock ledger and withdrawal intent reconciliation (F2)

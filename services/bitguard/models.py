@@ -265,3 +265,67 @@ class FalsePositiveRequest(BaseModel):
 
     reason: str | None = None
     operator_id: str = "operator"
+
+
+# --- RBAC Models (Milestone S05 / F9 basic) ---
+
+
+class Role(StrEnum):
+    """Development-grade RBAC Roles."""
+
+    VIEWER = "Viewer"
+    OPERATOR = "Operator"
+    SECOPS = "SecOps"
+    COMPLIANCE = "Compliance"
+    APPROVER = "Approver"
+    ADMIN = "Admin"
+
+
+class Permission(StrEnum):
+    """Fine-grained RBAC permissions mapped in the permission matrix."""
+
+    # Read access
+    READ_DECISIONS = "decisions:read"
+    READ_METRICS = "metrics:read"
+    READ_CHECKLIST = "checklist:read"
+    READ_BREAKER = "breaker:read"
+    READ_WALLET_GROUPS = "wallet_groups:read"
+    READ_AUDIT = "audit:read"
+    READ_REPORTS = "reports:read"
+
+    # Operational operations
+    EVALUATE_TX = "tx:evaluate"
+    SUBMIT_SIGN_REQUEST = "tx:sign"
+    LABEL_FALSE_POSITIVE = "decisions:false_positive"
+    POLICY_TIGHTEN = "policy:tighten"
+    POLICY_LOOSEN = "policy:loosen"
+    CONTROL_BREAKER = "breaker:control"
+    APPROVE_HOLD = "hold:approve"
+    MANAGE_USERS = "users:manage"
+    PROMOTE_GROUP_OVERRIDE = "group:override"
+
+
+class UserResponse(BaseModel):
+    """User profile and active role representation."""
+
+    id: str
+    email: str
+    name: str
+    role: Role
+    permissions: list[Permission] = Field(default_factory=list)
+
+
+class DevLoginRequest(BaseModel):
+    """Development login payload to request signed JWT for seeded test users."""
+
+    role: Role = Role.VIEWER
+
+
+class DevLoginResponse(BaseModel):
+    """Signed short-lived JWT token response."""
+
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+    user: UserResponse
+
