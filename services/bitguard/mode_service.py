@@ -4,11 +4,16 @@ from datetime import UTC, datetime
 
 from services.bitguard.audit_service import audit_service
 from services.bitguard.config import settings
+from services.bitguard.decoders.base import DecodeError
+from services.bitguard.decoders.evm import evm_decoder
+from services.bitguard.ledger.intent_check import check_intent
+from services.bitguard.ledger.mock import mock_ledger_connector
 from services.bitguard.models import (
     DailyGroupMetrics,
     DataLabel,
     Decision,
     DecisionReason,
+    DecodedTx,
     OperationMode,
     PromotionCheckItem,
     PromotionChecklistResponse,
@@ -347,6 +352,61 @@ class ModeService:
             )
             return self.save_decision(dec)
 
+        # Stage: Withdrawal Intent Reconciliation (Milestone S08 / F2)
+        # Invariant #3 & #4: Fail-closed verification against custody ledger intent
+        if request.intent_id or request.metadata.get("require_intent_check"):
+            decoded: DecodedTx | None = None
+            if "decoded_tx" in request.metadata:
+                decoded = DecodedTx.model_validate(request.metadata["decoded_tx"])
+            else:
+                try:
+                    decoded = evm_decoder.decode(raw_tx)
+                except DecodeError as exc:
+                    self.record_decode_failure(group.id)
+                    dec = Decision(
+                        request_id=request.id,
+                        verdict=Verdict.DENY,
+                        would_have_verdict=None,
+                        risk_score=100,
+                        reasons=[
+                            DecisionReason(
+                                code="DECODE_ERROR",
+                                weight=100,
+                                detail=f"Failed to decode transaction bytes: {exc}",
+                            )
+                        ],
+                        mode=active_mode,
+                        policy_version="v1.0.0",
+                        data_label=DataLabel.SYNTHETIC,
+                        wallet_group=group.id,
+                        created_at=start_time,
+                        evaluation_latency_ms=0.4,
+                    )
+                    return self.save_decision(dec)
+
+            intent_res = check_intent(request, decoded, mock_ledger_connector)
+            if not intent_res.passed:
+                dec = Decision(
+                    request_id=request.id,
+                    verdict=Verdict.DENY,
+                    would_have_verdict=None,
+                    risk_score=100,
+                    reasons=[
+                        DecisionReason(
+                            code=intent_res.code or "INTENT_CHECK_FAILED",
+                            weight=100,
+                            detail=intent_res.detail or "Intent reconciliation failed.",
+                        )
+                    ],
+                    mode=active_mode,
+                    policy_version="v1.0.0",
+                    data_label=DataLabel.SYNTHETIC,
+                    wallet_group=group.id,
+                    created_at=start_time,
+                    evaluation_latency_ms=0.4,
+                )
+                return self.save_decision(dec)
+
         # Policy checks evaluation
         amount_usd = float(request.metadata.get("amount_usd", 0.0))
         policy_verdict = Verdict.ALLOW
@@ -408,6 +468,10 @@ class ModeService:
             # In SIMULATION mode: dry-run, returns what BitGuard would do without state mutations
             final_verdict = policy_verdict
             would_have_verdict = None
+
+        # Idempotency: consume intent on valid production signing requests
+        if not is_dry_run and final_verdict == Verdict.ALLOW and request.intent_id:
+            mock_ledger_connector.mark_consumed(request.intent_id)
 
         latency_ms = round((datetime.now(UTC) - start_time).total_seconds() * 1000.0, 3)
 

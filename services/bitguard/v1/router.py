@@ -12,6 +12,7 @@ from fastapi import (
 )
 
 from services.bitguard.config import settings
+from services.bitguard.ledger.metrics import IntentMetricsResponse, intent_metrics
 from services.bitguard.mode_service import mode_service
 from services.bitguard.models import (
     BreakerState,
@@ -253,6 +254,18 @@ async def get_breaker_state() -> BreakerState:
         updated_at=datetime.now(UTC),
         data_label=DataLabel.REAL,
     )
+
+
+@router.get(
+    "/metrics/intent",
+    response_model=IntentMetricsResponse,
+    summary="Get withdrawal intent reconciliation metrics",
+    description="Exposes total intent checks, unmatched count, and unmatched_request_rate for dashboard visualization.",
+    dependencies=[Depends(require_permission(Permission.READ_METRICS))],
+)
+async def get_intent_metrics() -> IntentMetricsResponse:
+    """Returns withdrawal intent reconciliation metrics."""
+    return intent_metrics.get_metrics()
 
 
 @router.websocket("/stream")

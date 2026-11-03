@@ -644,6 +644,45 @@
         "title": "HoldTicket",
         "type": "object"
       },
+      "IntentMetricsResponse": {
+        "description": "Dashboard-facing metrics for withdrawal intent reconciliation.",
+        "properties": {
+          "matched_intent_checks": {
+            "default": 0,
+            "description": "Count of requests matching approved intent",
+            "title": "Matched Intent Checks",
+            "type": "integer"
+          },
+          "reasons_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Counts broken down by failure code",
+            "title": "Reasons Breakdown",
+            "type": "object"
+          },
+          "total_intent_checks": {
+            "default": 0,
+            "description": "Total transactions evaluated through intent check stage",
+            "title": "Total Intent Checks",
+            "type": "integer"
+          },
+          "unmatched_intent_checks": {
+            "default": 0,
+            "description": "Count of requests failing intent reconciliation",
+            "title": "Unmatched Intent Checks",
+            "type": "integer"
+          },
+          "unmatched_request_rate": {
+            "default": 0.0,
+            "description": "Ratio of unmatched to total intent checks (0.0 to 1.0)",
+            "title": "Unmatched Request Rate",
+            "type": "number"
+          }
+        },
+        "title": "IntentMetricsResponse",
+        "type": "object"
+      },
       "OperationMode": {
         "description": "BitGuard operational mode.",
         "enum": [
@@ -1702,6 +1741,88 @@
           }
         },
         "summary": "Evaluate transaction signing request (dry run)",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/metrics/intent": {
+      "get": {
+        "description": "Exposes total intent checks, unmatched count, and unmatched_request_rate for dashboard visualization.",
+        "operationId": "get_intent_metrics_v1_metrics_intent_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntentMetricsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get withdrawal intent reconciliation metrics",
         "tags": [
           "V1 Policy Decision Point"
         ]

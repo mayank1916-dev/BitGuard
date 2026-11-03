@@ -17,6 +17,7 @@ class LedgerMockSettings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8002
     log_level: str = "INFO"
+    database_url: str = "postgresql://postgres:postgres@postgres:5432/bitguard"
 
 
 settings = LedgerMockSettings()
