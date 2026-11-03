@@ -137,6 +137,11 @@ class WatchedAddressRecord(Base):
     label: Mapped[str] = mapped_column(String(128), nullable=False)
     expected_code_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     allowed_delegates: Mapped[list[str]] = mapped_column(JsonType, nullable=False, default=list)
+    last_known_nonce: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    signed_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_scanned_block: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="ACTIVE", nullable=False)
+    data_label: Mapped[str] = mapped_column(String(16), default="REAL", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

@@ -16,11 +16,11 @@ from fastapi import (
 from services.bitguard.approvals.router import router as approvals_router
 from services.bitguard.config import settings
 from services.bitguard.decision_store import decision_store
+from services.bitguard.engine.breaker_store import breaker_store
 from services.bitguard.ledger.metrics import IntentMetricsResponse, intent_metrics
 from services.bitguard.mode_service import mode_service
 from services.bitguard.models import (
     BreakerState,
-    BreakerStateEnum,
     DailyGroupMetrics,
     DataLabel,
     Decision,
@@ -45,9 +45,11 @@ from services.bitguard.rbac import (
     require_permission,
 )
 from services.bitguard.stream.broadcaster import stream_broadcaster
+from services.bitguard.watcher.router import router as watcher_router
 
 router = APIRouter(tags=["V1 Policy Decision Point"])
 router.include_router(approvals_router)
+router.include_router(watcher_router)
 
 
 # --- Dev Only Authentication Endpoint (Milestone S05 / F9 basic) ---
@@ -279,9 +281,10 @@ async def get_wallet_group_metrics(group_id: str) -> list[DailyGroupMetrics]:
 )
 async def get_breaker_state() -> BreakerState:
     """Retrieve active circuit breaker state."""
+    current_state = breaker_store.get_state()
     return BreakerState(
-        state=BreakerStateEnum.NORMAL,
-        reason="All operational thresholds nominal",
+        state=current_state,
+        reason=f"Current operational state: {current_state.value}",
         updated_at=datetime.now(UTC),
         data_label=DataLabel.REAL,
     )

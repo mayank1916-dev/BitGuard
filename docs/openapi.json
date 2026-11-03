@@ -363,6 +363,54 @@
         "title": "CallItem",
         "type": "object"
       },
+      "CreateWatchedAddressRequest": {
+        "description": "Payload to register a new hot wallet address for delegation monitoring.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "allowed_delegates": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Delegates",
+            "type": "array"
+          },
+          "chain": {
+            "default": "ethereum",
+            "title": "Chain",
+            "type": "string"
+          },
+          "expected_code_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Code Hash"
+          },
+          "initial_nonce": {
+            "default": 0,
+            "title": "Initial Nonce",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "label"
+        ],
+        "title": "CreateWatchedAddressRequest",
+        "type": "object"
+      },
       "DailyGroupMetrics": {
         "description": "Counters per wallet group and per day (Milestone S04).",
         "properties": {
@@ -1272,6 +1320,7 @@
           "wallet_groups:read",
           "audit:read",
           "reports:read",
+          "watched_addresses:read",
           "tx:evaluate",
           "tx:sign",
           "decisions:false_positive",
@@ -1280,7 +1329,8 @@
           "breaker:control",
           "hold:approve",
           "users:manage",
-          "group:override"
+          "group:override",
+          "watched_addresses:manage"
         ],
         "title": "Permission",
         "type": "string"
@@ -1624,6 +1674,64 @@
         "title": "SigningRequest",
         "type": "object"
       },
+      "UpdateWatchedAddressRequest": {
+        "description": "Payload to update an existing watched address configuration.",
+        "properties": {
+          "allowed_delegates": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Allowed Delegates"
+          },
+          "expected_code_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Code Hash"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Label"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          }
+        },
+        "title": "UpdateWatchedAddressRequest",
+        "type": "object"
+      },
       "UserResponse": {
         "description": "User profile and active role representation.",
         "properties": {
@@ -1823,6 +1931,7 @@
             "type": "array"
           },
           "chain": {
+            "default": "ethereum",
             "title": "Chain",
             "type": "string"
           },
@@ -1830,6 +1939,10 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
           },
           "expected_code_hash": {
             "anyOf": [
@@ -1850,15 +1963,113 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "last_known_nonce": {
+            "default": 0,
+            "title": "Last Known Nonce",
+            "type": "integer"
+          },
+          "last_scanned_block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Scanned Block"
+          },
+          "signed_count": {
+            "default": 0,
+            "title": "Signed Count",
+            "type": "integer"
+          },
+          "status": {
+            "default": "ACTIVE",
+            "title": "Status",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "address",
-          "chain",
           "label"
         ],
         "title": "WatchedAddress",
+        "type": "object"
+      },
+      "WatcherAlert": {
+        "description": "Security alert emitted when the delegation watcher detects anomalies.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "alert_code": {
+            "title": "Alert Code",
+            "type": "string"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "block_timestamp": {
+            "title": "Block Timestamp",
+            "type": "number"
+          },
+          "breaker_tripped": {
+            "default": false,
+            "title": "Breaker Tripped",
+            "type": "boolean"
+          },
+          "chain": {
+            "title": "Chain",
+            "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "detection_timestamp": {
+            "title": "Detection Timestamp",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latency_blocks": {
+            "default": 0,
+            "title": "Latency Blocks",
+            "type": "integer"
+          },
+          "latency_seconds": {
+            "default": 0.0,
+            "title": "Latency Seconds",
+            "type": "number"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "alert_code",
+          "severity",
+          "address",
+          "chain",
+          "block_number",
+          "block_timestamp"
+        ],
+        "title": "WatcherAlert",
         "type": "object"
       },
       "WebAuthnAssertion": {
@@ -3636,6 +3847,575 @@
         "summary": "Update wallet group mode (Promotion Gate)",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/watched-addresses": {
+      "get": {
+        "description": "Returns all registered watched addresses. Any Operator or Viewer can view.",
+        "operationId": "list_watched_addresses_v1_watched_addresses_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WatchedAddress"
+                  },
+                  "title": "Response List Watched Addresses V1 Watched Addresses Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List all watched hot wallet addresses",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
+        ]
+      },
+      "post": {
+        "description": "Registers an internal hot wallet address for bytecode, delegation, and nonce monitoring. Requires SecOps role.",
+        "operationId": "create_watched_address_v1_watched_addresses_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWatchedAddressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchedAddress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register a hot wallet address for delegation watching",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
+        ]
+      }
+    },
+    "/v1/watched-addresses/{watched_id}": {
+      "delete": {
+        "description": "Removes a watched address from monitoring. Requires SecOps role.",
+        "operationId": "delete_watched_address_v1_watched_addresses__watched_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "watched_id",
+            "required": true,
+            "schema": {
+              "title": "Watched Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Watched Address V1 Watched Addresses  Watched Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete a watched address",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
+        ]
+      },
+      "get": {
+        "description": "Retrieves a watched address by ID. Requires READ_WATCHED_ADDRESSES.",
+        "operationId": "get_watched_address_v1_watched_addresses__watched_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "watched_id",
+            "required": true,
+            "schema": {
+              "title": "Watched Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchedAddress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get single watched address details",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
+        ]
+      },
+      "put": {
+        "description": "Updates allowlisted delegates, expected code hash, or status. Requires SecOps role.",
+        "operationId": "update_watched_address_v1_watched_addresses__watched_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "watched_id",
+            "required": true,
+            "schema": {
+              "title": "Watched Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWatchedAddressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchedAddress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update watched address configuration",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
+        ]
+      }
+    },
+    "/v1/watcher/scan": {
+      "post": {
+        "description": "Scans the specified block (or latest block) across multi-provider RPC nodes.",
+        "operationId": "scan_blocks_v1_watcher_scan_post",
+        "parameters": [
+          {
+            "description": "Block number to scan (defaults to latest)",
+            "in": "query",
+            "name": "block_number",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Block number to scan (defaults to latest)",
+              "title": "Block Number"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WatcherAlert"
+                  },
+                  "title": "Response Scan Blocks V1 Watcher Scan Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger a block scan for watched addresses",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
         ]
       }
     }

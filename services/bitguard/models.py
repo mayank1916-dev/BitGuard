@@ -208,11 +208,54 @@ class WatchedAddress(BaseModel):
 
     id: str
     address: str
-    chain: str
+    chain: str = "ethereum"
     label: str
     expected_code_hash: str | None = None
     allowed_delegates: list[str] = Field(default_factory=list)
+    last_known_nonce: int = 0
+    signed_count: int = 0
+    last_scanned_block: int | None = None
+    status: str = "ACTIVE"
+    data_label: DataLabel = DataLabel.REAL
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class CreateWatchedAddressRequest(BaseModel):
+    """Payload to register a new hot wallet address for delegation monitoring."""
+
+    address: str
+    chain: str = "ethereum"
+    label: str
+    expected_code_hash: str | None = None
+    allowed_delegates: list[str] = Field(default_factory=list)
+    initial_nonce: int = 0
+
+
+class UpdateWatchedAddressRequest(BaseModel):
+    """Payload to update an existing watched address configuration."""
+
+    label: str | None = None
+    expected_code_hash: str | None = None
+    allowed_delegates: list[str] | None = None
+    status: str | None = None
+
+
+class WatcherAlert(BaseModel):
+    """Security alert emitted when the delegation watcher detects anomalies."""
+
+    id: str
+    alert_code: str
+    severity: str  # "SUSPICIOUS", "HIGH", "CRITICAL"
+    address: str
+    chain: str
+    block_number: int
+    block_timestamp: float
+    detection_timestamp: float = Field(default_factory=lambda: datetime.now(UTC).timestamp())
+    latency_blocks: int = 0
+    latency_seconds: float = 0.0
+    details: dict[str, Any] = Field(default_factory=dict)
+    breaker_tripped: bool = False
+    data_label: DataLabel = DataLabel.REAL
 
 
 class BreakerState(BaseModel):
@@ -320,6 +363,7 @@ class Permission(StrEnum):
     READ_WALLET_GROUPS = "wallet_groups:read"
     READ_AUDIT = "audit:read"
     READ_REPORTS = "reports:read"
+    READ_WATCHED_ADDRESSES = "watched_addresses:read"
 
     # Operational operations
     EVALUATE_TX = "tx:evaluate"
@@ -331,6 +375,7 @@ class Permission(StrEnum):
     APPROVE_HOLD = "hold:approve"
     MANAGE_USERS = "users:manage"
     PROMOTE_GROUP_OVERRIDE = "group:override"
+    MANAGE_WATCHED_ADDRESSES = "watched_addresses:manage"
 
 
 class UserResponse(BaseModel):

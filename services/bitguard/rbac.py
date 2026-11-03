@@ -60,6 +60,7 @@ BASE_READ_PERMISSIONS: set[Permission] = {
     Permission.READ_BREAKER,
     Permission.READ_WALLET_GROUPS,
     Permission.EVALUATE_TX,
+    Permission.READ_WATCHED_ADDRESSES,
 }
 
 PERMISSION_MATRIX: dict[Role, set[Permission]] = {
@@ -77,6 +78,7 @@ PERMISSION_MATRIX: dict[Role, set[Permission]] = {
         Permission.POLICY_TIGHTEN,
         Permission.PROMOTE_GROUP_OVERRIDE,
         Permission.READ_AUDIT,
+        Permission.MANAGE_WATCHED_ADDRESSES,
     },
     Role.COMPLIANCE: set(BASE_READ_PERMISSIONS)
     | {

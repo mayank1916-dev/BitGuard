@@ -32,6 +32,7 @@ from services.bitguard.logging import setup_json_logging
 from services.bitguard.models import (
     Approval,
     AuditEntry,
+    CreateWatchedAddressRequest,
     DailyGroupMetrics,
     DecodedTx,
     DevLoginRequest,
@@ -42,10 +43,12 @@ from services.bitguard.models import (
     PolicyVersion,
     PromotionCheckItem,
     PromotionChecklistResponse,
+    UpdateWatchedAddressRequest,
     UserResponse,
     WalletGroupConfig,
     WalletGroupModeUpdate,
     WatchedAddress,
+    WatcherAlert,
 )
 from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.v1.router import router as v1_router
@@ -122,6 +125,7 @@ def create_app() -> FastAPI:
             ApproveHoldRequest,
             ApproveHoldResponse,
             AuditEntry,
+            CreateWatchedAddressRequest,
             DailyGroupMetrics,
             DecodedTx,
             DenyHoldRequest,
@@ -135,10 +139,12 @@ def create_app() -> FastAPI:
             PolicyVersion,
             PromotionCheckItem,
             PromotionChecklistResponse,
+            UpdateWatchedAddressRequest,
             UserResponse,
             WalletGroupConfig,
             WalletGroupModeUpdate,
             WatchedAddress,
+            WatcherAlert,
             WebAuthnAssertion,
             JsonRpcRequest,
             JsonRpcResponse,

@@ -30,3 +30,18 @@ class RpcClient(ABC):
         Raises RpcError on connection or node errors.
         """
         ...
+
+    @abstractmethod
+    def get_block_number(self) -> int:
+        """Retrieves current block number from the chain node."""
+        ...
+
+    @abstractmethod
+    def get_block_by_number(self, block_number: int | str, full_transactions: bool = True) -> dict[str, object]:
+        """Retrieves block payload including transactions."""
+        ...
+
+    @abstractmethod
+    def get_transaction_count(self, address: str, block: str = "latest") -> int:
+        """Retrieves the transaction count (nonce) of the specified address."""
+        ...

@@ -55,7 +55,7 @@
 - [ ] S14 Durable quarantine and HOLD state machine
 - [ ] S15 Full authentication: OIDC SSO and WebAuthn hardware keys (F9)
 - [x] S16 Quorum approval with WebAuthn over the tx digest (F10)
-- [ ] S17 Delegation and code watcher for your own addresses (F6)
+- [x] S17 Delegation and code watcher for your own addresses (F6)
 - [ ] S18 Circuit breaker and asymmetric lockdown / unlock (F9, F14)
 - [ ] S19 Incident runbook automation and escalation (F14)
 - [ ] S20 Signed, versioned policy with hot reload and asymmetric changes (D)
