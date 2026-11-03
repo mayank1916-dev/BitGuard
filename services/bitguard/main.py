@@ -19,6 +19,14 @@ from services.bitguard.approvals.models import (
     HoldViewResponse,
     WebAuthnAssertion,
 )
+from services.bitguard.breaker.models import (
+    BreakerStatusResponse,
+    DeescalateApprovalResult,
+    DeescalateApproveRequest,
+    DeescalateRequestCreate,
+    DeescalationRequestModel,
+    EscalateRequest,
+)
 from services.bitguard.config import settings
 from services.bitguard.gateway.models import (
     JsonRpcError,
@@ -125,13 +133,19 @@ def create_app() -> FastAPI:
             ApproveHoldRequest,
             ApproveHoldResponse,
             AuditEntry,
+            BreakerStatusResponse,
             CreateWatchedAddressRequest,
             DailyGroupMetrics,
             DecodedTx,
+            DeescalateApprovalResult,
+            DeescalateApproveRequest,
+            DeescalateRequestCreate,
+            DeescalationRequestModel,
             DenyHoldRequest,
             DenyHoldResponse,
             DevLoginRequest,
             DevLoginResponse,
+            EscalateRequest,
             FalsePositiveRequest,
             HoldTicket,
             HoldViewResponse,

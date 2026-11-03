@@ -218,9 +218,32 @@
         "title": "AuthorizationItem",
         "type": "object"
       },
-      "BreakerState": {
-        "description": "Active circuit breaker status.",
+      "BreakerStateEnum": {
+        "description": "Circuit breaker states.",
+        "enum": [
+          "NORMAL",
+          "ELEVATED",
+          "HOLD",
+          "LOCKDOWN"
+        ],
+        "title": "BreakerStateEnum",
+        "type": "string"
+      },
+      "BreakerStatusResponse": {
+        "description": "Detailed operational status of the circuit breaker.",
         "properties": {
+          "active_deescalation_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Active Deescalation Request Id"
+          },
           "data_label": {
             "$ref": "#/components/schemas/DataLabel",
             "default": "REAL"
@@ -234,33 +257,33 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "title": "Reason"
           },
           "state": {
             "$ref": "#/components/schemas/BreakerStateEnum"
           },
+          "token_epoch": {
+            "default": 1,
+            "title": "Token Epoch",
+            "type": "integer"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "default": "system",
+            "title": "Updated By",
             "type": "string"
           }
         },
         "required": [
           "state"
         ],
-        "title": "BreakerState",
+        "title": "BreakerStatusResponse",
         "type": "object"
-      },
-      "BreakerStateEnum": {
-        "description": "Circuit breaker states.",
-        "enum": [
-          "NORMAL",
-          "ELEVATED",
-          "HOLD",
-          "LOCKDOWN"
-        ],
-        "title": "BreakerStateEnum",
-        "type": "string"
       },
       "CallItem": {
         "description": "Sub-call in a batch or multicall transaction.",
@@ -687,6 +710,197 @@
         "title": "DecodedTx",
         "type": "object"
       },
+      "DeescalateApprovalResult": {
+        "description": "Response returned upon submitting a de-escalation approval.",
+        "properties": {
+          "approvals_count": {
+            "title": "Approvals Count",
+            "type": "integer"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "new_breaker_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BreakerStateEnum"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "required_approvals": {
+            "default": 2,
+            "title": "Required Approvals",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "status",
+          "approvals_count",
+          "message"
+        ],
+        "title": "DeescalateApprovalResult",
+        "type": "object"
+      },
+      "DeescalateApproveRequest": {
+        "description": "Payload for submitting a WebAuthn approval over the de-escalation challenge.",
+        "properties": {
+          "assertion": {
+            "$ref": "#/components/schemas/WebAuthnAssertion",
+            "description": "Cryptographic WebAuthn assertion signed by authorized approver hardware key"
+          },
+          "request_id": {
+            "description": "Unique identifier of de-escalation request",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "assertion"
+        ],
+        "title": "DeescalateApproveRequest",
+        "type": "object"
+      },
+      "DeescalateRequestCreate": {
+        "description": "Payload to initiate a state lowering proposal requiring 2-approver quorum.",
+        "properties": {
+          "reason": {
+            "description": "Investigation summary and justification for de-escalating breaker",
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_state": {
+            "$ref": "#/components/schemas/BreakerStateEnum",
+            "description": "Target lower breaker state (strictly lower than current state)"
+          }
+        },
+        "required": [
+          "target_state",
+          "reason"
+        ],
+        "title": "DeescalateRequestCreate",
+        "type": "object"
+      },
+      "DeescalationApprovalModel": {
+        "description": "Recorded approver signature assertion.",
+        "properties": {
+          "approver_id": {
+            "title": "Approver Id",
+            "type": "string"
+          },
+          "signature": {
+            "title": "Signature",
+            "type": "string"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "number"
+          }
+        },
+        "required": [
+          "approver_id",
+          "timestamp",
+          "signature"
+        ],
+        "title": "DeescalationApprovalModel",
+        "type": "object"
+      },
+      "DeescalationRequestModel": {
+        "description": "Complete de-escalation proposal record with challenge and recorded approvals.",
+        "properties": {
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/DeescalationApprovalModel"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "challenge": {
+            "title": "Challenge",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_state": {
+            "$ref": "#/components/schemas/BreakerStateEnum"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "required_approvals": {
+            "default": 2,
+            "title": "Required Approvals",
+            "type": "integer"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resolved At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_state": {
+            "$ref": "#/components/schemas/BreakerStateEnum"
+          }
+        },
+        "required": [
+          "id",
+          "current_state",
+          "target_state",
+          "reason",
+          "requested_by",
+          "challenge",
+          "status",
+          "created_at"
+        ],
+        "title": "DeescalationRequestModel",
+        "type": "object"
+      },
       "DenyHoldRequest": {
         "description": "Payload to deny a quarantined transaction immediately.",
         "properties": {
@@ -777,6 +991,27 @@
           "user"
         ],
         "title": "DevLoginResponse",
+        "type": "object"
+      },
+      "EscalateRequest": {
+        "description": "Payload to escalate the circuit breaker state instantly.",
+        "properties": {
+          "reason": {
+            "description": "Operational justification for escalating circuit breaker",
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_state": {
+            "$ref": "#/components/schemas/BreakerStateEnum",
+            "description": "Target elevated breaker state (strictly higher than current state)"
+          }
+        },
+        "required": [
+          "target_state",
+          "reason"
+        ],
+        "title": "EscalateRequest",
         "type": "object"
       },
       "FalsePositiveRequest": {
@@ -2221,8 +2456,8 @@
     },
     "/v1/breaker": {
       "get": {
-        "description": "Returns current circuit breaker operational state and data provenance label.",
-        "operationId": "get_breaker_state_v1_breaker_get",
+        "description": "Returns current circuit breaker state, reason, epoch, and active de-escalation request.",
+        "operationId": "get_breaker_status_v1_breaker_get",
         "parameters": [
           {
             "in": "header",
@@ -2278,7 +2513,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BreakerState"
+                  "$ref": "#/components/schemas/BreakerStatusResponse"
                 }
               }
             },
@@ -2295,9 +2530,289 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get circuit breaker operational state",
+        "summary": "Get active circuit breaker operational status",
         "tags": [
-          "V1 Policy Decision Point"
+          "V1 Policy Decision Point",
+          "Circuit Breaker"
+        ]
+      }
+    },
+    "/v1/breaker/deescalate-approve": {
+      "post": {
+        "description": "Submits a WebAuthn assertion over the de-escalation challenge. Requires 2 distinct approvers. Requester cannot approve their own proposal. Once quorum is reached, the breaker state is lowered.",
+        "operationId": "approve_deescalation_v1_breaker_deescalate_approve_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeescalateApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeescalateApprovalResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve circuit breaker de-escalation with WebAuthn assertion",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Circuit Breaker"
+        ]
+      }
+    },
+    "/v1/breaker/deescalate-request": {
+      "post": {
+        "description": "Proposes lowering the circuit breaker state. Generates a 32-byte cryptographic challenge that must be signed with WebAuthn by 2 distinct authorized approvers.",
+        "operationId": "create_deescalation_request_v1_breaker_deescalate_request_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeescalateRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeescalationRequestModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create circuit breaker de-escalation proposal",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Circuit Breaker"
+        ]
+      }
+    },
+    "/v1/breaker/escalate": {
+      "post": {
+        "description": "SecOps or Admin can escalate to any strictly higher restriction state instantly. Entering HOLD or LOCKDOWN immediately increments the token epoch (revoking live tokens) and triggers KeyUsePolicyHook at KMS/HSM level.",
+        "operationId": "escalate_breaker_v1_breaker_escalate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscalateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreakerStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Instant circuit breaker escalation",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Circuit Breaker"
         ]
       }
     },

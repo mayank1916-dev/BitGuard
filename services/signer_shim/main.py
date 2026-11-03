@@ -21,6 +21,8 @@ from typing import Any
 from fastapi import Depends, FastAPI, status
 from fastapi.responses import JSONResponse
 
+from services.bitguard.breaker.epoch_store import token_epoch_store
+from services.bitguard.breaker.key_hook import key_policy_hook
 from services.bitguard.decoders.base import DecodeError
 from services.bitguard.decoders.evm import evm_decoder
 from services.bitguard.tokens import (
@@ -133,6 +135,43 @@ async def sign_transaction(payload: SignRequest) -> Any:
         )
 
     claims = v_res.claims
+
+    # -----------------------------------------------------------------
+    # Step 1b: Verify Token Epoch (Revocation on Circuit Breaker Trip)
+    # -----------------------------------------------------------------
+    current_epoch = token_epoch_store.get_current_epoch()
+    token_epoch = getattr(claims, "epoch", 1)
+    if token_epoch < current_epoch:
+        logger.warning(
+            "signing_refusal: reason=REVOKED_TOKEN_EPOCH token_epoch=%d current_epoch=%d",
+            token_epoch,
+            current_epoch,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=RefusalResponse(
+                status="REFUSED",
+                reason_code="REVOKED_TOKEN_EPOCH",
+                detail=(
+                    f"Approval token epoch {token_epoch} is older than current active epoch {current_epoch} "
+                    "(token revoked by circuit breaker)"
+                ),
+            ).model_dump(),
+        )
+
+    # -----------------------------------------------------------------
+    # Step 1c: Check KeyUsePolicyHook at KMS/HSM level
+    # -----------------------------------------------------------------
+    if not key_policy_hook.is_key_enabled(claims.kid):
+        logger.warning("signing_refusal: reason=KEY_DISABLED_AT_KMS key=%s", claims.kid)
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=RefusalResponse(
+                status="REFUSED",
+                reason_code="KEY_DISABLED_AT_KMS",
+                detail=f"Signing key '{claims.kid}' has been disabled by circuit breaker policy hook at KMS/HSM level",
+            ).model_dump(),
+        )
 
     # -----------------------------------------------------------------
     # Step 2: Check exp, and wallet and chain

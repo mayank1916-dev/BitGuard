@@ -3,7 +3,3 @@
 Provides external custodial clients with a JSON-RPC interface to request
 transaction signing under strict policy decision firewall controls.
 """
-
-from services.bitguard.gateway.router import router
-
-__all__ = ["router"]

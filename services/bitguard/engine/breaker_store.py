@@ -1,23 +1,10 @@
 """Circuit breaker state store interface and in-memory stub (Milestone S10 / F5 hook)."""
 
 import threading
-from abc import ABC, abstractmethod
 
+from services.bitguard.breaker.base import BreakerStore
+from services.bitguard.breaker.store import distributed_breaker_store
 from services.bitguard.models import BreakerStateEnum
-
-
-class BreakerStore(ABC):
-    """Abstract store for querying circuit breaker operational condition."""
-
-    @abstractmethod
-    def get_state(self) -> BreakerStateEnum:
-        """Returns the active circuit breaker state: NORMAL, ELEVATED, HOLD, or LOCKDOWN."""
-        ...
-
-    @abstractmethod
-    def set_state(self, state: BreakerStateEnum, reason: str = "") -> None:
-        """Updates the circuit breaker state (administrative or automated)."""
-        ...
 
 
 class MemoryBreakerStore(BreakerStore):
@@ -43,5 +30,5 @@ class MemoryBreakerStore(BreakerStore):
             self._reason = "Reset to NORMAL"
 
 
-# Default singleton breaker store
-breaker_store = MemoryBreakerStore()
+# Default singleton breaker store pointing to distributed implementation
+breaker_store: BreakerStore = distributed_breaker_store

@@ -265,6 +265,9 @@ class BreakerState(BaseModel):
     reason: str | None = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     data_label: DataLabel = DataLabel.REAL
+    updated_by: str = "system"
+    token_epoch: int = 1
+    active_deescalation_request_id: str | None = None
 
 
 # --- Mode & Wallet Group Models (Milestone S04 / F7) ---

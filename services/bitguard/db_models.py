@@ -157,11 +157,37 @@ class BreakerStateRecord(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
+    token_epoch: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     data_label: Mapped[str] = mapped_column(String(16), default="REAL", nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         nullable=False,
+    )
+
+
+class DeescalationRequestRecord(Base):
+    """Circuit breaker de-escalation request requiring 2-approver WebAuthn quorum."""
+
+    __tablename__ = "breaker_deescalations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    current_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    challenge: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING", nullable=False)
+    approvals_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
 

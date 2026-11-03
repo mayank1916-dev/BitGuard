@@ -448,6 +448,14 @@ class DecisionEngine:
                 weight=75,
                 detail="Circuit breaker is in HOLD mode.",
             )
+        elif b_state == BreakerStateEnum.ELEVATED:
+            context.add_reason(
+                code="BREAKER_ELEVATED",
+                weight=25,
+                detail="Circuit breaker is in ELEVATED mode: increased risk weighting applied.",
+            )
+            # Increase risk score in ELEVATED mode
+            context.risk_score = min(100, context.risk_score + 25)
 
         # Compute tentative policy verdict
         tentative_verdict: Verdict
@@ -457,9 +465,9 @@ class DecisionEngine:
             for r in context.reasons
         )
 
-        if has_hard_deny:
+        if has_hard_deny or b_state == BreakerStateEnum.LOCKDOWN:
             tentative_verdict = Verdict.DENY
-        elif context.risk_score >= self.config.hold_risk_threshold or has_hold_reason:
+        elif b_state == BreakerStateEnum.HOLD or context.risk_score >= self.config.hold_risk_threshold or has_hold_reason:
             tentative_verdict = Verdict.HOLD
         else:
             tentative_verdict = Verdict.ALLOW
@@ -531,6 +539,19 @@ class DecisionEngine:
             reservation_id=context.reservation_id,
             decoded_tx=context.decoded_tx,
         )
+
+        if not context.is_dry_run:
+            try:
+                from services.bitguard.breaker.triggers import breaker_triggers
+
+                if final_verdict == Verdict.DENY:
+                    breaker_triggers.record_denial(decision.request_id, "; ".join(r.code for r in decision.reasons))
+                    if any("INTENT" in r.code for r in decision.reasons):
+                        breaker_triggers.record_unmatched_intent(context.request.intent_id)
+                if amount_usd > 0:
+                    breaker_triggers.record_velocity(amount_usd, context.request.wallet or "")
+            except Exception:
+                pass
 
         return decision
 

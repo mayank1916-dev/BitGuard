@@ -11,6 +11,10 @@ from services.bitguard.tokens.verifier import verify_token
 logger = logging.getLogger("bitguard.tokens.manager")
 
 
+class TokenIssuanceBlockedError(Exception):
+    """Raised when token issuance is blocked by circuit breaker operational state."""
+
+
 class TokenManager:
     """Manages BitGuard Ed25519 approval token keys and issuance."""
 
@@ -30,8 +34,27 @@ class TokenManager:
         ttl_seconds: int = 60,
         nonce: str | None = None,
         now: int | None = None,
+        epoch: int | None = None,
     ) -> str:
         """Issues a signed approval token using the current active key."""
+        from services.bitguard.engine.breaker_store import breaker_store
+        from services.bitguard.models import BreakerStateEnum
+
+        b_state = breaker_store.get_state()
+        if b_state == BreakerStateEnum.LOCKDOWN:
+            raise TokenIssuanceBlockedError(
+                "Approval token issuance rejected: circuit breaker is in LOCKDOWN mode"
+            )
+
+        active_epoch = epoch
+        if active_epoch is None:
+            try:
+                from services.bitguard.breaker.epoch_store import token_epoch_store
+
+                active_epoch = token_epoch_store.get_current_epoch()
+            except Exception:
+                active_epoch = 1
+
         return issue_token(
             decoded_tx=decoded_tx,
             wallet=wallet,
@@ -40,6 +63,7 @@ class TokenManager:
             ttl_seconds=ttl_seconds,
             nonce=nonce,
             now=now,
+            epoch=active_epoch,
         )
 
     def verify(self, token: str, now: int | None = None) -> TokenVerificationResult:

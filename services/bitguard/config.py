@@ -60,5 +60,11 @@ class BitGuardSettings(BaseSettings):
     jwt_expiration_seconds: int = 3600
     dev_auth_bypass: bool = True
 
+    # Circuit breaker trigger settings (Milestone S18 / F9, F14)
+    breaker_auto_triggers_enabled: bool = False
+    breaker_denials_threshold: int = 5
+    breaker_unmatched_intents_threshold: int = 3
+    breaker_velocity_spike_threshold_usd: float = 1_000_000.0
+
 
 settings = BitGuardSettings()

@@ -13,6 +13,7 @@ from services.bitguard.db_models import (
     BreakerStateRecord,
     DailyGroupMetricsRecord,
     DecisionRecord,
+    DeescalationRequestRecord,
     HoldTicketRecord,
     PolicyVersionRecord,
     WalletGroupRecord,
@@ -43,6 +44,7 @@ def test_alembic_migrations_lifecycle():
             "audit_entries",
             "watched_addresses",
             "breaker_state",
+            "breaker_deescalations",
             "wallet_groups",
             "daily_group_metrics",
         }
@@ -113,8 +115,21 @@ def test_alembic_migrations_lifecycle():
                 id=1,
                 state="NORMAL",
                 reason="Nominal",
+                updated_by="admin-01",
+                token_epoch=1,
                 data_label="REAL",
                 updated_at=now,
+            )
+            bdr = DeescalationRequestRecord(
+                id="bdr-db-001",
+                current_state="HOLD",
+                target_state="NORMAL",
+                reason="Incident contained",
+                requested_by="usr-secops-01",
+                challenge="0xchallenge123",
+                status="PENDING",
+                approvals_json="[]",
+                created_at=now,
             )
             wg = WalletGroupRecord(
                 id="hot-eth-1",
@@ -137,7 +152,7 @@ def test_alembic_migrations_lifecycle():
                 updated_at=now,
             )
 
-            session.add_all([dec, ht, appr, pv, ae, wa, bs, wg, dgm])
+            session.add_all([dec, ht, appr, pv, ae, wa, bs, bdr, wg, dgm])
             session.commit()
 
             # Query back to ensure data persistence

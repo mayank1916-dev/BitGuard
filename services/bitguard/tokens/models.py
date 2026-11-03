@@ -25,6 +25,7 @@ class ApprovalTokenClaims(BaseModel):
     exp: int = Field(description="Expiration Unix timestamp (strictly iat + 60s)")
     nonce: str = Field(description="Random 128-bit single-use hex nonce")
     kid: str = Field(description="Key identifier used for signature generation and rotation")
+    epoch: int = Field(default=1, description="Circuit breaker token epoch for instantaneous revocation")
 
 
 class TokenHeader(BaseModel):

@@ -1,7 +1,7 @@
 """V1 API Router defining core BitGuard Decision Point contracts."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import (
     APIRouter,
@@ -14,15 +14,13 @@ from fastapi import (
 )
 
 from services.bitguard.approvals.router import router as approvals_router
+from services.bitguard.breaker import breaker_router
 from services.bitguard.config import settings
 from services.bitguard.decision_store import decision_store
-from services.bitguard.engine.breaker_store import breaker_store
 from services.bitguard.ledger.metrics import IntentMetricsResponse, intent_metrics
 from services.bitguard.mode_service import mode_service
 from services.bitguard.models import (
-    BreakerState,
     DailyGroupMetrics,
-    DataLabel,
     Decision,
     DevLoginRequest,
     DevLoginResponse,
@@ -50,6 +48,7 @@ from services.bitguard.watcher.router import router as watcher_router
 router = APIRouter(tags=["V1 Policy Decision Point"])
 router.include_router(approvals_router)
 router.include_router(watcher_router)
+router.include_router(breaker_router)
 
 
 # --- Dev Only Authentication Endpoint (Milestone S05 / F9 basic) ---
@@ -270,24 +269,6 @@ async def update_group_mode(
 async def get_wallet_group_metrics(group_id: str) -> list[DailyGroupMetrics]:
     """Returns daily counters for a wallet group."""
     return mode_service.get_metrics_for_group(group_id)
-
-
-@router.get(
-    "/breaker",
-    response_model=BreakerState,
-    summary="Get circuit breaker operational state",
-    description="Returns current circuit breaker operational state and data provenance label.",
-    dependencies=[Depends(require_permission(Permission.READ_BREAKER))],
-)
-async def get_breaker_state() -> BreakerState:
-    """Retrieve active circuit breaker state."""
-    current_state = breaker_store.get_state()
-    return BreakerState(
-        state=current_state,
-        reason=f"Current operational state: {current_state.value}",
-        updated_at=datetime.now(UTC),
-        data_label=DataLabel.REAL,
-    )
 
 
 @router.get(

@@ -24,6 +24,7 @@ def issue_token(
     ttl_seconds: int = 60,
     nonce: str | None = None,
     now: int | None = None,
+    epoch: int = 1,
 ) -> str:
     """Generates and cryptographically signs a compact one-time Ed25519 approval token.
 
@@ -35,6 +36,7 @@ def issue_token(
     - exp: iat + 60s
     - nonce: 128-bit random hex (32 hex characters)
     - kid: key ID used for signature
+    - epoch: token epoch counter for circuit breaker revocation
     """
     if signing_key is None:
         if key_set is None:
@@ -56,6 +58,7 @@ def issue_token(
         exp=current_exp,
         nonce=token_nonce,
         kid=signing_key.kid,
+        epoch=epoch,
     )
 
     header = TokenHeader(
