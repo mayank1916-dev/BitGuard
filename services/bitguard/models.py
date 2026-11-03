@@ -81,8 +81,12 @@ class SigningRequest(BaseModel):
     raw_tx: str = Field(description="Raw unsigned transaction hex bytes (source of truth)")
     chain: str
     wallet: str
+    wallet_group: str | None = Field(default=None, description="Assigned hot wallet group identifier")
     intent_id: str | None = Field(default=None, description="Correlated withdrawal intent ID")
-    mode: OperationMode = OperationMode.SIMULATION
+    mode: OperationMode | None = Field(
+        default=None,
+        description="Optional mode override; defaults to the wallet group configured mode",
+    )
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -108,11 +112,17 @@ class Decision(BaseModel):
 
     request_id: str
     verdict: Verdict
+    would_have_verdict: Verdict | None = Field(
+        default=None,
+        description="Hypothetical binding verdict if evaluated under ENFORCE mode (used in SHADOW mode)",
+    )
     risk_score: int = Field(ge=0, le=100)
     reasons: list[DecisionReason] = Field(default_factory=list)
     mode: OperationMode
     policy_version: str
     data_label: DataLabel
+    wallet_group: str = "default"
+    is_false_positive: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     evaluation_latency_ms: float | None = None
 
@@ -184,3 +194,74 @@ class BreakerState(BaseModel):
     reason: str | None = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     data_label: DataLabel = DataLabel.REAL
+
+
+# --- Mode & Wallet Group Models (Milestone S04 / F7) ---
+
+
+class WalletGroupConfig(BaseModel):
+    """Policy configuration for an individual hot wallet group."""
+
+    id: str = "default"
+    name: str = "Default Hot Wallets"
+    mode: OperationMode = OperationMode.SIMULATION
+    wallets: list[str] = Field(default_factory=list)
+    shadow_started_at: datetime | None = None
+    enforce_started_at: datetime | None = None
+    unexplained_decode_failures: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class PolicyConfig(BaseModel):
+    """Global BitGuard policy configuration containing mode and wallet group mappings."""
+
+    version: str = "v1.0.0"
+    mode: OperationMode = OperationMode.SIMULATION
+    wallet_groups: dict[str, WalletGroupConfig] = Field(default_factory=dict)
+    shadow_min_days: int = 14
+    shadow_max_false_positive_rate: float = 0.001
+
+
+class DailyGroupMetrics(BaseModel):
+    """Counters per wallet group and per day (Milestone S04)."""
+
+    wallet_group: str
+    date: str  # YYYY-MM-DD
+    would_have_blocked_count: int = 0
+    would_have_blocked_value: float = 0.0
+    allowed_count: int = 0
+    false_positive_count: int = 0
+
+
+class PromotionCheckItem(BaseModel):
+    """Individual promotion gate check status."""
+
+    name: str
+    passed: bool
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class PromotionChecklistResponse(BaseModel):
+    """Checklist response evaluating whether a wallet group can promote to ENFORCE."""
+
+    wallet_group: str
+    current_mode: OperationMode
+    can_promote: bool
+    checks: dict[str, PromotionCheckItem]
+    summary: str
+
+
+class WalletGroupModeUpdate(BaseModel):
+    """Request payload to promote or change a wallet group mode."""
+
+    mode: OperationMode
+    override: bool = False
+    override_reason: str | None = None
+    operator_id: str = "operator"
+
+
+class FalsePositiveRequest(BaseModel):
+    """Request payload to flag a blocked transaction as a false positive."""
+
+    reason: str | None = None
+    operator_id: str = "operator"

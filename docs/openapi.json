@@ -187,6 +187,45 @@
         "title": "CallItem",
         "type": "object"
       },
+      "DailyGroupMetrics": {
+        "description": "Counters per wallet group and per day (Milestone S04).",
+        "properties": {
+          "allowed_count": {
+            "default": 0,
+            "title": "Allowed Count",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "false_positive_count": {
+            "default": 0,
+            "title": "False Positive Count",
+            "type": "integer"
+          },
+          "wallet_group": {
+            "title": "Wallet Group",
+            "type": "string"
+          },
+          "would_have_blocked_count": {
+            "default": 0,
+            "title": "Would Have Blocked Count",
+            "type": "integer"
+          },
+          "would_have_blocked_value": {
+            "default": 0.0,
+            "title": "Would Have Blocked Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "wallet_group",
+          "date"
+        ],
+        "title": "DailyGroupMetrics",
+        "type": "object"
+      },
       "DataLabel": {
         "description": "Explicit data provenance classifications (Invariant #8).",
         "enum": [
@@ -219,6 +258,11 @@
             ],
             "title": "Evaluation Latency Ms"
           },
+          "is_false_positive": {
+            "default": false,
+            "title": "Is False Positive",
+            "type": "boolean"
+          },
           "mode": {
             "$ref": "#/components/schemas/OperationMode"
           },
@@ -245,6 +289,22 @@
           },
           "verdict": {
             "$ref": "#/components/schemas/Verdict"
+          },
+          "wallet_group": {
+            "default": "default",
+            "title": "Wallet Group",
+            "type": "string"
+          },
+          "would_have_verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hypothetical binding verdict if evaluated under ENFORCE mode (used in SHADOW mode)"
           }
         },
         "required": [
@@ -346,6 +406,30 @@
           "digest"
         ],
         "title": "DecodedTx",
+        "type": "object"
+      },
+      "FalsePositiveRequest": {
+        "description": "Request payload to flag a blocked transaction as a false positive.",
+        "properties": {
+          "operator_id": {
+            "default": "operator",
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          }
+        },
+        "title": "FalsePositiveRequest",
         "type": "object"
       },
       "FeeDetail": {
@@ -461,6 +545,39 @@
         "title": "OperationMode",
         "type": "string"
       },
+      "PolicyConfig": {
+        "description": "Global BitGuard policy configuration containing mode and wallet group mappings.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/OperationMode",
+            "default": "SIMULATION"
+          },
+          "shadow_max_false_positive_rate": {
+            "default": 0.001,
+            "title": "Shadow Max False Positive Rate",
+            "type": "number"
+          },
+          "shadow_min_days": {
+            "default": 14,
+            "title": "Shadow Min Days",
+            "type": "integer"
+          },
+          "version": {
+            "default": "v1.0.0",
+            "title": "Version",
+            "type": "string"
+          },
+          "wallet_groups": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WalletGroupConfig"
+            },
+            "title": "Wallet Groups",
+            "type": "object"
+          }
+        },
+        "title": "PolicyConfig",
+        "type": "object"
+      },
       "PolicyVersion": {
         "description": "Cryptographically signed, versioned policy manifest.",
         "properties": {
@@ -513,6 +630,66 @@
         "title": "PolicyVersion",
         "type": "object"
       },
+      "PromotionCheckItem": {
+        "description": "Individual promotion gate check status.",
+        "properties": {
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "passed"
+        ],
+        "title": "PromotionCheckItem",
+        "type": "object"
+      },
+      "PromotionChecklistResponse": {
+        "description": "Checklist response evaluating whether a wallet group can promote to ENFORCE.",
+        "properties": {
+          "can_promote": {
+            "title": "Can Promote",
+            "type": "boolean"
+          },
+          "checks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PromotionCheckItem"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "current_mode": {
+            "$ref": "#/components/schemas/OperationMode"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "wallet_group": {
+            "title": "Wallet Group",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wallet_group",
+          "current_mode",
+          "can_promote",
+          "checks",
+          "summary"
+        ],
+        "title": "PromotionChecklistResponse",
+        "type": "object"
+      },
       "SigningRequest": {
         "description": "Incoming transaction signing request dispatched to BitGuard.",
         "properties": {
@@ -547,8 +724,15 @@
             "type": "object"
           },
           "mode": {
-            "$ref": "#/components/schemas/OperationMode",
-            "default": "SIMULATION"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OperationMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional mode override; defaults to the wallet group configured mode"
           },
           "raw_tx": {
             "description": "Raw unsigned transaction hex bytes (source of truth)",
@@ -558,6 +742,18 @@
           "wallet": {
             "title": "Wallet",
             "type": "string"
+          },
+          "wallet_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Assigned hot wallet group identifier",
+            "title": "Wallet Group"
           }
         },
         "required": [
@@ -618,6 +814,105 @@
         ],
         "title": "Verdict",
         "type": "string"
+      },
+      "WalletGroupConfig": {
+        "description": "Policy configuration for an individual hot wallet group.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "enforce_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Enforce Started At"
+          },
+          "id": {
+            "default": "default",
+            "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/OperationMode",
+            "default": "SIMULATION"
+          },
+          "name": {
+            "default": "Default Hot Wallets",
+            "title": "Name",
+            "type": "string"
+          },
+          "shadow_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Shadow Started At"
+          },
+          "unexplained_decode_failures": {
+            "default": 0,
+            "title": "Unexplained Decode Failures",
+            "type": "integer"
+          },
+          "wallets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Wallets",
+            "type": "array"
+          }
+        },
+        "title": "WalletGroupConfig",
+        "type": "object"
+      },
+      "WalletGroupModeUpdate": {
+        "description": "Request payload to promote or change a wallet group mode.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/OperationMode"
+          },
+          "operator_id": {
+            "default": "operator",
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "override": {
+            "default": false,
+            "title": "Override",
+            "type": "boolean"
+          },
+          "override_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Override Reason"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "WalletGroupModeUpdate",
+        "type": "object"
       },
       "WatchedAddress": {
         "description": "Internal hot wallet address registered for code hash and delegation watching.",
@@ -794,9 +1089,123 @@
         ]
       }
     },
+    "/v1/decisions/{decision_id}": {
+      "get": {
+        "description": "Retrieve a single decision by ID or request ID.",
+        "operationId": "get_decision_v1_decisions__decision_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "title": "Decision Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get single decision by ID",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/decisions/{decision_id}/false-positive": {
+      "post": {
+        "description": "Marks a blocked or would-block decision as a false positive, updating daily metrics.",
+        "operationId": "label_false_positive_v1_decisions__decision_id__false_positive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "title": "Decision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FalsePositiveRequest",
+                "default": {
+                  "operator_id": "operator"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Label decision as a false positive (Operator role)",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
     "/v1/evaluate": {
       "post": {
-        "description": "Simulates policy evaluation over raw transaction bytes without persisting state or issuing signing tokens. Fails closed by default if the engine is not implemented.",
+        "description": "Simulates policy evaluation over raw transaction bytes without issuing binding signing tokens. Respects caller-provided mode or the wallet group configured mode (SIMULATION, SHADOW, ENFORCE).",
         "operationId": "evaluate_transaction_v1_evaluate_post",
         "requestBody": {
           "content": {
@@ -836,9 +1245,55 @@
         ]
       }
     },
+    "/v1/promotion-checklist": {
+      "get": {
+        "description": "Checks minimum days in SHADOW, false-positive rate, and unexplained decode failures.",
+        "operationId": "get_promotion_checklist_v1_promotion_checklist_get",
+        "parameters": [
+          {
+            "description": "Wallet group to evaluate",
+            "in": "query",
+            "name": "wallet_group",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "description": "Wallet group to evaluate",
+              "title": "Wallet Group",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionChecklistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluate wallet group promotion readiness",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
     "/v1/sign-requests": {
       "post": {
-        "description": "Primary signing request entrypoint. Evaluates raw transaction bytes against active policy and generates a single-use approval token if permitted. Fails closed by default if the engine is not implemented.",
+        "description": "Primary signing request entrypoint. Evaluates raw transaction bytes against active policies under the wallet group's binding operational mode (SIMULATION, SHADOW, ENFORCE).",
         "operationId": "submit_sign_request_v1_sign_requests_post",
         "requestBody": {
           "content": {
@@ -873,6 +1328,175 @@
           }
         },
         "summary": "Submit transaction signing request",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/wallet-groups": {
+      "get": {
+        "description": "Returns all hot wallet groups and operational modes.",
+        "operationId": "list_wallet_groups_v1_wallet_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WalletGroupConfig"
+                  },
+                  "title": "Response List Wallet Groups V1 Wallet Groups Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List configured hot wallet groups",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/wallet-groups/{group_id}": {
+      "get": {
+        "description": "Returns single wallet group config.",
+        "operationId": "get_wallet_group_v1_wallet_groups__group_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletGroupConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get wallet group configuration",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/wallet-groups/{group_id}/metrics": {
+      "get": {
+        "description": "Returns daily counters for a wallet group.",
+        "operationId": "get_wallet_group_metrics_v1_wallet_groups__group_id__metrics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DailyGroupMetrics"
+                  },
+                  "title": "Response Get Wallet Group Metrics V1 Wallet Groups  Group Id  Metrics Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get daily shadow metrics for wallet group",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/wallet-groups/{group_id}/mode": {
+      "post": {
+        "description": "Updates wallet group mode. Promoting to ENFORCE is blocked unless the promotion checklist passes or an explicit override_reason is provided and logged to the audit chain.",
+        "operationId": "update_group_mode_v1_wallet_groups__group_id__mode_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletGroupModeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletGroupConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update wallet group mode (Promotion Gate)",
         "tags": [
           "V1 Policy Decision Point"
         ]

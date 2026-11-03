@@ -34,5 +34,9 @@ class BitGuardSettings(BaseSettings):
     global_limit_usd_default: float = 500_000.0
     new_recipient_usd_default: float = 10_000.0
 
+    # Shadow mode and promotion defaults (F7)
+    shadow_min_days: int = 14
+    shadow_max_false_positive_rate: float = 0.001
+
 
 settings = BitGuardSettings()

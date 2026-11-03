@@ -205,13 +205,14 @@ def test_supporting_canonical_models():
 
 
 def test_post_evaluate_endpoint_fails_closed():
-    """POST /v1/evaluate returns 200 with fail-closed DENY and ENGINE_NOT_IMPLEMENTED."""
+    """POST /v1/evaluate returns 200 with fail-closed DENY on decode error or suspicious rule."""
     payload = {
         "id": "eval-req-101",
-        "raw_tx": "0x02f87001...",
+        "raw_tx": "0x02f87001",
         "chain": "ethereum",
         "wallet": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
         "mode": "SIMULATION",
+        "metadata": {"simulate_decode_error": True},
     }
     response = client.post("/v1/evaluate", json=payload)
     assert response.status_code == 200
@@ -223,18 +224,19 @@ def test_post_evaluate_endpoint_fails_closed():
     assert decision.verdict == Verdict.DENY
     assert decision.risk_score == 100
     assert len(decision.reasons) >= 1
-    assert decision.reasons[0].code == "ENGINE_NOT_IMPLEMENTED"
+    assert decision.reasons[0].code == "DECODE_ERROR"
     assert decision.data_label in [DataLabel.REAL, DataLabel.SYNTHETIC, DataLabel.REPORTED]
 
 
 def test_post_sign_requests_endpoint_fails_closed():
-    """POST /v1/sign-requests returns 200 with fail-closed DENY stub."""
+    """POST /v1/sign-requests returns 200 with binding DENY when rule violated in ENFORCE mode."""
     payload = {
         "id": "sign-req-202",
-        "raw_tx": "0x02f87001...",
+        "raw_tx": "0x02f87001",
         "chain": "ethereum",
         "wallet": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
         "mode": "ENFORCE",
+        "metadata": {"simulate_deny": True},
     }
     response = client.post("/v1/sign-requests", json=payload)
     assert response.status_code == 200
@@ -243,7 +245,7 @@ def test_post_sign_requests_endpoint_fails_closed():
     decision = Decision.model_validate(data)
     assert decision.request_id == "sign-req-202"
     assert decision.verdict == Verdict.DENY
-    assert decision.reasons[0].code == "ENGINE_NOT_IMPLEMENTED"
+    assert decision.reasons[0].code == "SUSPICIOUS_DELEGATION"
 
 
 def test_post_evaluate_validation_error():

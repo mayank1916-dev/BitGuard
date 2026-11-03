@@ -16,9 +16,16 @@ from services.bitguard.logging import setup_json_logging
 from services.bitguard.models import (
     Approval,
     AuditEntry,
+    DailyGroupMetrics,
     DecodedTx,
+    FalsePositiveRequest,
     HoldTicket,
+    PolicyConfig,
     PolicyVersion,
+    PromotionCheckItem,
+    PromotionChecklistResponse,
+    WalletGroupConfig,
+    WalletGroupModeUpdate,
     WatchedAddress,
 )
 from services.bitguard.v1.router import router as v1_router
@@ -88,9 +95,16 @@ def create_app() -> FastAPI:
         canonical_models: list[type[BaseModel]] = [
             Approval,
             AuditEntry,
+            DailyGroupMetrics,
             DecodedTx,
+            FalsePositiveRequest,
             HoldTicket,
+            PolicyConfig,
             PolicyVersion,
+            PromotionCheckItem,
+            PromotionChecklistResponse,
+            WalletGroupConfig,
+            WalletGroupModeUpdate,
             WatchedAddress,
         ]
         for model_cls in canonical_models:

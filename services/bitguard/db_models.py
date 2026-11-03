@@ -27,11 +27,14 @@ class DecisionRecord(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     request_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     verdict: Mapped[str] = mapped_column(String(16), nullable=False)
+    would_have_verdict: Mapped[str | None] = mapped_column(String(16), nullable=True)
     risk_score: Mapped[int] = mapped_column(Integer, nullable=False)
     reasons: Mapped[list[dict[str, Any]]] = mapped_column(JsonType, nullable=False, default=list)
     mode: Mapped[str] = mapped_column(String(32), nullable=False)
     policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
     data_label: Mapped[str] = mapped_column(String(16), nullable=False)
+    wallet_group: Mapped[str] = mapped_column(String(64), default="default", nullable=False)
+    is_false_positive: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     evaluation_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -135,6 +138,49 @@ class BreakerStateRecord(Base):
     state: Mapped[str] = mapped_column(String(32), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_label: Mapped[str] = mapped_column(String(16), default="REAL", nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class WalletGroupRecord(Base):
+    """Hot wallet group mode and configuration state."""
+
+    __tablename__ = "wallet_groups"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    mode: Mapped[str] = mapped_column(String(32), default="SIMULATION", nullable=False)
+    wallets: Mapped[list[str]] = mapped_column(JsonType, nullable=False, default=list)
+    shadow_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    enforce_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    unexplained_decode_failures: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class DailyGroupMetricsRecord(Base):
+    """Aggregated daily metrics per wallet group for promotion tracking."""
+
+    __tablename__ = "daily_group_metrics"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)  # wallet_group:date
+    wallet_group: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    date: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
+    would_have_blocked_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    would_have_blocked_value: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    allowed_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    false_positive_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

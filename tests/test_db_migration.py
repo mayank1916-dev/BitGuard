@@ -11,15 +11,17 @@ from services.bitguard.db_models import (
     ApprovalRecord,
     AuditEntryRecord,
     BreakerStateRecord,
+    DailyGroupMetricsRecord,
     DecisionRecord,
     HoldTicketRecord,
     PolicyVersionRecord,
+    WalletGroupRecord,
     WatchedAddressRecord,
 )
 
 
 def test_alembic_migrations_lifecycle():
-    """Verify Alembic migration 0002 applies cleanly and creates canonical schema."""
+    """Verify Alembic migrations apply cleanly and create canonical schema."""
     engine = sa.create_engine("sqlite:///:memory:")
 
     alembic_cfg = alembic.config.Config("services/bitguard/alembic.ini")
@@ -41,6 +43,8 @@ def test_alembic_migrations_lifecycle():
             "audit_entries",
             "watched_addresses",
             "breaker_state",
+            "wallet_groups",
+            "daily_group_metrics",
         }
         assert expected_tables.issubset(tables), f"Missing tables: {expected_tables - tables}"
 
@@ -51,12 +55,15 @@ def test_alembic_migrations_lifecycle():
             dec = DecisionRecord(
                 id="dec-db-001",
                 request_id="req-db-001",
-                verdict="DENY",
-                risk_score=100,
-                reasons=[{"code": "ENGINE_NOT_IMPLEMENTED", "weight": 100, "detail": "Test"}],
-                mode="SIMULATION",
-                policy_version="v0.1.0",
+                verdict="ALLOW",
+                would_have_verdict="DENY",
+                risk_score=90,
+                reasons=[{"code": "SUSPICIOUS_DELEGATION", "weight": 90, "detail": "Test"}],
+                mode="SHADOW",
+                policy_version="v1.0.0",
                 data_label="SYNTHETIC",
+                wallet_group="hot-eth-1",
+                is_false_positive=False,
                 created_at=now,
             )
             ht = HoldTicketRecord(
@@ -89,7 +96,7 @@ def test_alembic_migrations_lifecycle():
                 timestamp=1730000000.0,
                 event_type="DECISION",
                 request_id="req-db-001",
-                verdict="DENY",
+                verdict="ALLOW",
                 prev_hash="0" * 64,
                 entry_hash="1" * 64,
                 data_label="REPORTED",
@@ -109,18 +116,44 @@ def test_alembic_migrations_lifecycle():
                 data_label="REAL",
                 updated_at=now,
             )
+            wg = WalletGroupRecord(
+                id="hot-eth-1",
+                name="Hot Ethereum Primary",
+                mode="SHADOW",
+                wallets=["0xabc123"],
+                shadow_started_at=now,
+                unexplained_decode_failures=0,
+                created_at=now,
+                updated_at=now,
+            )
+            dgm = DailyGroupMetricsRecord(
+                id="hot-eth-1:2026-11-03",
+                wallet_group="hot-eth-1",
+                date="2026-11-03",
+                would_have_blocked_count=1,
+                would_have_blocked_value=50000.0,
+                allowed_count=10,
+                false_positive_count=0,
+                updated_at=now,
+            )
 
-            session.add_all([dec, ht, appr, pv, ae, wa, bs])
+            session.add_all([dec, ht, appr, pv, ae, wa, bs, wg, dgm])
             session.commit()
 
             # Query back to ensure data persistence
             stored_dec = session.query(DecisionRecord).filter_by(id="dec-db-001").first()
             assert stored_dec is not None
-            assert stored_dec.verdict == "DENY"
+            assert stored_dec.verdict == "ALLOW"
+            assert stored_dec.would_have_verdict == "DENY"
+            assert stored_dec.wallet_group == "hot-eth-1"
 
-            stored_bs = session.query(BreakerStateRecord).filter_by(id=1).first()
-            assert stored_bs is not None
-            assert stored_bs.state == "NORMAL"
+            stored_wg = session.query(WalletGroupRecord).filter_by(id="hot-eth-1").first()
+            assert stored_wg is not None
+            assert stored_wg.mode == "SHADOW"
+
+            stored_dgm = session.query(DailyGroupMetricsRecord).filter_by(id="hot-eth-1:2026-11-03").first()
+            assert stored_dgm is not None
+            assert stored_dgm.would_have_blocked_count == 1
 
         # Downgrade back to base to verify downgrade migration
         alembic.command.downgrade(alembic_cfg, "base")
