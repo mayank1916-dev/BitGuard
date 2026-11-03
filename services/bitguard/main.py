@@ -3,13 +3,25 @@
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
+from pydantic import BaseModel
 
 from backend.app.main import create_app as create_legacy_api_app
 from services.bitguard.config import settings
 from services.bitguard.logging import setup_json_logging
+from services.bitguard.models import (
+    Approval,
+    AuditEntry,
+    DecodedTx,
+    HoldTicket,
+    PolicyVersion,
+    WatchedAddress,
+)
+from services.bitguard.v1.router import router as v1_router
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +70,40 @@ def create_app() -> FastAPI:
             "service": "bitguard",
             "environment": settings.environment,
         }
+
+    # Include V1 canonical API routes
+    app.include_router(v1_router, prefix="/v1")
+
+    # Custom OpenAPI schema hook guaranteeing all canonical data models are documented
+    def custom_openapi() -> dict[str, Any]:
+        if app.openapi_schema:
+            return app.openapi_schema
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        schemas = openapi_schema.setdefault("components", {}).setdefault("schemas", {})
+        canonical_models: list[type[BaseModel]] = [
+            Approval,
+            AuditEntry,
+            DecodedTx,
+            HoldTicket,
+            PolicyVersion,
+            WatchedAddress,
+        ]
+        for model_cls in canonical_models:
+            model_schema = model_cls.model_json_schema(ref_template="#/components/schemas/{model}")
+            defs = model_schema.pop("$defs", {})
+            for def_name, def_schema in defs.items():
+                schemas[def_name] = def_schema
+            schemas[model_cls.__name__] = model_schema
+
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi  # type: ignore[method-assign]
 
     # Mount/include legacy lab & simulation routes for complete UI backwards compatibility
     legacy_app = create_legacy_api_app()
