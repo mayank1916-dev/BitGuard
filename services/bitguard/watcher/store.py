@@ -26,6 +26,69 @@ class WatchedAddressStore:
     def __init__(self) -> None:
         self._by_id: dict[str, WatchedAddress] = {}
         self._by_address: dict[str, str] = {}  # f"{chain}:{address.lower()}" -> id
+        self._seed_default_addresses()
+
+    def _seed_default_addresses(self) -> None:
+        """Seeds initial default monitored hot wallet addresses for lab/demo environments."""
+        defaults = [
+            WatchedAddress(
+                id="wa-seed-eth-01",
+                address="0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+                chain="ethereum",
+                label="Primary Hot Wallet ETH-1",
+                expected_code_hash=None,
+                allowed_delegates=["0x1111111111111111111111111111111111111111"],
+                last_known_nonce=42,
+                signed_count=12,
+                last_scanned_block=102,
+                status="ACTIVE",
+                data_label=DataLabel.REAL,
+                delegation_state="none",
+                delegate_address=None,
+                delegate_code_hash=None,
+                provider_agreement="all agree",
+                recent_alerts=[],
+            ),
+            WatchedAddress(
+                id="wa-seed-eth-02",
+                address="0x1234567890123456789012345678901234567890",
+                chain="ethereum",
+                label="Arbitrum Gateway Staging Vault",
+                expected_code_hash=None,
+                allowed_delegates=["0x2222222222222222222222222222222222222222"],
+                last_known_nonce=10,
+                signed_count=4,
+                last_scanned_block=102,
+                status="ACTIVE",
+                data_label=DataLabel.REAL,
+                delegation_state="allowed delegate",
+                delegate_address="0x2222222222222222222222222222222222222222",
+                delegate_code_hash="0xc1d5b4ce3e2a6227293fccce2904121c8647bbe16c1216340b851bf12d12560e",
+                provider_agreement="all agree",
+                recent_alerts=[],
+            ),
+            WatchedAddress(
+                id="wa-seed-eth-03",
+                address="0x8888888888888888888888888888888888888888",
+                chain="ethereum",
+                label="Base L2 Settlement Escrow",
+                expected_code_hash=None,
+                allowed_delegates=[],
+                last_known_nonce=1,
+                signed_count=0,
+                last_scanned_block=102,
+                status="ACTIVE",
+                data_label=DataLabel.REAL,
+                delegation_state="none",
+                delegate_address=None,
+                delegate_code_hash=None,
+                provider_agreement="all agree",
+                recent_alerts=[],
+            ),
+        ]
+        for item in defaults:
+            self._by_id[item.id] = item
+            self._by_address[f"{item.chain.lower()}:{item.address.lower()}"] = item.id
 
     def _record_to_domain(self, record: WatchedAddressRecord) -> WatchedAddress:
         return WatchedAddress(

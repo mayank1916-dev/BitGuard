@@ -42,13 +42,41 @@ def create_watched_address(
     "/watched-addresses",
     response_model=list[WatchedAddress],
     summary="List all watched hot wallet addresses",
-    description="Returns all registered watched addresses. Any Operator or Viewer can view.",
+    description="Returns all registered watched addresses with delegation state, provider agreement, and recent alerts. Any Operator or Viewer can view.",
 )
 def list_watched_addresses(
     current_user: UserResponse = Depends(require_permission(Permission.READ_WATCHED_ADDRESSES)),
 ) -> list[WatchedAddress]:
-    """Lists all monitored addresses."""
-    return watched_address_store.list_all()
+    """Lists all monitored addresses with enriched delegation and alert telemetry."""
+    addresses = watched_address_store.list_all()
+    recent_alerts = delegation_watcher.recent_alerts
+
+    for item in addresses:
+        addr_lower = item.address.lower()
+        matched_alerts = [a for a in recent_alerts if a.address.lower() == addr_lower]
+        item.recent_alerts = matched_alerts
+
+        # Check provider agreement status
+        has_disagreement = any(a.alert_code == "PROVIDER_DISAGREEMENT" for a in matched_alerts)
+        item.provider_agreement = "disagree" if has_disagreement else "all agree"
+
+        # Check delegation state
+        unapproved_alert = next((a for a in matched_alerts if a.severity == "CRITICAL" and "DELEGATION" in a.alert_code), None)
+        if unapproved_alert:
+            item.delegation_state = "UNAPPROVED"
+            item.delegate_address = unapproved_alert.details.get("delegate", item.delegate_address)
+            item.delegate_code_hash = unapproved_alert.details.get("delegate_code_hash", item.delegate_code_hash)
+        elif item.delegate_address or (item.allowed_delegates and item.delegation_state == "allowed delegate"):
+            item.delegation_state = "allowed delegate"
+        else:
+            if not item.delegation_state or item.delegation_state not in ["allowed delegate", "UNAPPROVED"]:
+                item.delegation_state = "none"
+
+        # Update last scanned block
+        if delegation_watcher.last_scanned_block and not item.last_scanned_block:
+            item.last_scanned_block = delegation_watcher.last_scanned_block
+
+    return addresses
 
 
 @router.get(
@@ -124,3 +152,16 @@ def scan_blocks(
 ) -> list[WatcherAlert]:
     """Triggers an on-demand watcher scan."""
     return delegation_watcher.scan_block(block_number=block_number)
+
+
+@router.get(
+    "/watcher/alerts",
+    response_model=list[WatcherAlert],
+    summary="List recent watcher security alerts",
+    description="Returns recent alerts generated during on-chain block and bytecode inspection.",
+)
+def list_watcher_alerts(
+    current_user: UserResponse = Depends(require_permission(Permission.READ_WATCHED_ADDRESSES)),
+) -> list[WatcherAlert]:
+    """Retrieves all recent security alerts."""
+    return delegation_watcher.recent_alerts

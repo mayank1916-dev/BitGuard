@@ -2664,6 +2664,35 @@
             "$ref": "#/components/schemas/DataLabel",
             "default": "REAL"
           },
+          "delegate_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Delegate Address"
+          },
+          "delegate_code_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Delegate Code Hash"
+          },
+          "delegation_state": {
+            "default": "none",
+            "title": "Delegation State",
+            "type": "string"
+          },
           "expected_code_hash": {
             "anyOf": [
               {
@@ -2700,6 +2729,18 @@
             ],
             "default": null,
             "title": "Last Scanned Block"
+          },
+          "provider_agreement": {
+            "default": "all agree",
+            "title": "Provider Agreement",
+            "type": "string"
+          },
+          "recent_alerts": {
+            "items": {
+              "$ref": "#/components/schemas/WatcherAlert"
+            },
+            "title": "Recent Alerts",
+            "type": "array"
           },
           "signed_count": {
             "default": 0,
@@ -5749,7 +5790,7 @@
     },
     "/api/v1/watched-addresses": {
       "get": {
-        "description": "Returns all registered watched addresses. Any Operator or Viewer can view.",
+        "description": "Returns all registered watched addresses with delegation state, provider agreement, and recent alerts. Any Operator or Viewer can view.",
         "operationId": "list_watched_addresses_api_v1_watched_addresses_get",
         "parameters": [
           {
@@ -6205,6 +6246,93 @@
           }
         },
         "summary": "Update watched address configuration",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
+        ]
+      }
+    },
+    "/api/v1/watcher/alerts": {
+      "get": {
+        "description": "Returns recent alerts generated during on-chain block and bytecode inspection.",
+        "operationId": "list_watcher_alerts_api_v1_watcher_alerts_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WatcherAlert"
+                  },
+                  "title": "Response List Watcher Alerts Api V1 Watcher Alerts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List recent watcher security alerts",
         "tags": [
           "V1 Policy Decision Point",
           "Delegation Watcher & Watched Addresses"
@@ -9266,7 +9394,7 @@
     },
     "/v1/watched-addresses": {
       "get": {
-        "description": "Returns all registered watched addresses. Any Operator or Viewer can view.",
+        "description": "Returns all registered watched addresses with delegation state, provider agreement, and recent alerts. Any Operator or Viewer can view.",
         "operationId": "list_watched_addresses_v1_watched_addresses_get",
         "parameters": [
           {
@@ -9722,6 +9850,93 @@
           }
         },
         "summary": "Update watched address configuration",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Delegation Watcher & Watched Addresses"
+        ]
+      }
+    },
+    "/v1/watcher/alerts": {
+      "get": {
+        "description": "Returns recent alerts generated during on-chain block and bytecode inspection.",
+        "operationId": "list_watcher_alerts_v1_watcher_alerts_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WatcherAlert"
+                  },
+                  "title": "Response List Watcher Alerts V1 Watcher Alerts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List recent watcher security alerts",
         "tags": [
           "V1 Policy Decision Point",
           "Delegation Watcher & Watched Addresses"

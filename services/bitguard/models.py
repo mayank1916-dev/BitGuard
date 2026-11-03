@@ -242,6 +242,24 @@ class AuditEntry(BaseModel):
         super().__init__(**data)
 
 
+class WatcherAlert(BaseModel):
+    """Security alert emitted when the delegation watcher detects anomalies."""
+
+    id: str
+    alert_code: str
+    severity: str  # "SUSPICIOUS", "HIGH", "CRITICAL"
+    address: str
+    chain: str
+    block_number: int
+    block_timestamp: float
+    detection_timestamp: float = Field(default_factory=lambda: datetime.now(UTC).timestamp())
+    latency_blocks: int = 0
+    latency_seconds: float = 0.0
+    details: dict[str, Any] = Field(default_factory=dict)
+    breaker_tripped: bool = False
+    data_label: DataLabel = DataLabel.REAL
+
+
 class WatchedAddress(BaseModel):
     """Internal hot wallet address registered for code hash and delegation watching."""
 
@@ -257,6 +275,13 @@ class WatchedAddress(BaseModel):
     status: str = "ACTIVE"
     data_label: DataLabel = DataLabel.REAL
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    # Enriched watcher status fields (Milestone U7 / F6)
+    delegation_state: str = "none"  # "none", "allowed delegate", "UNAPPROVED"
+    delegate_address: str | None = None
+    delegate_code_hash: str | None = None
+    provider_agreement: str = "all agree"  # "all agree", "disagree"
+    recent_alerts: list[WatcherAlert] = Field(default_factory=list)
 
 
 class CreateWatchedAddressRequest(BaseModel):
@@ -277,24 +302,6 @@ class UpdateWatchedAddressRequest(BaseModel):
     expected_code_hash: str | None = None
     allowed_delegates: list[str] | None = None
     status: str | None = None
-
-
-class WatcherAlert(BaseModel):
-    """Security alert emitted when the delegation watcher detects anomalies."""
-
-    id: str
-    alert_code: str
-    severity: str  # "SUSPICIOUS", "HIGH", "CRITICAL"
-    address: str
-    chain: str
-    block_number: int
-    block_timestamp: float
-    detection_timestamp: float = Field(default_factory=lambda: datetime.now(UTC).timestamp())
-    latency_blocks: int = 0
-    latency_seconds: float = 0.0
-    details: dict[str, Any] = Field(default_factory=dict)
-    breaker_tripped: bool = False
-    data_label: DataLabel = DataLabel.REAL
 
 
 class BreakerState(BaseModel):

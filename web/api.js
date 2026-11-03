@@ -922,6 +922,202 @@ export async function getRecordedDecisions() {
   }
 }
 
+// In-memory mock store for demo mode
+let demoWatchedAddresses = [
+  {
+    id: 'wa-demo-eth-01',
+    address: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+    chain: 'ethereum',
+    label: 'Primary Hot Wallet ETH-1',
+    expected_code_hash: null,
+    allowed_delegates: ['0x1111111111111111111111111111111111111111'],
+    last_known_nonce: 42,
+    signed_count: 12,
+    last_scanned_block: 19854210,
+    status: 'ACTIVE',
+    data_label: 'SYNTHETIC',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    delegation_state: 'none',
+    delegate_address: null,
+    delegate_code_hash: null,
+    provider_agreement: 'all agree',
+    recent_alerts: [],
+  },
+  {
+    id: 'wa-demo-eth-02',
+    address: '0x1234567890123456789012345678901234567890',
+    chain: 'arbitrum',
+    label: 'Arbitrum Gateway Staging Vault',
+    expected_code_hash: null,
+    allowed_delegates: ['0x2222222222222222222222222222222222222222'],
+    last_known_nonce: 10,
+    signed_count: 4,
+    last_scanned_block: 19854210,
+    status: 'ACTIVE',
+    data_label: 'SYNTHETIC',
+    created_at: new Date(Date.now() - 43200000).toISOString(),
+    delegation_state: 'allowed delegate',
+    delegate_address: '0x2222222222222222222222222222222222222222',
+    delegate_code_hash: '0xc1d5b4ce3e2a6227293fccce2904121c8647bbe16c1216340b851bf12d12560e',
+    provider_agreement: 'all agree',
+    recent_alerts: [],
+  },
+  {
+    id: 'wa-demo-eth-03',
+    address: '0x9999999999999999999999999999999999999999',
+    chain: 'ethereum',
+    label: 'Attacker-Targeted Staging Hot Wallet',
+    expected_code_hash: null,
+    allowed_delegates: [],
+    last_known_nonce: 99,
+    signed_count: 1,
+    last_scanned_block: 19854210,
+    status: 'ACTIVE',
+    data_label: 'SYNTHETIC',
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    delegation_state: 'UNAPPROVED',
+    delegate_address: '0xBadC0deAttackerDelegate000000000000000000',
+    delegate_code_hash: '0xdeadd00d6666666666666666666666666666666666666666666666666666666',
+    provider_agreement: 'disagree',
+    recent_alerts: [
+      {
+        id: 'alert-demo-7702-01',
+        alert_code: 'UNAUTHORIZED_DELEGATION',
+        severity: 'CRITICAL',
+        address: '0x9999999999999999999999999999999999999999',
+        chain: 'ethereum',
+        block_number: 19854210,
+        block_timestamp: Date.now() / 1000 - 15,
+        detection_timestamp: Date.now() / 1000 - 14.992,
+        latency_blocks: 0,
+        latency_seconds: 0.008,
+        details: {
+          delegate: '0xBadC0deAttackerDelegate000000000000000000',
+          message: 'EIP-7702 delegate code hash not allowlisted on monitored address',
+        },
+        breaker_tripped: true,
+        data_label: 'SYNTHETIC',
+      },
+    ],
+  },
+];
+
+/**
+ * Lists all watched hot wallet addresses with delegation status and alerts.
+ */
+export async function fetchWatchedAddresses(explicitToken) {
+  if (getDataSource() === 'demo') {
+    return [...demoWatchedAddresses];
+  }
+
+  const res = await fetch(`${API_BASE}/v1/watched-addresses`, {
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to fetch watched addresses: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Registers a new internal hot wallet address for delegation monitoring (SecOps only).
+ */
+export async function createWatchedAddress(payload, explicitToken) {
+  if (getDataSource() === 'demo') {
+    const newItem = {
+      id: `wa-demo-${Date.now()}`,
+      address: payload.address,
+      chain: payload.chain || 'ethereum',
+      label: payload.label,
+      expected_code_hash: payload.expected_code_hash || null,
+      allowed_delegates: payload.allowed_delegates || [],
+      last_known_nonce: payload.initial_nonce || 0,
+      signed_count: 0,
+      last_scanned_block: 19854210,
+      status: 'ACTIVE',
+      data_label: 'SYNTHETIC',
+      created_at: new Date().toISOString(),
+      delegation_state: 'none',
+      delegate_address: null,
+      delegate_code_hash: null,
+      provider_agreement: 'all agree',
+      recent_alerts: [],
+    };
+    demoWatchedAddresses = [newItem, ...demoWatchedAddresses];
+    return newItem;
+  }
+
+  const res = await fetch(`${API_BASE}/v1/watched-addresses`, {
+    method: 'POST',
+    headers: getAuthHeaders(explicitToken),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to create watched address: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Removes an address from delegation watching (SecOps only).
+ */
+export async function deleteWatchedAddress(watchedId, explicitToken) {
+  if (getDataSource() === 'demo') {
+    demoWatchedAddresses = demoWatchedAddresses.filter((w) => w.id !== watchedId);
+    return { status: 'deleted', id: watchedId };
+  }
+
+  const res = await fetch(`${API_BASE}/v1/watched-addresses/${watchedId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to delete watched address: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Triggers an on-demand watcher scan across RPC nodes.
+ */
+export async function triggerWatcherScan(blockNumber, explicitToken) {
+  if (getDataSource() === 'demo') {
+    return demoWatchedAddresses.flatMap((w) => w.recent_alerts);
+  }
+
+  const url = blockNumber ? `${API_BASE}/v1/watcher/scan?block_number=${blockNumber}` : `${API_BASE}/v1/watcher/scan`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Watcher scan failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Fetches recent security alerts detected by the watcher.
+ */
+export async function fetchWatcherAlerts(explicitToken) {
+  if (getDataSource() === 'demo') {
+    return demoWatchedAddresses.flatMap((w) => w.recent_alerts);
+  }
+
+  const res = await fetch(`${API_BASE}/v1/watcher/alerts`, {
+    headers: getAuthHeaders(explicitToken),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to fetch alerts: ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export default {
   DATA_SOURCE,
   getDataSource,
@@ -950,4 +1146,9 @@ export default {
   approveDeescalation,
   fetchActiveDeescalationRequest,
   fetchDeescalationRequestById,
+  fetchWatchedAddresses,
+  createWatchedAddress,
+  deleteWatchedAddress,
+  triggerWatcherScan,
+  fetchWatcherAlerts,
 };
