@@ -4,16 +4,10 @@ from datetime import UTC, datetime
 
 from services.bitguard.audit_service import audit_service
 from services.bitguard.config import settings
-from services.bitguard.decoders.base import DecodeError
-from services.bitguard.decoders.evm import evm_decoder
-from services.bitguard.ledger.intent_check import check_intent
-from services.bitguard.ledger.mock import mock_ledger_connector
 from services.bitguard.models import (
     DailyGroupMetrics,
     DataLabel,
     Decision,
-    DecisionReason,
-    DecodedTx,
     OperationMode,
     PromotionCheckItem,
     PromotionChecklistResponse,
@@ -23,7 +17,7 @@ from services.bitguard.models import (
 )
 from services.bitguard.rpc.base import RpcClient
 from services.bitguard.rpc.client import HttpRpcClient
-from services.bitguard.rules.delegation import DelegationPolicy, check_delegations
+from services.bitguard.rules.delegation import DelegationPolicy
 
 
 class ModeService:
@@ -50,10 +44,14 @@ class ModeService:
     def set_delegation_policy(self, policy: DelegationPolicy) -> None:
         """Sets the active EIP-7702 delegation policy."""
         self.delegation_policy = policy
+        from services.bitguard.engine.pipeline import decision_engine
+        decision_engine.set_delegation_policy(policy)
 
     def set_rpc_client(self, client: RpcClient) -> None:
         """Sets the active RPC client for contract inspections."""
         self.rpc_client = client
+        from services.bitguard.engine.pipeline import decision_engine
+        decision_engine.set_rpc_client(client)
 
     def get_wallet_group(self, group_id_or_wallet: str) -> WalletGroupConfig:
         """Finds wallet group by identifier or wallet address. Falls back to 'default'."""
@@ -311,257 +309,15 @@ class ModeService:
         is_dry_run: bool = True,
     ) -> Decision:
         """Evaluates signing request respecting wallet group mode semantics (SIMULATION, SHADOW, ENFORCE)."""
-        start_time = datetime.now(UTC)
+        from services.bitguard.engine.pipeline import decision_engine
+
         group = self.get_wallet_group(request.wallet_group or request.wallet)
-
-        # In dry run, request.mode takes precedence if supplied, otherwise group configured mode
-        active_mode = request.mode if (is_dry_run and request.mode is not None) else group.mode
-
-        # Security/Format checks: unknown format, decode error, or invalid caller identity
-        # Invariant #3 & #4: Always Fail closed immediately, even in SHADOW mode
-        raw_tx = request.raw_tx.strip() if request.raw_tx else ""
-        if not raw_tx or request.metadata.get("simulate_decode_error"):
-            self.record_decode_failure(group.id)
-            dec = Decision(
-                request_id=request.id,
-                verdict=Verdict.DENY,
-                would_have_verdict=None,
-                risk_score=100,
-                reasons=[
-                    DecisionReason(
-                        code="DECODE_ERROR",
-                        weight=100,
-                        detail="Transaction bytes cannot be decoded or format is invalid.",
-                    )
-                ],
-                mode=active_mode,
-                policy_version="v1.0.0",
-                data_label=DataLabel.SYNTHETIC,
-                wallet_group=group.id,
-                created_at=start_time,
-                evaluation_latency_ms=0.4,
-            )
-            return self.save_decision(dec)
-
-        if request.metadata.get("simulate_invalid_caller"):
-            dec = Decision(
-                request_id=request.id,
-                verdict=Verdict.DENY,
-                would_have_verdict=None,
-                risk_score=100,
-                reasons=[
-                    DecisionReason(
-                        code="INVALID_CALLER_IDENTITY",
-                        weight=100,
-                        detail="Caller identity is invalid, unknown, or unauthorized.",
-                    )
-                ],
-                mode=active_mode,
-                policy_version="v1.0.0",
-                data_label=DataLabel.SYNTHETIC,
-                wallet_group=group.id,
-                created_at=start_time,
-                evaluation_latency_ms=0.4,
-            )
-            return self.save_decision(dec)
-
-        # Stage: Withdrawal Intent Reconciliation (Milestone S08 / F2)
-        # Invariant #3 & #4: Fail-closed verification against custody ledger intent
-        decoded: DecodedTx | None = None
-        if request.intent_id or request.metadata.get("require_intent_check"):
-            if "decoded_tx" in request.metadata:
-                decoded = DecodedTx.model_validate(request.metadata["decoded_tx"])
-            else:
-                try:
-                    decoded = evm_decoder.decode(raw_tx)
-                except DecodeError as exc:
-                    self.record_decode_failure(group.id)
-                    dec = Decision(
-                        request_id=request.id,
-                        verdict=Verdict.DENY,
-                        would_have_verdict=None,
-                        risk_score=100,
-                        reasons=[
-                            DecisionReason(
-                                code="DECODE_ERROR",
-                                weight=100,
-                                detail=f"Failed to decode transaction bytes: {exc}",
-                            )
-                        ],
-                        mode=active_mode,
-                        policy_version="v1.0.0",
-                        data_label=DataLabel.SYNTHETIC,
-                        wallet_group=group.id,
-                        created_at=start_time,
-                        evaluation_latency_ms=0.4,
-                    )
-                    return self.save_decision(dec)
-
-            intent_res = check_intent(request, decoded, mock_ledger_connector)
-            if not intent_res.passed:
-                dec = Decision(
-                    request_id=request.id,
-                    verdict=Verdict.DENY,
-                    would_have_verdict=None,
-                    risk_score=100,
-                    reasons=[
-                        DecisionReason(
-                            code=intent_res.code or "INTENT_CHECK_FAILED",
-                            weight=100,
-                            detail=intent_res.detail or "Intent reconciliation failed.",
-                        )
-                    ],
-                    mode=active_mode,
-                    policy_version="v1.0.0",
-                    data_label=DataLabel.SYNTHETIC,
-                    wallet_group=group.id,
-                    created_at=start_time,
-                    evaluation_latency_ms=0.4,
-                )
-                return self.save_decision(dec)
-
-        # Stage: EIP-7702 Delegation Guard (Milestone S09)
-        # Evaluated strictly on DecodedTx.authorizations
-        if decoded is None and (
-            raw_tx.startswith("0x04")
-            or "decoded_tx" in request.metadata
-            or request.metadata.get("require_delegation_check")
-        ):
-            if "decoded_tx" in request.metadata:
-                decoded = DecodedTx.model_validate(request.metadata["decoded_tx"])
-            else:
-                try:
-                    decoded = evm_decoder.decode(raw_tx)
-                except DecodeError as exc:
-                    self.record_decode_failure(group.id)
-                    dec = Decision(
-                        request_id=request.id,
-                        verdict=Verdict.DENY,
-                        would_have_verdict=None,
-                        risk_score=100,
-                        reasons=[
-                            DecisionReason(
-                                code="DECODE_ERROR",
-                                weight=100,
-                                detail=f"Failed to decode Type-4 transaction bytes: {exc}",
-                            )
-                        ],
-                        mode=active_mode,
-                        policy_version="v1.0.0",
-                        data_label=DataLabel.SYNTHETIC,
-                        wallet_group=group.id,
-                        created_at=start_time,
-                        evaluation_latency_ms=0.4,
-                    )
-                    return self.save_decision(dec)
-
-        if decoded and decoded.authorizations:
-            del_res = check_delegations(decoded, self.delegation_policy, self.rpc_client)
-            if not del_res.passed:
-                dec = Decision(
-                    request_id=request.id,
-                    verdict=Verdict.DENY,
-                    would_have_verdict=None,
-                    risk_score=100,
-                    reasons=[
-                        DecisionReason(
-                            code=del_res.code or "SUSPICIOUS_DELEGATION",
-                            weight=100,
-                            detail=del_res.detail or "EIP-7702 delegation policy violation.",
-                        )
-                    ],
-                    mode=active_mode,
-                    policy_version="v1.0.0",
-                    data_label=DataLabel.SYNTHETIC,
-                    wallet_group=group.id,
-                    created_at=start_time,
-                    evaluation_latency_ms=0.4,
-                )
-                return self.save_decision(dec)
-
-        # Policy checks evaluation
-        amount_usd = float(request.metadata.get("amount_usd", 0.0))
-        policy_verdict = Verdict.ALLOW
-        risk_score = 0
-        reasons: list[DecisionReason] = []
-
-        if request.metadata.get("simulate_deny") or request.metadata.get("simulate_rule_hit") == "SUSPICIOUS_DELEGATION":
-            policy_verdict = Verdict.DENY
-            risk_score = 95
-            reasons.append(
-                DecisionReason(
-                    code="SUSPICIOUS_DELEGATION",
-                    weight=95,
-                    detail="EIP-7702 authorization tuple points to unapproved delegate contract.",
-                )
-            )
-        elif amount_usd > settings.single_tx_usd_default:
-            policy_verdict = Verdict.HOLD
-            risk_score = 65
-            reasons.append(
-                DecisionReason(
-                    code="SINGLE_TX_LIMIT_EXCEEDED",
-                    weight=65,
-                    detail=f"Transfer amount ${amount_usd:,.2f} exceeds single tx limit ${settings.single_tx_usd_default:,.2f}.",
-                )
-            )
-        elif request.metadata.get("simulate_hold"):
-            policy_verdict = Verdict.HOLD
-            risk_score = 50
-            reasons.append(
-                DecisionReason(
-                    code="VELOCITY_SPIKE",
-                    weight=50,
-                    detail="Outflow velocity spike detected for wallet.",
-                )
-            )
-
-        # Resolve mode semantics
-        final_verdict: Verdict
-        would_have_verdict: Verdict | None = None
-
-        if active_mode == OperationMode.SHADOW:
-            if policy_verdict in [Verdict.DENY, Verdict.HOLD]:
-                # In SHADOW mode: store real verdict as would_have_verdict, return pass-through ALLOW
-                would_have_verdict = policy_verdict
-                final_verdict = Verdict.ALLOW
-                self.record_metric(group.id, is_would_block=True, value_usd=amount_usd)
-            else:
-                would_have_verdict = None
-                final_verdict = Verdict.ALLOW
-                self.record_metric(group.id, is_allowed=True)
-        elif active_mode == OperationMode.ENFORCE:
-            # In ENFORCE mode: verdict is binding
-            final_verdict = policy_verdict
-            would_have_verdict = None
-            if final_verdict == Verdict.ALLOW:
-                self.record_metric(group.id, is_allowed=True)
-        else:
-            # In SIMULATION mode: dry-run, returns what BitGuard would do without state mutations
-            final_verdict = policy_verdict
-            would_have_verdict = None
-
-        # Idempotency: consume intent on valid production signing requests
-        if not is_dry_run and final_verdict == Verdict.ALLOW and request.intent_id:
-            mock_ledger_connector.mark_consumed(request.intent_id)
-
-        latency_ms = round((datetime.now(UTC) - start_time).total_seconds() * 1000.0, 3)
-
-        decision = Decision(
-            request_id=request.id,
-            verdict=final_verdict,
-            would_have_verdict=would_have_verdict,
-            risk_score=risk_score,
-            reasons=reasons,
-            mode=active_mode,
-            policy_version="v1.0.0",
-            data_label=DataLabel.SYNTHETIC,
-            wallet_group=group.id,
-            created_at=start_time,
-            evaluation_latency_ms=latency_ms,
+        return decision_engine.evaluate(
+            request=request,
+            is_dry_run=is_dry_run,
+            wallet_group_mode=group.mode,
+            wallet_group_id=group.id,
         )
-
-        return self.save_decision(decision)
 
 
 # Global singleton instance

@@ -369,6 +369,14 @@
             "title": "Risk Score",
             "type": "integer"
           },
+          "timings": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Stage execution latencies in milliseconds",
+            "title": "Timings",
+            "type": "object"
+          },
           "verdict": {
             "$ref": "#/components/schemas/Verdict"
           },

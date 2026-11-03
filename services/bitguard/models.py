@@ -133,6 +133,10 @@ class Decision(BaseModel):
     is_false_positive: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     evaluation_latency_ms: float | None = None
+    timings: dict[str, float] = Field(
+        default_factory=dict,
+        description="Stage execution latencies in milliseconds",
+    )
 
 
 class HoldTicket(BaseModel):
