@@ -1,0 +1,25 @@
+# Scenario 10: Unmatched Intent Denied
+# Pattern: Transaction submitted with missing, forged, or parameter-mismatched ledger intent ID.
+id: "scenario_10_unmatched_intent_denied"
+name: "Unmatched Ledger Intent Denied"
+description: "BitGuard enforces strict ledger reconciliation; transactions lacking pre-registered intents are rejected fail-closed."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "DENY"
+
+pattern_data:
+  caller:
+    san: "spiffe://exchange.internal/workload/custody"
+  intent_id: "forged-or-unmatched-intent-9999"
+  transaction:
+    to: "0x1111111111111111111111111111111111111111"
+    value: 5000000000000000000
+    nonce: 10
+    amount_usd: 12500.0
+
+assertions:
+  verdict: "DENY"
+  rpc_error_code: -32003
+  reasons:
+    - "INTENT_MISSING"
+  signature_issued: false

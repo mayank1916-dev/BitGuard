@@ -1,0 +1,33 @@
+# Scenario 07: Redis Outage Fails Closed
+# Pattern: Underlying state cache or coordination store becomes unavailable; gateway fails closed safely.
+id: "scenario_07_redis_outage_fails_closed"
+name: "State Store Outage Fail-Closed Behavior"
+description: "Loss of Redis coordination or rate limit storage triggers fail-closed denial with zero signature issuance."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "FAIL_CLOSED"
+
+pattern_data:
+  caller:
+    san: "spiffe://exchange.internal/workload/custody"
+  intent:
+    id: "intent-lab-outage-07"
+    status: "APPROVED"
+    asset: "ETH"
+    amount: "1000000000000000000"
+    destination: "0x1111111111111111111111111111111111111111"
+  transaction:
+    to: "0x1111111111111111111111111111111111111111"
+    value: 1000000000000000000
+    nonce: 7
+    amount_usd: 2500.0
+  fault_injection:
+    service: "redis"
+    action: "simulate_outage"
+
+assertions:
+  verdict: "DENY"
+  rpc_error_code: -32003
+  reasons:
+    - "ENGINE_ERROR"
+  signature_issued: false

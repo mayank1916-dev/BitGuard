@@ -1,0 +1,30 @@
+# Scenario 01: Normal Authorized Withdrawal
+# Pattern: Legitimate withdrawal within limits, pre-registered intent, valid caller identity.
+id: "scenario_01_normal_withdrawal"
+name: "Normal Authorized Withdrawal"
+description: "A standard authorized withdrawal below transaction limits with pre-approved ledger intent."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "ALLOW"
+
+pattern_data:
+  caller:
+    san: "spiffe://exchange.internal/workload/custody"
+  intent:
+    id: "intent-lab-normal-01"
+    status: "APPROVED"
+    asset: "ETH"
+    amount: "1000000000000000000" # 1.0 ETH in wei
+    destination: "0x1111111111111111111111111111111111111111"
+  transaction:
+    to: "0x1111111111111111111111111111111111111111"
+    value: 1000000000000000000
+    nonce: 0
+    amount_usd: 2500.0
+
+assertions:
+  verdict: "ALLOW"
+  status: "SIGNED"
+  signature_required: true
+  intent_consumed: true
+  error_code: null

@@ -1,0 +1,21 @@
+# Scenario 09: Token Replay Refused
+# Pattern: An adversary captures a valid BitGuard Ed25519 approval token and attempts to replay it against the signer shim.
+id: "scenario_09_token_replay_refused"
+name: "Approval Token Replay Refusal"
+description: "Atomic nonce tracking in the signer shim ensures approval tokens are single-use; replays are rejected immediately."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "REFUSED"
+
+pattern_data:
+  token_replay_attack:
+    first_execution_allowed: true
+    replayed_execution:
+      use_same_nonce: true
+      expected_error: "NONCE_ALREADY_CONSUMED"
+
+assertions:
+  initial_sign_status: 200
+  replay_sign_status: 400
+  replay_error_code: "NONCE_ALREADY_CONSUMED"
+  replay_succeeded: false

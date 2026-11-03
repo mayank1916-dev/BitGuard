@@ -1,0 +1,21 @@
+# Scenario 05: Watcher Detects Unapproved Delegation and Breaker Trips
+# Pattern: Delegation watcher scans watched address, detects unapproved EIP-7702 bytecode, and trips circuit breaker to HOLD.
+id: "scenario_05_watcher_detects_unapproved_delegation_and_breaker_trips"
+name: "Delegation Watcher Detection and Circuit Breaker Trip"
+description: "Watcher scans hot wallet bytecode, identifies unallowlisted delegation designator, and immediately trips breaker to HOLD."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "BREAKER_TRIPPED"
+
+pattern_data:
+  watched_address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+  unapproved_delegate: "0x9999999999999999999999999999999999999999"
+  designator_prefix: "0xef0100"
+  expected_alert_severity: "CRITICAL"
+
+assertions:
+  initial_breaker_state: "NORMAL"
+  resulting_breaker_state: "HOLD"
+  alert_emitted: "UNAPPROVED_DELEGATION"
+  time_to_contain_recorded: true
+  max_acceptable_containment_ms: 5000.0

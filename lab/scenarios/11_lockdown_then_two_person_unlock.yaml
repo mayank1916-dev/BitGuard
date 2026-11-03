@@ -1,0 +1,29 @@
+# Scenario 11: Lockdown Then Two-Person Unlock
+# Pattern: Emergency lockdown halts all signing; requires dual-custody WebAuthn authorization to de-escalate back to NORMAL.
+id: "scenario_11_lockdown_then_two_person_unlock"
+name: "Circuit Breaker Lockdown and Dual-Control Unlock"
+description: "Lockdown immediately blocks all transaction signing; lowering breaker state requires two distinct WebAuthn approvers."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "LOCKDOWN_UNLOCKED"
+
+pattern_data:
+  lockdown:
+    initiator_role: "SecOps"
+    reason: "Emergency containment triggered in integration lab"
+  unlock_quorum:
+    target_state: "NORMAL"
+    approver_1:
+      user_id: "usr-approver-01"
+      role: "Approver"
+    approver_2:
+      user_id: "usr-admin-01"
+      role: "Admin"
+
+assertions:
+  lockdown_verdict: "DENY"
+  lockdown_breaker_state: "LOCKDOWN"
+  single_approver_unlock_rejected: true
+  quorum_unlock_accepted: true
+  final_breaker_state: "NORMAL"
+  post_unlock_signing_allowed: true

@@ -1,0 +1,28 @@
+# Scenario 04: Delegation Attempt Denied
+# Pattern: EIP-7702 type-4 authorization naming an owned custody address with an unapproved delegate.
+id: "scenario_04_delegation_attempt_denied"
+name: "Unapproved EIP-7702 Delegation Denied"
+description: "Attempts to delegate an owned custody address to an unapproved bytecode hash are fail-closed DENIED."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "DENY"
+
+pattern_data:
+  caller:
+    san: "spiffe://exchange.internal/workload/custody"
+  owned_address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+  unapproved_delegate: "0x3333333333333333333333333333333333333333"
+  transaction_type: 4 # EIP-7702 Set Code Transaction
+  intent:
+    id: "intent-lab-delegation-04"
+    status: "APPROVED"
+    asset: "ETH"
+    amount: "0"
+    destination: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+
+assertions:
+  verdict: "DENY"
+  rpc_error_code: -32003
+  reasons:
+    - "DELEGATION_OWNED_ADDRESS"
+  signature_issued: false

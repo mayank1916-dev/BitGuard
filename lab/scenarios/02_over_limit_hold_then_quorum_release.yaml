@@ -1,0 +1,39 @@
+# Scenario 02: Over-Limit Hold Then Quorum Release
+# Pattern: High-value withdrawal exceeding single tx threshold is quarantined on HOLD, then released via 2-person WebAuthn quorum.
+id: "scenario_02_over_limit_hold_then_quorum_release"
+name: "Over-Limit Quarantine and Quorum Release"
+description: "A transfer exceeding per-transaction limits triggers HOLD quarantine, requiring 2 distinct WebAuthn approvers to release."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "HOLD_THEN_APPROVED"
+
+pattern_data:
+  caller:
+    san: "spiffe://exchange.internal/workload/custody"
+  intent:
+    id: "intent-lab-overlimit-02"
+    status: "APPROVED"
+    asset: "ETH"
+    amount: "30000000000000000000" # 30 ETH
+    destination: "0x1111111111111111111111111111111111111111"
+  transaction:
+    to: "0x1111111111111111111111111111111111111111"
+    value: 30000000000000000000
+    nonce: 1
+    amount_usd: 75000.0 # Exceeds default $50,000 single tx limit
+  quorum:
+    required_approvals: 2
+    approvers:
+      - user_id: "usr-approver-01"
+        role: "Approver"
+      - user_id: "usr-approver-02"
+        role: "Approver"
+
+assertions:
+  initial_verdict: "HOLD"
+  initial_rpc_code: -32004
+  hold_reason: "SINGLE_TX_LIMIT_EXCEEDED"
+  first_approval_status: "PENDING"
+  second_approval_status: "APPROVED"
+  final_status: "SIGNED"
+  signature_required: true

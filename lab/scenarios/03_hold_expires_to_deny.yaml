@@ -1,0 +1,33 @@
+# Scenario 03: Hold Expires to Deny
+# Pattern: Quarantined request times out before quorum is reached, failing closed to DENY.
+id: "scenario_03_hold_expires_to_deny"
+name: "Quarantine Expiration to Deny"
+description: "A transaction held in quarantine expires without sufficient approvals, rejecting subsequent release attempts."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "HOLD_EXPIRES_DENY"
+
+pattern_data:
+  caller:
+    san: "spiffe://exchange.internal/workload/custody"
+  intent:
+    id: "intent-lab-expire-03"
+    status: "APPROVED"
+    asset: "ETH"
+    amount: "25000000000000000000"
+    destination: "0x1111111111111111111111111111111111111111"
+  transaction:
+    to: "0x1111111111111111111111111111111111111111"
+    value: 25000000000000000000
+    nonce: 2
+    amount_usd: 62500.0
+  expiration:
+    ttl_seconds: 0 # Instant expiration simulation
+    approver: "usr-approver-01"
+
+assertions:
+  initial_verdict: "HOLD"
+  initial_rpc_code: -32004
+  late_approval_rejected: true
+  expected_rejection_code: "HOLD_EXPIRED"
+  signature_issued: false

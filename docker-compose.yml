@@ -171,6 +171,30 @@ services:
       exit 0;
       "
 
+  demo_custody:
+    build:
+      context: .
+      dockerfile: lab/demo_custody/Dockerfile
+    container_name: bitguard-demo-custody
+    restart: unless-stopped
+    environment:
+      DEMO_CUSTODY_HOST: "0.0.0.0"
+      DEMO_CUSTODY_PORT: 8003
+      DEMO_CUSTODY_BITGUARD_URL: "http://bitguard:8000"
+      DEMO_CUSTODY_SAN: "spiffe://exchange.internal/workload/custody"
+    ports:
+      - "8003:8003"
+    networks:
+      - public
+    depends_on:
+      bitguard:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8003/healthz\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 networks:
   public:
     driver: bridge

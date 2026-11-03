@@ -1,0 +1,23 @@
+# Scenario 08: Direct Signer Call Refused
+# Pattern: Direct RPC invocation of the signer shim from the client/custody network bypassing BitGuard firewall is refused.
+id: "scenario_08_direct_signer_call_refused"
+name: "Direct Signer Shim Invocation Refused"
+description: "Network segmentation and mutual internal auth prevent any workload from directly accessing the signing shim."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "REFUSED"
+
+pattern_data:
+  target_service: "signer_shim"
+  endpoint: "/sign"
+  request_body:
+    raw_tx_bytes: "0xf86c808504a817c800825208941111111111111111111111111111111111111111880de0b6b3a7640000801ba0"
+    token: "unauthorized-external-token"
+  headers:
+    # Notice: deliberately missing X-BitGuard-Internal-Auth or holding rogue identity
+    X-Client-Cert-SAN: "spiffe://exchange.internal/workload/custody"
+
+assertions:
+  http_status: 403
+  access_granted: false
+  signature_issued: false

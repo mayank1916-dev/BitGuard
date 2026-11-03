@@ -1,0 +1,25 @@
+# Scenario 06: Split Under Limit Triggers Velocity or Baseline Reason
+# Pattern: Smurfing / structuring attempt splitting funds across multiple sub-limit transfers trips rolling velocity limit.
+id: "scenario_06_split_under_limit_triggers_velocity_or_baseline_reason"
+name: "Velocity and Cumulative Limit Breach"
+description: "Repeated transfers individually beneath single transaction thresholds collectively exceed the rolling limit window."
+target_chain_id: 31337
+chain: "ethereum"
+expected_outcome: "VELOCITY_HOLD"
+
+pattern_data:
+  caller:
+    san: "spiffe://exchange.internal/workload/custody"
+  destination: "0x1111111111111111111111111111111111111111"
+  batch_transfers:
+    - { amount_usd: 30000.0, value_wei: 12000000000000000000, intent_id: "intent-split-01" }
+    - { amount_usd: 30000.0, value_wei: 12000000000000000000, intent_id: "intent-split-02" }
+    - { amount_usd: 30000.0, value_wei: 12000000000000000000, intent_id: "intent-split-03" }
+    - { amount_usd: 30000.0, value_wei: 12000000000000000000, intent_id: "intent-split-04" } # Cumulative = $120k > $100k hourly
+
+assertions:
+  early_transfers_allowed: true
+  breaching_transfer_verdict: "HOLD"
+  breaching_rpc_code: -32004
+  reasons:
+    - "HOURLY_LIMIT_EXCEEDED"
