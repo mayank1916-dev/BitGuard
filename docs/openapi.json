@@ -1,6 +1,44 @@
 {
   "components": {
     "schemas": {
+      "AnchorRecordModel": {
+        "description": "Receipt of an external object-lock anchor.",
+        "properties": {
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "head_hash": {
+            "title": "Head Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "storage_uri": {
+            "title": "Storage Uri",
+            "type": "string"
+          },
+          "ts": {
+            "title": "Ts",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "head_hash",
+          "ts",
+          "storage_uri"
+        ],
+        "title": "AnchorRecordModel",
+        "type": "object"
+      },
       "Approval": {
         "description": "Hardware-bound approval signature record (WebAuthn).",
         "properties": {
@@ -135,51 +173,196 @@
         "type": "object"
       },
       "AuditEntry": {
-        "description": "Cryptographically chained tamper-evident audit record.",
+        "description": "Cryptographically chained tamper-evident audit record (Milestone S21 / F18).",
         "properties": {
+          "action": {
+            "default": "",
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "default": "system",
+            "title": "Actor",
+            "type": "string"
+          },
           "data_label": {
-            "$ref": "#/components/schemas/DataLabel"
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
           },
           "entry_hash": {
             "title": "Entry Hash",
             "type": "string"
           },
           "event_type": {
+            "default": "",
             "title": "Event Type",
             "type": "string"
           },
           "index": {
+            "default": 0,
             "title": "Index",
             "type": "integer"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
           },
           "prev_hash": {
             "title": "Prev Hash",
             "type": "string"
           },
           "request_id": {
+            "default": "",
             "title": "Request Id",
             "type": "string"
           },
+          "seq": {
+            "default": 0,
+            "title": "Seq",
+            "type": "integer"
+          },
           "timestamp": {
+            "default": 0.0,
             "title": "Timestamp",
             "type": "number"
           },
+          "ts": {
+            "default": 0.0,
+            "title": "Ts",
+            "type": "number"
+          },
           "verdict": {
+            "default": "",
             "title": "Verdict",
             "type": "string"
           }
         },
         "required": [
-          "index",
-          "timestamp",
-          "event_type",
-          "request_id",
-          "verdict",
           "prev_hash",
-          "entry_hash",
-          "data_label"
+          "entry_hash"
         ],
         "title": "AuditEntry",
+        "type": "object"
+      },
+      "AuditEntryModel": {
+        "description": "Immutable audit chain record.",
+        "properties": {
+          "action": {
+            "description": "Action name or event category",
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "description": "Actor initiating or authorizing the event",
+            "title": "Actor",
+            "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "entry_hash": {
+            "description": "SHA-256 hash of prev_hash concatenated with canonical_json(entry)",
+            "title": "Entry Hash",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "description": "Canonical JSON event attributes",
+            "title": "Payload",
+            "type": "object"
+          },
+          "prev_hash": {
+            "description": "Cryptographic hash of the parent entry or 64 zeroes for genesis",
+            "title": "Prev Hash",
+            "type": "string"
+          },
+          "seq": {
+            "description": "Strict monotonically increasing sequence number (1-based)",
+            "title": "Seq",
+            "type": "integer"
+          },
+          "ts": {
+            "description": "Unix timestamp in fractional seconds",
+            "title": "Ts",
+            "type": "number"
+          }
+        },
+        "required": [
+          "seq",
+          "ts",
+          "actor",
+          "action",
+          "prev_hash",
+          "entry_hash"
+        ],
+        "title": "AuditEntryModel",
+        "type": "object"
+      },
+      "AuditVerifyResponse": {
+        "description": "Cryptographic chain integrity verification outcome.",
+        "properties": {
+          "checked_entries": {
+            "description": "Total number of consecutive valid records checked",
+            "title": "Checked Entries",
+            "type": "integer"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Diagnostic reason if integrity verification failed",
+            "title": "Details"
+          },
+          "first_bad_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Exact sequence number where tampering or gap was detected",
+            "title": "First Bad Seq"
+          },
+          "last_anchor": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Most recent external object-lock anchor metadata",
+            "title": "Last Anchor"
+          },
+          "ok": {
+            "description": "True if all hashes, sequences, and external anchors verify",
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "checked_entries"
+        ],
+        "title": "AuditVerifyResponse",
         "type": "object"
       },
       "AuthorizationItem": {
@@ -1535,6 +1718,30 @@
         "title": "JsonRpcResponse",
         "type": "object"
       },
+      "ManualAnchorResponse": {
+        "description": "Response returned upon creating a manual object-lock anchor checkpoint.",
+        "properties": {
+          "anchor": {
+            "additionalProperties": true,
+            "title": "Anchor",
+            "type": "object"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "anchor"
+        ],
+        "title": "ManualAnchorResponse",
+        "type": "object"
+      },
       "OperationMode": {
         "description": "BitGuard operational mode.",
         "enum": [
@@ -2407,6 +2614,303 @@
         "summary": "JSON-RPC 2.0 Transaction Signing Gateway",
         "tags": [
           "JSON-RPC Gateway"
+        ]
+      }
+    },
+    "/v1/audit/anchor": {
+      "post": {
+        "description": "Writes the active chain head {head_hash, seq, ts} to the WORM object-lock bucket.",
+        "operationId": "create_manual_anchor_v1_audit_anchor_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualAnchorResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger immediate external object-lock anchor checkpoint",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Audit Chain"
+        ]
+      }
+    },
+    "/v1/audit/entries": {
+      "get": {
+        "description": "Returns recorded audit log entries with cryptographic hash chain metadata.",
+        "operationId": "list_audit_entries_v1_audit_entries_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntryModel"
+                  },
+                  "title": "Response List Audit Entries V1 Audit Entries Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List paginated audit trail entries",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Audit Chain"
+        ]
+      }
+    },
+    "/v1/audit/verify": {
+      "get": {
+        "description": "Recomputes the complete SHA-256 hash chain from genesis to head, checks sequential contiguity, compares against external WORM object-lock anchors, and identifies the exact sequence number of any tampering or deletion.",
+        "operationId": "verify_audit_ledger_v1_audit_verify_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditVerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cryptographically verify entire audit ledger",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Audit Chain"
         ]
       }
     },

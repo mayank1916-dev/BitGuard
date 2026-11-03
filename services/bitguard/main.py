@@ -19,6 +19,12 @@ from services.bitguard.approvals.models import (
     HoldViewResponse,
     WebAuthnAssertion,
 )
+from services.bitguard.audit.models import (
+    AnchorRecordModel,
+    AuditEntryModel,
+    AuditVerifyResponse,
+    ManualAnchorResponse,
+)
 from services.bitguard.breaker.models import (
     BreakerStatusResponse,
     DeescalateApprovalResult,
@@ -146,6 +152,10 @@ def create_app() -> FastAPI:
             DevLoginRequest,
             DevLoginResponse,
             EscalateRequest,
+            AnchorRecordModel,
+            AuditEntryModel,
+            AuditVerifyResponse,
+            ManualAnchorResponse,
             FalsePositiveRequest,
             HoldTicket,
             HoldViewResponse,

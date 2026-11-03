@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from services.bitguard.approvals.models import WebAuthnAssertion
 from services.bitguard.approvals.webauthn import webauthn_verifier
+from services.bitguard.audit_service import audit_service
 from services.bitguard.breaker.base import BreakerStore
 from services.bitguard.breaker.epoch_store import token_epoch_store
 from services.bitguard.breaker.key_hook import key_policy_hook
@@ -34,7 +35,6 @@ from services.bitguard.breaker.models import (
 from services.bitguard.config import settings
 from services.bitguard.database import get_session_factory
 from services.bitguard.db_models import (
-    AuditEntryRecord,
     BreakerStateRecord,
     DeescalationRequestRecord,
 )
@@ -101,34 +101,14 @@ class DistributedBreakerStore(BreakerStore):
         verdict: str,
         extra_detail: str = "",
     ) -> None:
-        """Appends an immutable audit entry to Postgres with SHA-256 hash chaining."""
+        """Appends an immutable audit entry via canonical audit_service."""
         try:
-            with self._get_session() as session:
-                # Find last entry to chain prev_hash
-                last_entry = (
-                    session.query(AuditEntryRecord)
-                    .order_by(AuditEntryRecord.index.desc())
-                    .first()
-                )
-                new_index = (last_entry.index + 1) if last_entry else 1
-                prev_hash = last_entry.entry_hash if last_entry else ("0" * 64)
-                ts = time.time()
-
-                payload = f"{prev_hash}:{ts}:{request_id}:{verdict}:{new_index}:{extra_detail}"
-                entry_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-                audit_rec = AuditEntryRecord(
-                    index=new_index,
-                    timestamp=ts,
-                    event_type=event_type,
-                    request_id=request_id,
-                    verdict=verdict,
-                    prev_hash=prev_hash,
-                    entry_hash=entry_hash,
-                    data_label="REAL",
-                )
-                session.add(audit_rec)
-                session.commit()
+            audit_service.append_entry(
+                action=event_type,
+                actor=self._cached_updated_by or "system",
+                payload={"request_id": request_id, "verdict": verdict, "detail": extra_detail},
+                data_label=DataLabel.REAL,
+            )
         except Exception as exc:
             logger.warning("breaker_audit_log_append_failed: %s", exc)
 

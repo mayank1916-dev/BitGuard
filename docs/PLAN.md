@@ -59,7 +59,7 @@
 - [x] S18 Circuit breaker and asymmetric lockdown / unlock (F9, F14)
 - [ ] S19 Incident runbook automation and escalation (F14)
 - [ ] S20 Signed, versioned policy with hot reload and asymmetric changes (D)
-- [ ] S21 Hash-chained audit log with external anchoring and SIEM export (F18)
+- [x] S21 Hash-chained audit log with external anchoring and SIEM export (F18)
 - [ ] S22 Policy backtesting on real or exported history (F8)
 - [ ] S23 Testnet and local-fork integration lab with automated scenarios (F19)
 - [ ] S24 High availability, health, dead-man heartbeat and metrics (F17)

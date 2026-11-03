@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import JSON
@@ -112,18 +112,75 @@ class PolicyVersionRecord(Base):
 
 
 class AuditEntryRecord(Base):
-    """Cryptographically chained tamper-evident audit ledger entries."""
+    """Cryptographically chained tamper-evident audit ledger entries (Milestone S21 / F18)."""
 
     __tablename__ = "audit_entries"
 
-    index: Mapped[int] = mapped_column(Integer, primary_key=True)
-    timestamp: Mapped[float] = mapped_column(Float, nullable=False)
-    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    request_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
-    verdict: Mapped[str] = mapped_column(String(16), nullable=False)
+    seq: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ts: Mapped[float] = mapped_column(Float, nullable=False)
+    actor: Mapped[str] = mapped_column(String(128), nullable=False, default="system")
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
     prev_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     entry_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    data_label: Mapped[str] = mapped_column(String(16), nullable=False)
+    data_label: Mapped[str] = mapped_column(String(16), nullable=False, default="REAL")
+
+    def __init__(self, **kwargs: Any) -> None:
+        if "seq" not in kwargs and "index" in kwargs:
+            kwargs["seq"] = kwargs.pop("index")
+        if "ts" not in kwargs and "timestamp" in kwargs:
+            kwargs["ts"] = kwargs.pop("timestamp")
+        if "action" not in kwargs and "event_type" in kwargs:
+            kwargs["action"] = kwargs.pop("event_type")
+        if "payload" not in kwargs:
+            payload = {}
+            if "request_id" in kwargs:
+                payload["request_id"] = kwargs.pop("request_id")
+            if "verdict" in kwargs:
+                payload["verdict"] = kwargs.pop("verdict")
+            kwargs["payload"] = payload
+        else:
+            kwargs.pop("request_id", None)
+            kwargs.pop("verdict", None)
+        super().__init__(**kwargs)
+
+    @property
+    def index(self) -> int:
+        return self.seq
+
+    @property
+    def timestamp(self) -> float:
+        return self.ts
+
+    @property
+    def event_type(self) -> str:
+        return self.action
+
+    @property
+    def request_id(self) -> str:
+        return str(self.payload.get("request_id", ""))
+
+    @property
+    def verdict(self) -> str:
+        return str(self.payload.get("verdict", ""))
+
+
+class AuditAnchorRecord(Base):
+    """External object-lock anchor receipts for audit trail verification (Milestone S21 / F18)."""
+
+    __tablename__ = "audit_anchors"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    seq: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    head_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    ts: Mapped[float] = mapped_column(Float, nullable=False)
+    storage_uri: Mapped[str] = mapped_column(String(512), nullable=False)
+    data_label: Mapped[str] = mapped_column(String(16), nullable=False, default="REAL")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
 
 
 class WatchedAddressRecord(Base):

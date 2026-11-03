@@ -42,6 +42,7 @@ def test_alembic_migrations_lifecycle():
             "approvals",
             "policy_versions",
             "audit_entries",
+            "audit_anchors",
             "watched_addresses",
             "breaker_state",
             "breaker_deescalations",

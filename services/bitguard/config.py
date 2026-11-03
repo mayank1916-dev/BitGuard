@@ -66,5 +66,18 @@ class BitGuardSettings(BaseSettings):
     breaker_unmatched_intents_threshold: int = 3
     breaker_velocity_spike_threshold_usd: float = 1_000_000.0
 
+    # Tamper-evident Audit Chain and Object-Lock Anchoring (Milestone S21 / F18)
+    audit_anchor_enabled: bool = True
+    audit_anchor_interval_seconds: int = 60
+    audit_minio_endpoint: str = "http://minio:9000"
+    audit_minio_access_key: str = "minioadmin"
+    audit_minio_secret_key: str = "minioadmin"
+    audit_minio_bucket: str = "bitguard-audit-anchors"
+    audit_siem_enabled: bool = False
+    audit_siem_format: str = "syslog"
+    audit_siem_syslog_host: str = "localhost"
+    audit_siem_syslog_port: int = 514
+    audit_siem_otel_endpoint: str = "http://localhost:4318/v1/logs"
+
 
 settings = BitGuardSettings()

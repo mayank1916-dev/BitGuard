@@ -14,6 +14,7 @@ from fastapi import (
 )
 
 from services.bitguard.approvals.router import router as approvals_router
+from services.bitguard.audit import router as audit_router
 from services.bitguard.breaker import breaker_router
 from services.bitguard.config import settings
 from services.bitguard.decision_store import decision_store
@@ -49,6 +50,7 @@ router = APIRouter(tags=["V1 Policy Decision Point"])
 router.include_router(approvals_router)
 router.include_router(watcher_router)
 router.include_router(breaker_router)
+router.include_router(audit_router)
 
 
 # --- Dev Only Authentication Endpoint (Milestone S05 / F9 basic) ---

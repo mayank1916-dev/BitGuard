@@ -191,16 +191,54 @@ class PolicyVersion(BaseModel):
 
 
 class AuditEntry(BaseModel):
-    """Cryptographically chained tamper-evident audit record."""
+    """Cryptographically chained tamper-evident audit record (Milestone S21 / F18)."""
 
-    index: int
-    timestamp: float
-    event_type: str
-    request_id: str
-    verdict: str
+    seq: int = 0
+    ts: float = 0.0
+    actor: str = "system"
+    action: str = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
     prev_hash: str
     entry_hash: str
-    data_label: DataLabel
+    data_label: DataLabel = DataLabel.REAL
+
+    # Backward-compatible fields
+    index: int = 0
+    timestamp: float = 0.0
+    event_type: str = ""
+    request_id: str = ""
+    verdict: str = ""
+
+    def __init__(self, **data: Any) -> None:
+        if "seq" not in data and "index" in data:
+            data["seq"] = data["index"]
+        elif "index" not in data and "seq" in data:
+            data["index"] = data["seq"]
+
+        if "ts" not in data and "timestamp" in data:
+            data["ts"] = data["timestamp"]
+        elif "timestamp" not in data and "ts" in data:
+            data["timestamp"] = data["ts"]
+
+        if "action" not in data and "event_type" in data:
+            data["action"] = data["event_type"]
+        elif "event_type" not in data and "action" in data:
+            data["event_type"] = data["action"]
+
+        if "payload" not in data:
+            payload = {}
+            if "request_id" in data:
+                payload["request_id"] = data["request_id"]
+            if "verdict" in data:
+                payload["verdict"] = data["verdict"]
+            data["payload"] = payload
+        else:
+            if "request_id" not in data:
+                data["request_id"] = str(data["payload"].get("request_id", ""))
+            if "verdict" not in data:
+                data["verdict"] = str(data["payload"].get("verdict", ""))
+
+        super().__init__(**data)
 
 
 class WatchedAddress(BaseModel):
