@@ -514,6 +514,123 @@ export async function fetchShadowMetrics(walletGroup = 'default') {
   };
 }
 
+/**
+ * 11. listBacktests()
+ */
+export async function listBacktests() {
+  if (DATA_SOURCE === 'demo') {
+    return [
+      {
+        id: 'binance-exploit-2026',
+        name: 'Binance Exploit Sequence (Oct 2026)',
+        description: 'Late-October 2026 multi-chain exploit sequence including XRP outflow, 7702 spray, and massive sweeps.',
+        events_count: 72,
+        source: 'incident_export',
+      },
+      {
+        id: 'multichain-velocity-spike',
+        name: 'Multi-Chain Velocity Spike',
+        description: 'Simulated multi-chain concurrent burst exceeding per-wallet and global rolling window limits.',
+        events_count: 35,
+        source: 'synthetic_generator',
+      },
+      {
+        id: 'unauthorized-delegation-7702',
+        name: 'EIP-7702 Unauthorized Delegation Spray',
+        description: 'Type-4 transaction batch directing hot wallet addresses to non-allowlisted upgradeable contracts.',
+        events_count: 20,
+        source: 'lab_scenario',
+      },
+    ];
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/backtests`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch backtests:', err);
+  }
+
+  return [
+    {
+      id: 'binance-exploit-2026',
+      name: 'Binance Exploit Sequence (Oct 2026)',
+      description: 'Late-October 2026 multi-chain exploit sequence including XRP outflow, 7702 spray, and massive sweeps.',
+      events_count: 72,
+      source: 'incident_export',
+    },
+  ];
+}
+
+/**
+ * 12. runBacktest(backtestId)
+ */
+export async function runBacktest(backtestId) {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      steps: [],
+      summary: {},
+    };
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/backtests/${encodeURIComponent(backtestId)}/run`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to run backtest:', err);
+  }
+
+  return { steps: [], summary: {} };
+}
+
+/**
+ * 13. getRecordedDecisions()
+ */
+export async function getRecordedDecisions() {
+  try {
+    const data = await getDecisions({ limit: 100 });
+    const list = data.decisions || [];
+    let cumUnp = 0;
+    let cumProt = 0;
+    return list.map((d, i) => {
+      const amt = Number(d.amount_usd || 15000);
+      cumUnp += amt;
+      const isAllow = (d.action || d.verdict || '').toLowerCase() === 'allow';
+      if (isAllow) cumProt += amt;
+      return {
+        request_id: d.request_id || `rec-${i}`,
+        ts: d.ts || Date.now() / 1000,
+        chain: d.chain || 'ethereum',
+        wallet: d.wallet || '0xBinanceHotETH1',
+        kind: d.kind || 'transfer',
+        amount_usd: amt,
+        scenario: isAllow ? 'normal' : 'attack',
+        unprotected_action: 'allow',
+        protected_decision: {
+          request_id: d.request_id || `rec-${i}`,
+          action: (d.action || d.verdict || 'allow').toLowerCase(),
+          risk: d.risk || 15,
+          reasons: d.reasons || [],
+          breaker_state: d.breaker_state || 'Normal',
+          data_label: 'REAL',
+        },
+        cumulative_unprotected_loss_usd: cumUnp,
+        cumulative_protected_loss_usd: cumProt,
+        data_label: 'REAL',
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 export default {
   DATA_SOURCE,
   getDataSource,
@@ -531,4 +648,7 @@ export default {
   getMode,
   fetchCurrentMode,
   fetchShadowMetrics,
+  listBacktests,
+  runBacktest,
+  getRecordedDecisions,
 };

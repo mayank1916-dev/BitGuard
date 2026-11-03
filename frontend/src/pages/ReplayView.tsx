@@ -10,8 +10,22 @@ import {
   X,
   Send,
 } from 'lucide-react';
-import { StepEvent, ReplayMetrics, evaluateSigningRequest, Decision, DATA_SOURCE, fetchShadowMetrics, ShadowMetrics } from '../api';
+import {
+  StepEvent,
+  ReplayMetrics,
+  evaluateSigningRequest,
+  Decision,
+  DATA_SOURCE,
+  fetchShadowMetrics,
+  ShadowMetrics,
+  listBacktests,
+  runBacktest,
+  getRecordedDecisions,
+  BacktestMeta,
+} from '../api';
 import { formatCurrency, formatFullCurrency, getChainBadgeStyle, getDataLabelBadgeStyle, truncateAddress, cn } from '../utils';
+
+export type ReplaySource = 'builtin' | 'imported' | 'recorded';
 
 interface ReplayViewProps {
   steps: StepEvent[];
@@ -29,8 +43,22 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
   onPlayStateChange,
   mode,
 }) => {
+  // Incident Replay Source Selector State (Milestone U3)
+  const [selectedSource, setSelectedSource] = useState<ReplaySource>('builtin');
+  const [availableBacktests, setAvailableBacktests] = useState<BacktestMeta[]>([]);
+  const [selectedBacktestId, setSelectedBacktestId] = useState<string>('binance-exploit-2026');
+  const [importedSteps, setImportedSteps] = useState<StepEvent[]>([]);
+  const [recordedSteps, setRecordedSteps] = useState<StepEvent[]>([]);
+  const [isSourceLoading, setIsSourceLoading] = useState<boolean>(false);
+
   const [injectedEvents, setInjectedEvents] = useState<StepEvent[]>([]);
-  const events = [...steps, ...injectedEvents];
+  const sourceSteps: StepEvent[] =
+    selectedSource === 'imported'
+      ? importedSteps
+      : selectedSource === 'recorded'
+      ? recordedSteps
+      : steps;
+  const events = [...sourceSteps, ...injectedEvents];
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 1x, 5x, 10x
@@ -113,27 +141,102 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
   const currentStep: StepEvent | undefined = events[currentIndex];
   const visibleSteps = events.slice(0, currentIndex + 1);
 
-  // Simulation Clock Behavior:
-  // When replay is idle or reset (!isPlaying && currentIndex === 0), display real live current time, ticking every second.
-  // When replay is playing or stepped (isPlaying || currentIndex > 0), display active simulation event timestamp.
+  // Milestone U3: Load backtest catalog on mount
+  useEffect(() => {
+    listBacktests()
+      .then((list) => {
+        setAvailableBacktests(list);
+        if (list.length > 0 && !selectedBacktestId) {
+          setSelectedBacktestId(list[0].id);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const loadBacktestData = async (bId: string) => {
+    setIsSourceLoading(true);
+    try {
+      const res = await runBacktest(bId);
+      setImportedSteps(res.steps || []);
+      setCurrentIndex(0);
+      setIsPlaying(false);
+      setInjectedEvents([]);
+    } catch (err) {
+      console.warn('Failed to load backtest data:', err);
+    } finally {
+      setIsSourceLoading(false);
+    }
+  };
+
+  const loadRecordedData = async () => {
+    setIsSourceLoading(true);
+    try {
+      const rec = await getRecordedDecisions();
+      setRecordedSteps(rec);
+      setCurrentIndex(0);
+      setIsPlaying(false);
+      setInjectedEvents([]);
+    } catch (err) {
+      console.warn('Failed to load recorded decisions:', err);
+    } finally {
+      setIsSourceLoading(false);
+    }
+  };
+
+  const handleSourceChange = async (newSource: ReplaySource) => {
+    setSelectedSource(newSource);
+    clearPlaybackTimer();
+    setIsPlaying(false);
+    setCurrentIndex(0);
+    setInjectedEvents([]);
+
+    if (newSource === 'imported') {
+      await loadBacktestData(selectedBacktestId);
+    } else if (newSource === 'recorded') {
+      await loadRecordedData();
+    }
+  };
+
+  const handleBacktestSelect = async (bId: string) => {
+    setSelectedBacktestId(bId);
+    await loadBacktestData(bId);
+  };
+
+  // Simulation Clock Behavior (Task U3):
+  // When in demo mode: shows event count ('Event 1 / 72')
+  // When in live mode (DATA_SOURCE === 'api' or selectedSource === 'recorded'): shows real UTC time
+  const isLiveClock = DATA_SOURCE === 'api' || selectedSource === 'recorded';
   const [liveTime, setLiveTime] = useState<string>(
     new Date().toUTCString().slice(17, 25) + " UTC"
   );
 
   useEffect(() => {
-    if (isPlaying || currentIndex > 0) return;
+    if (!isLiveClock) return;
 
     const timer = setInterval(() => {
       setLiveTime(new Date().toUTCString().slice(17, 25) + " UTC");
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isPlaying, currentIndex]);
+  }, [isLiveClock, isPlaying, currentIndex]);
 
-  const clockDisplay =
+  const eventCountClock =
+    events.length > 0
+      ? `Event ${
+          currentIndex === 0 && !isPlaying
+            ? 0
+            : isPlaying
+            ? Math.min(currentIndex + 1, events.length)
+            : currentIndex + 1
+        } / ${events.length}`
+      : 'Event 0 / 0';
+
+  const realUtcClock =
     !isPlaying && currentIndex === 0
       ? liveTime
       : new Date((events[currentIndex]?.ts ?? 1730299400) * 1000).toISOString().substr(11, 8) + " UTC";
+
+  const clockDisplay = isLiveClock ? realUtcClock : eventCountClock;
 
   // In reset state (index 0 and not playing), reset loss counters to $0.00 and breaker to NORMAL
   const isResetState = currentIndex === 0 && !isPlaying;
@@ -175,7 +278,7 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
     ? 0
     : (shadowMetrics?.would_have_allowed_value || shadowAllowedSum);
 
-  const counterDataLabel = DATA_SOURCE === 'api' ? 'REAL' : 'REPORTED';
+  const counterDataLabel = selectedSource === 'recorded' ? 'REAL' : (DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC');
   const counterLabelStyle = getDataLabelBadgeStyle(counterDataLabel);
 
   // Identify tripwire event if one has fired by this step
@@ -336,6 +439,36 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
               <Sliders className="w-3.5 h-3.5 text-cyan-400" />
               <span>Simulate Custom TX</span>
             </button>
+
+            {/* Replay Source Selector (Task U3) */}
+            <div className="flex items-center space-x-1.5">
+              <select
+                value={selectedSource}
+                onChange={(e) => handleSourceChange(e.target.value as ReplaySource)}
+                className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-lg px-2.5 py-2 font-medium focus:outline-none focus:border-cyan-500/50 cursor-pointer"
+                title="Select Replay Source"
+              >
+                <option value="builtin">Built-in scenario</option>
+                <option value="imported">Imported log</option>
+                <option value="recorded">Recorded live traffic</option>
+              </select>
+
+              {selectedSource === 'imported' && (
+                <select
+                  value={selectedBacktestId}
+                  onChange={(e) => handleBacktestSelect(e.target.value)}
+                  disabled={isSourceLoading}
+                  className="bg-slate-950 border border-slate-800 text-cyan-300 text-xs rounded-lg px-2 py-2 font-mono text-[11px] focus:outline-none focus:border-cyan-500/50 cursor-pointer"
+                  title="Pick Backtest Dataset"
+                >
+                  {availableBacktests.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Incident Telemetry Counter */}
@@ -493,7 +626,7 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
               visibleSteps.map((step) => {
                 const chainStyle = getChainBadgeStyle(step.chain);
                 const isAttack = step.scenario === 'attack';
-                const leftLabel = step.data_label || (step.scenario === 'attack' ? 'REPORTED' : 'SYNTHETIC');
+                const leftLabel = selectedSource === 'recorded' ? 'REAL' : (step.data_label === 'REAL' ? 'REAL' : 'SYNTHETIC');
                 const leftLabelStyle = getDataLabelBadgeStyle(leftLabel);
 
                 return (
@@ -672,7 +805,10 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
                 const isAllowed = decision.action === 'allow';
                 const isHeld = decision.action === 'hold';
                 const isDenied = decision.action === 'deny';
-                const rightLabel = decision.data_label || step.data_label || (DATA_SOURCE === 'api' ? 'REAL' : (step.scenario === 'attack' ? 'REPORTED' : 'SYNTHETIC'));
+                const rightLabel =
+                  selectedSource === 'recorded'
+                    ? 'REAL'
+                    : (decision.data_label === 'REAL' || step.data_label === 'REAL' ? 'REAL' : 'SYNTHETIC');
                 const rightLabelStyle = getDataLabelBadgeStyle(rightLabel);
 
                 return (

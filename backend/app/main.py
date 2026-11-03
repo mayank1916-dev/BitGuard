@@ -111,6 +111,17 @@ def create_app(engine: PolicyEngine | None = None) -> FastAPI:
             "would_have_blocked_value": 0.0,
         }
 
+    @app.get("/api/backtests")
+    def list_backtests_endpoint():
+        from services.bitguard.backtest.service import backtest_service
+        return [b.model_dump(mode="json") for b in backtest_service.list_backtests()]
+
+    @app.post("/api/backtests/{backtest_id}/run")
+    def run_backtest_endpoint(backtest_id: str):
+        from services.bitguard.backtest.service import backtest_service
+        res = backtest_service.run_backtest(backtest_id)
+        return res.model_dump(mode="json")
+
     @app.post("/api/evaluate", response_model=Decision)
     def evaluate(request: SigningRequest) -> Decision:
         decision = app.state.engine.evaluate(request)

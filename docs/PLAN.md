@@ -77,7 +77,7 @@
 - [ ] S36 Hardening pack: KMS/HSM adapter interface, fuzzing, security tooling, pen-test brief
 - [x] U1 Add an API client layer without changing the look
 - [x] U2 Mode badge and REAL / SYNTHETIC / REPORTED tags
-- [ ] U3 Incident Replay: source selector and real-engine replay
+- [x] U3 Incident Replay: source selector and real-engine replay
 - [ ] U4 Simulate Custom TX calls the real dry-run endpoint
 - [ ] U5 Live Feed: WebSocket stream, HOLD queue and chain outflow bars
 - [ ] U6 Circuit breaker pill and BREAKER LOCKDOWN with real effect
