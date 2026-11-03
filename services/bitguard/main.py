@@ -11,6 +11,14 @@ from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
 from backend.app.main import create_app as create_legacy_api_app
+from services.bitguard.approvals.models import (
+    ApproveHoldRequest,
+    ApproveHoldResponse,
+    DenyHoldRequest,
+    DenyHoldResponse,
+    HoldViewResponse,
+    WebAuthnAssertion,
+)
 from services.bitguard.config import settings
 from services.bitguard.gateway.models import (
     JsonRpcError,
@@ -111,13 +119,18 @@ def create_app() -> FastAPI:
         schemas = openapi_schema.setdefault("components", {}).setdefault("schemas", {})
         canonical_models: list[type[BaseModel]] = [
             Approval,
+            ApproveHoldRequest,
+            ApproveHoldResponse,
             AuditEntry,
             DailyGroupMetrics,
             DecodedTx,
+            DenyHoldRequest,
+            DenyHoldResponse,
             DevLoginRequest,
             DevLoginResponse,
             FalsePositiveRequest,
             HoldTicket,
+            HoldViewResponse,
             PolicyConfig,
             PolicyVersion,
             PromotionCheckItem,
@@ -126,6 +139,7 @@ def create_app() -> FastAPI:
             WalletGroupConfig,
             WalletGroupModeUpdate,
             WatchedAddress,
+            WebAuthnAssertion,
             JsonRpcRequest,
             JsonRpcResponse,
             JsonRpcError,

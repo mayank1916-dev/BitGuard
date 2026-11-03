@@ -104,6 +104,9 @@ class StreamBroadcaster:
         for cid in dropped_clients:
             self.unregister_client(cid)
 
+    # Convenience alias
+    broadcast = publish_event
+
     def publish_decision(self, decision: Decision) -> None:
         """Broadcasts a newly issued policy decision."""
         # Record chain outflow if decision allowed the transfer

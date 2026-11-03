@@ -2,7 +2,7 @@ import React from 'react';
 import { Shield, ShieldAlert, ShieldCheck, Activity, RefreshCw } from 'lucide-react';
 import { cn } from '../utils';
 
-export type DashboardTab = 'replay' | 'feed' | 'radar' | 'lab' | 'reports';
+export type DashboardTab = 'replay' | 'feed' | 'radar' | 'lab' | 'reports' | 'approvals';
 
 interface NavbarProps {
   currentTab: DashboardTab;
@@ -137,6 +137,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             >
               Reports & Audit
+            </button>
+            <button
+              onClick={() => onSelectTab('approvals')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
+                currentTab === 'approvals'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              )}
+            >
+              Approvals
             </button>
           </div>
 

@@ -5,6 +5,7 @@ import { LiveFeed } from './pages/LiveFeed';
 import { RadarView } from './pages/RadarView';
 import { PolicyLabView } from './pages/PolicyLabView';
 import { ReportsView } from './pages/ReportsView';
+import { ApprovalView } from './pages/ApprovalView';
 import { PolicySliders } from './components/PolicySliders';
 import { runReplay, resetSystem, ReplayResponse, PolicyOverrides, StepEvent, ReplayMetrics } from './api';
 import { Shield, AlertCircle } from 'lucide-react';
@@ -132,6 +133,9 @@ export const App: React.FC = () => {
 
         {/* Tab 5: Cryptographic Audit & Reports */}
         {currentTab === 'reports' && <ReportsView />}
+
+        {/* Tab 6: Quorum WebAuthn Approvals (Milestone S16) */}
+        {currentTab === 'approvals' && <ApprovalView />}
       </main>
 
       {/* Footer */}

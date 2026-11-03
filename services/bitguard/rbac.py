@@ -139,6 +139,19 @@ SEEDED_USERS: dict[Role, UserResponse] = {
     ),
 }
 
+# Second approver for multi-party quorum workflows (Milestone S16)
+SECOND_APPROVER = UserResponse(
+    id="usr-approver-02",
+    email="approver2@bitguard.local",
+    name="Frank Approver",
+    role=Role.APPROVER,
+    permissions=sorted(PERMISSION_MATRIX[Role.APPROVER]),
+)
+
+ALL_TEST_USERS: dict[str, UserResponse] = {
+    u.id: u for u in list(SEEDED_USERS.values()) + [SECOND_APPROVER]
+}
+
 
 # --- JWT Token Issuance & Verification ---
 

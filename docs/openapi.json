@@ -8,6 +8,16 @@
             "title": "Approver Id",
             "type": "string"
           },
+          "approver_role": {
+            "default": "Approver",
+            "title": "Approver Role",
+            "type": "string"
+          },
+          "assertion_data": {
+            "additionalProperties": true,
+            "title": "Assertion Data",
+            "type": "object"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -38,6 +48,90 @@
           "webauthn_signature"
         ],
         "title": "Approval",
+        "type": "object"
+      },
+      "ApproveHoldRequest": {
+        "description": "Payload to approve a quarantined transaction using WebAuthn.",
+        "properties": {
+          "assertion": {
+            "$ref": "#/components/schemas/WebAuthnAssertion",
+            "description": "Hardware WebAuthn cryptographic assertion"
+          }
+        },
+        "required": [
+          "assertion"
+        ],
+        "title": "ApproveHoldRequest",
+        "type": "object"
+      },
+      "ApproveHoldResponse": {
+        "description": "Result of processing an approval against a hold ticket.",
+        "properties": {
+          "approvals_count": {
+            "title": "Approvals Count",
+            "type": "integer"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "hold_id": {
+            "title": "Hold Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "required_approvals": {
+            "default": 2,
+            "title": "Required Approvals",
+            "type": "integer"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Signed transaction signature from shim if released",
+            "title": "Signature"
+          },
+          "status": {
+            "description": "Status: PENDING_QUORUM or RELEASED",
+            "title": "Status",
+            "type": "string"
+          },
+          "tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Broadcast transaction hash if released",
+            "title": "Tx Hash"
+          }
+        },
+        "required": [
+          "status",
+          "hold_id",
+          "request_id",
+          "approvals_count",
+          "message"
+        ],
+        "title": "ApproveHoldResponse",
         "type": "object"
       },
       "AuditEntry": {
@@ -545,12 +639,65 @@
         "title": "DecodedTx",
         "type": "object"
       },
+      "DenyHoldRequest": {
+        "description": "Payload to deny a quarantined transaction immediately.",
+        "properties": {
+          "reason": {
+            "default": "Rejected during manual security review",
+            "description": "Reason for denial",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "DenyHoldRequest",
+        "type": "object"
+      },
+      "DenyHoldResponse": {
+        "description": "Result of denying a quarantined transaction.",
+        "properties": {
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "hold_id": {
+            "title": "Hold Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "default": "DENIED",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hold_id",
+          "reason"
+        ],
+        "title": "DenyHoldResponse",
+        "type": "object"
+      },
       "DevLoginRequest": {
         "description": "Development login payload to request signed JWT for seeded test users.",
         "properties": {
           "role": {
             "$ref": "#/components/schemas/Role",
             "default": "Viewer"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "User Id"
           }
         },
         "title": "DevLoginRequest",
@@ -667,10 +814,31 @@
       "HoldTicket": {
         "description": "Durable quarantine record for transactions placed in HOLD.",
         "properties": {
+          "amount_usd": {
+            "default": 0.0,
+            "title": "Amount Usd",
+            "type": "number"
+          },
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/Approval"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "chain": {
+            "default": "ethereum",
+            "title": "Chain",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
           },
           "expires_at": {
             "format": "date-time",
@@ -679,6 +847,147 @@
           },
           "id": {
             "title": "Id",
+            "type": "string"
+          },
+          "raw_tx": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Tx"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionReason"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "requester_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requester Id"
+          },
+          "reservation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reservation Id"
+          },
+          "risk_score": {
+            "default": 0,
+            "title": "Risk Score",
+            "type": "integer"
+          },
+          "signed_result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Signed Result"
+          },
+          "status": {
+            "default": "PENDING",
+            "title": "Status",
+            "type": "string"
+          },
+          "tx_digest": {
+            "title": "Tx Digest",
+            "type": "string"
+          },
+          "wallet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wallet"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "tx_digest",
+          "expires_at"
+        ],
+        "title": "HoldTicket",
+        "type": "object"
+      },
+      "HoldViewResponse": {
+        "description": "Console view of a quarantined hold ticket containing ground-truth decoded payload.",
+        "properties": {
+          "amount_usd": {
+            "title": "Amount Usd",
+            "type": "number"
+          },
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/Approval"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "chain": {
+            "title": "Chain",
+            "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "decoded_tx": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecodedTx"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "hold_id": {
+            "title": "Hold Id",
+            "type": "string"
+          },
+          "is_expired": {
+            "title": "Is Expired",
+            "type": "boolean"
+          },
+          "raw_tx": {
+            "title": "Raw Tx",
             "type": "string"
           },
           "reasons": {
@@ -692,23 +1001,74 @@
             "title": "Request Id",
             "type": "string"
           },
+          "requester_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requester Id"
+          },
+          "risk_score": {
+            "title": "Risk Score",
+            "type": "integer"
+          },
+          "seconds_remaining": {
+            "title": "Seconds Remaining",
+            "type": "integer"
+          },
+          "signed_result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Signed Result"
+          },
           "status": {
-            "default": "PENDING",
             "title": "Status",
             "type": "string"
           },
           "tx_digest": {
             "title": "Tx Digest",
             "type": "string"
+          },
+          "wallet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet"
           }
         },
         "required": [
-          "id",
+          "hold_id",
           "request_id",
+          "status",
           "tx_digest",
-          "expires_at"
+          "raw_tx",
+          "chain",
+          "wallet",
+          "amount_usd",
+          "requester_id",
+          "risk_score",
+          "reasons",
+          "seconds_remaining",
+          "is_expired"
         ],
-        "title": "HoldTicket",
+        "title": "HoldViewResponse",
         "type": "object"
       },
       "IntentMetricsResponse": {
@@ -1500,6 +1860,52 @@
         ],
         "title": "WatchedAddress",
         "type": "object"
+      },
+      "WebAuthnAssertion": {
+        "description": "Client WebAuthn hardware security key assertion payload.",
+        "properties": {
+          "authenticator_data": {
+            "description": "Base64url or hex encoded authenticatorData bytes",
+            "title": "Authenticator Data",
+            "type": "string"
+          },
+          "client_data_json": {
+            "description": "Base64url or UTF-8 encoded clientDataJSON string",
+            "title": "Client Data Json",
+            "type": "string"
+          },
+          "credential_id": {
+            "description": "Base64url or hex encoded credential identifier",
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "signature": {
+            "description": "Base64url, hex, or DER encoded digital signature",
+            "title": "Signature",
+            "type": "string"
+          },
+          "user_handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional user handle from authenticator",
+            "title": "User Handle"
+          }
+        },
+        "required": [
+          "credential_id",
+          "client_data_json",
+          "authenticator_data",
+          "signature"
+        ],
+        "title": "WebAuthnAssertion",
+        "type": "object"
       }
     }
   },
@@ -2190,6 +2596,405 @@
         "summary": "Evaluate transaction signing request (dry run)",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/holds": {
+      "get": {
+        "description": "Returns active quarantined hold tickets (requires READ_DECISIONS).",
+        "operationId": "list_holds_v1_holds_get",
+        "parameters": [
+          {
+            "description": "Maximum tickets to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum tickets to return",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HoldTicket"
+                  },
+                  "title": "Response List Holds V1 Holds Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List quarantined hold tickets",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
+        ]
+      }
+    },
+    "/v1/holds/{hold_id}/approve": {
+      "post": {
+        "description": "Submits a WebAuthn assertion whose challenge equals the hold transaction digest. Enforces quorum of 2 distinct approvers. Once quorum is reached, atomically releases one-time approval token and signs via signer shim.",
+        "operationId": "approve_hold_v1_holds__hold_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveHoldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproveHoldResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit WebAuthn hardware key approval for hold ticket",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
+        ]
+      }
+    },
+    "/v1/holds/{hold_id}/deny": {
+      "post": {
+        "description": "Invariant #6: Any single Approver can deny and tighten immediately, canceling limit reservations and locking the ticket into DENIED.",
+        "operationId": "deny_hold_v1_holds__hold_id__deny_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DenyHoldRequest",
+                "default": {
+                  "reason": "Rejected during manual security review"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DenyHoldResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deny and tighten quarantined hold ticket immediately",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
+        ]
+      }
+    },
+    "/v1/holds/{hold_id}/view": {
+      "get": {
+        "description": "Recomputes the decoded transaction directly from raw unsigned bytes, providing the operator/approver with ground truth payload and risk reasons.",
+        "operationId": "view_hold_v1_holds__hold_id__view_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldViewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ground-truth console view for quarantined hold ticket",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
         ]
       }
     },

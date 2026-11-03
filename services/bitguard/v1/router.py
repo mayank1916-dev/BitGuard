@@ -13,6 +13,7 @@ from fastapi import (
     status,
 )
 
+from services.bitguard.approvals.router import router as approvals_router
 from services.bitguard.config import settings
 from services.bitguard.decision_store import decision_store
 from services.bitguard.ledger.metrics import IntentMetricsResponse, intent_metrics
@@ -36,6 +37,7 @@ from services.bitguard.models import (
     WalletGroupModeUpdate,
 )
 from services.bitguard.rbac import (
+    ALL_TEST_USERS,
     PERMISSION_MATRIX,
     SEEDED_USERS,
     create_access_token,
@@ -45,6 +47,7 @@ from services.bitguard.rbac import (
 from services.bitguard.stream.broadcaster import stream_broadcaster
 
 router = APIRouter(tags=["V1 Policy Decision Point"])
+router.include_router(approvals_router)
 
 
 # --- Dev Only Authentication Endpoint (Milestone S05 / F9 basic) ---
@@ -70,9 +73,13 @@ async def issue_dev_token(
             detail="Dev login endpoint is disabled in production environment (DEV ONLY)",
         )
 
-    user = SEEDED_USERS.get(payload.role)
+    user: UserResponse | None = None
+    if payload.user_id and payload.user_id in ALL_TEST_USERS:
+        user = ALL_TEST_USERS[payload.user_id]
+    else:
+        user = SEEDED_USERS.get(payload.role)
     if not user:
-        raise HTTPException(status_code=400, detail=f"Invalid seeded role: {payload.role}")
+        raise HTTPException(status_code=400, detail=f"Invalid seeded role or user_id: {payload.role}")
 
     token = create_access_token(user)
     return DevLoginResponse(

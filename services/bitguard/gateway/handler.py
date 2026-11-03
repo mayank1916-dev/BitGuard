@@ -17,6 +17,8 @@ from typing import Any
 
 from fastapi import Request
 
+from services.bitguard.approvals.hold_store import hold_store
+from services.bitguard.approvals.notifiers import notifier
 from services.bitguard.audit_service import audit_service
 from services.bitguard.engine.pipeline import decision_engine
 from services.bitguard.gateway.client_shim import ShimRefusalError, signer_shim_client
@@ -200,21 +202,32 @@ class GatewayHandler:
             # Branch B: HOLD (Quarantine placeholder for S14)
             # ---------------------------------------------------------
             if decision.verdict == Verdict.HOLD:
-                if reservation_id:
-                    limit_store.release(reservation_id)
-
                 hold_id = f"ht-{decision.request_id}"
                 digest = decision.decoded_tx.digest if decision.decoded_tx else "0x" + "0" * 64
                 hold_ticket = HoldTicket(
                     id=hold_id,
                     request_id=decision.request_id,
                     tx_digest=digest,
+                    raw_tx=params.raw_tx,
+                    chain=params.chain,
+                    wallet=decision.decoded_tx.from_address if decision.decoded_tx else signing_req.wallet,
+                    amount_usd=params.amount_usd or 0.0,
+                    requester_id=workload_identity.san,
+                    reservation_id=reservation_id,
+                    risk_score=decision.risk_score,
                     reasons=decision.reasons,
                     status="PENDING",
                     expires_at=datetime.now(UTC) + timedelta(minutes=15),
                     created_at=datetime.now(UTC),
+                    data_label=decision.data_label,
                 )
                 quarantine_store[hold_id] = hold_ticket
+                hold_store.create(hold_ticket)
+
+                try:
+                    await notifier.send_notification(hold_ticket)
+                except Exception as exc:
+                    logger.warning("failed_sending_hold_notification: %s", exc)
 
                 audit_service.append_entry(
                     event_type="QUARANTINE_HOLD",

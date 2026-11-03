@@ -283,3 +283,169 @@ export async function resetAuditChain(): Promise<AuditVerifyResponse> {
 export function getReportDownloadUrl(): string {
   return `${API_BASE}/report/download`;
 }
+
+// --- Milestone S16 / F10: Quorum WebAuthn Approvals ---
+
+export interface WebAuthnAssertionPayload {
+  credential_id: string;
+  client_data_json: string;
+  authenticator_data: string;
+  signature: string;
+  user_handle?: string | null;
+}
+
+export interface ApprovalRecordItem {
+  id: string;
+  hold_ticket_id: string;
+  approver_id: string;
+  approver_role: string;
+  tx_digest: string;
+  webauthn_signature: string;
+  assertion_data?: Record<string, any>;
+  created_at: string;
+}
+
+export interface HoldTicketItem {
+  id: string;
+  request_id: string;
+  tx_digest: string;
+  raw_tx?: string;
+  chain: string;
+  wallet?: string;
+  amount_usd: number;
+  requester_id?: string;
+  risk_score: number;
+  reasons: Array<{ code: string; weight: number; detail: string }>;
+  status: 'PENDING' | 'APPROVED' | 'DENIED' | 'EXPIRED' | string;
+  expires_at: string;
+  created_at: string;
+  approvals: ApprovalRecordItem[];
+  signed_result?: Record<string, any>;
+  data_label: string;
+}
+
+export interface DecodedTxCall {
+  to: string;
+  value: number;
+  selector: string;
+  contract_type: string;
+  method_name: string;
+  is_unlimited_approval?: boolean;
+}
+
+export interface DecodedTxData {
+  chain: string;
+  tx_type: number;
+  nonce: number;
+  from_address: string;
+  to_address?: string;
+  value: number;
+  digest: string;
+  calls: DecodedTxCall[];
+  authorizations?: Array<{ chain_id: number; address: string; nonce: number }>;
+}
+
+export interface HoldViewResponse {
+  hold_id: string;
+  request_id: string;
+  status: string;
+  tx_digest: string;
+  raw_tx: string;
+  chain: string;
+  wallet?: string;
+  amount_usd: number;
+  requester_id?: string;
+  risk_score: number;
+  reasons: Array<{ code: string; weight: number; detail: string }>;
+  decoded_tx?: DecodedTxData;
+  seconds_remaining: number;
+  is_expired: boolean;
+  approvals: ApprovalRecordItem[];
+  signed_result?: Record<string, any>;
+  data_label: string;
+}
+
+export interface ApproveHoldResponse {
+  status: 'PENDING_QUORUM' | 'RELEASED';
+  hold_id: string;
+  request_id: string;
+  approvals_count: number;
+  required_approvals: number;
+  signature?: string;
+  tx_hash?: string;
+  message: string;
+  data_label: string;
+}
+
+export async function fetchDevToken(role: string = 'Approver', user_id?: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/v1/auth/dev-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role, user_id }),
+  });
+  if (!res.ok) {
+    throw new Error(`Dev token fetch failed: ${res.statusText}`);
+  }
+  const data = await res.json();
+  return data.access_token;
+}
+
+export async function fetchActiveHolds(token?: string): Promise<HoldTicketItem[]> {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/v1/holds`, { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch holds: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function fetchHoldView(holdId: string, token?: string): Promise<HoldViewResponse> {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/v1/holds/${holdId}/view`, { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch hold view: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function submitHoldApproval(
+  holdId: string,
+  assertion: WebAuthnAssertionPayload,
+  token: string
+): Promise<ApproveHoldResponse> {
+  const res = await fetch(`${API_BASE}/v1/holds/${holdId}/approve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ assertion }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Approval failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function denyHold(
+  holdId: string,
+  reason: string,
+  token: string
+): Promise<{ status: string; hold_id: string; reason: string }> {
+  const res = await fetch(`${API_BASE}/v1/holds/${holdId}/deny`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Denial failed: ${res.statusText}`);
+  }
+  return res.json();
+}

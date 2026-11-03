@@ -143,27 +143,39 @@ class Decision(BaseModel):
     chain: str | None = Field(default=None, description="Target blockchain identifier")
 
 
-class HoldTicket(BaseModel):
-    """Durable quarantine record for transactions placed in HOLD."""
-
-    id: str
-    request_id: str
-    tx_digest: str
-    reasons: list[DecisionReason] = Field(default_factory=list)
-    status: str = "PENDING"  # PENDING, APPROVED, REJECTED, EXPIRED
-    expires_at: datetime
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-
 class Approval(BaseModel):
     """Hardware-bound approval signature record (WebAuthn)."""
 
     id: str
     hold_ticket_id: str
     approver_id: str
+    approver_role: str = "Approver"
     tx_digest: str
     webauthn_signature: str
+    assertion_data: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class HoldTicket(BaseModel):
+    """Durable quarantine record for transactions placed in HOLD."""
+
+    id: str
+    request_id: str
+    tx_digest: str
+    raw_tx: str | None = None
+    chain: str = "ethereum"
+    wallet: str | None = None
+    amount_usd: float = 0.0
+    requester_id: str | None = None
+    reservation_id: str | None = None
+    risk_score: int = 0
+    reasons: list[DecisionReason] = Field(default_factory=list)
+    status: str = "PENDING"  # PENDING, APPROVED, DENIED, EXPIRED
+    expires_at: datetime
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    approvals: list[Approval] = Field(default_factory=list)
+    signed_result: dict[str, Any] | None = None
+    data_label: DataLabel = DataLabel.REAL
 
 
 class PolicyVersion(BaseModel):
@@ -335,6 +347,7 @@ class DevLoginRequest(BaseModel):
     """Development login payload to request signed JWT for seeded test users."""
 
     role: Role = Role.VIEWER
+    user_id: str | None = None
 
 
 class DevLoginResponse(BaseModel):
