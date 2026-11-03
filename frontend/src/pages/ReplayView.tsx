@@ -14,6 +14,7 @@ import {
   StepEvent,
   ReplayMetrics,
   evaluateSigningRequest,
+  evaluateCustomTx,
   Decision,
   DATA_SOURCE,
   fetchShadowMetrics,
@@ -63,8 +64,12 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 1x, 5x, 10x
 
-  // Custom Transaction Evaluation Sandbox State
+  // Custom Transaction Evaluation Sandbox State (Task U4)
   const [isSandboxOpen, setIsSandboxOpen] = useState<boolean>(false);
+  const [rawTxHex, setRawTxHex] = useState<string>(
+    '0xec018504a817c80082520894742d35cc6634c0532925a3b844bc454e4438f44e880de0b6b3a764000080018080'
+  );
+  const [intentId, setIntentId] = useState<string>('');
   const [sandboxTx, setSandboxTx] = useState<{
     chain: string;
     wallet: string;
@@ -330,20 +335,28 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
     setEvalError(null);
     setEvaluationResult(null);
     try {
-      const req = {
-        id: `custom-tx-${Math.random().toString(36).substring(2, 9)}`,
-        ts: Date.now() / 1000,
-        chain: sandboxTx.chain,
-        wallet: sandboxTx.wallet,
-        kind: sandboxTx.kind,
-        asset: sandboxTx.asset,
-        amount_usd: Number(sandboxTx.amount_usd) || 0,
-        to: sandboxTx.to || undefined,
-        delegate: sandboxTx.kind === 'authorization_7702' ? sandboxTx.delegate : undefined,
-        meta: { custom: true, label: 'Sandbox Simulated TX' },
-      };
-      const decision = await evaluateSigningRequest(req);
-      setEvaluationResult(decision);
+      if (DATA_SOURCE === 'api') {
+        const decision = await evaluateCustomTx({
+          raw_tx: rawTxHex.trim(),
+          intent_id: intentId.trim() || undefined,
+        });
+        setEvaluationResult(decision);
+      } else {
+        const req = {
+          id: `custom-tx-${Math.random().toString(36).substring(2, 9)}`,
+          ts: Date.now() / 1000,
+          chain: sandboxTx.chain,
+          wallet: sandboxTx.wallet,
+          kind: sandboxTx.kind,
+          asset: sandboxTx.asset,
+          amount_usd: Number(sandboxTx.amount_usd) || 0,
+          to: sandboxTx.to || undefined,
+          delegate: sandboxTx.kind === 'authorization_7702' ? sandboxTx.delegate : undefined,
+          meta: { custom: true, label: 'Sandbox Simulated TX' },
+        };
+        const decision = await evaluateSigningRequest(req);
+        setEvaluationResult(decision);
+      }
     } catch (err: any) {
       setEvalError(err?.message || 'Failed to evaluate transaction');
     } finally {
@@ -353,24 +366,30 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
 
   const handleInjectTx = () => {
     if (!evaluationResult) return;
-    const reqAmount = Number(sandboxTx.amount_usd) || 0;
+    const decoded = evaluationResult.decoded_tx;
+    const reqAmount = decoded?.amount ? Number(decoded.amount) / 1e18 : (Number(sandboxTx.amount_usd) || 0);
+    const reqWallet = decoded?.from || decoded?.from_address || sandboxTx.wallet || '0xCustomHotWallet';
+    const reqChain = decoded?.chain || sandboxTx.chain || 'ethereum';
     const prevUnprotected = events[currentIndex]?.cumulative_unprotected_loss_usd ?? 0;
     const prevProtected = events[currentIndex]?.cumulative_protected_loss_usd ?? 0;
+
+    const isDenied = evaluationResult.action === 'deny' || evaluationResult.verdict === 'DENY';
+    const isAllowed = evaluationResult.action === 'allow' || evaluationResult.verdict === 'ALLOW';
 
     const newStep: StepEvent = {
       request_id: evaluationResult.request_id,
       ts: Date.now() / 1000,
-      chain: sandboxTx.chain,
-      wallet: sandboxTx.wallet,
-      kind: sandboxTx.kind,
-      asset: sandboxTx.asset,
+      chain: reqChain,
+      wallet: reqWallet,
+      kind: decoded?.authorizations?.length ? 'authorization_7702' : sandboxTx.kind,
+      asset: decoded?.asset || sandboxTx.asset,
       amount_usd: reqAmount,
-      scenario: evaluationResult.action === 'deny' ? 'attack' : 'normal',
+      scenario: isDenied ? 'attack' : 'normal',
       unprotected_action: 'allow',
       protected_decision: evaluationResult,
       cumulative_unprotected_loss_usd: prevUnprotected + reqAmount,
       cumulative_protected_loss_usd:
-        prevProtected + (evaluationResult.action === 'allow' ? reqAmount : 0),
+        prevProtected + (isAllowed ? reqAmount : 0),
     };
 
     const updated = [...injectedEvents, newStep];
@@ -912,171 +931,268 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
             </div>
 
             {/* Quick Presets */}
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
-                Quick Scenario Presets:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSandboxTx({
-                      chain: 'ethereum',
-                      wallet: '0xBinanceHotETH1',
-                      kind: 'transfer',
-                      asset: 'ETH',
-                      amount_usd: 2500,
-                      to: '0x3333333333333333333333333333333333333333',
-                      delegate: '',
-                    });
-                    setEvaluationResult(null);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 cursor-pointer font-medium"
-                >
-                  ✓ Benign Transfer ($2,500)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSandboxTx({
-                      chain: 'ethereum',
-                      wallet: '0xBinanceHotETH1',
-                      kind: 'transfer',
-                      asset: 'ETH',
-                      amount_usd: 75000,
-                      to: '0x4444444444444444444444444444444444444444',
-                      delegate: '',
-                    });
-                    setEvaluationResult(null);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 cursor-pointer font-medium"
-                >
-                  ⚠ Velocity Breach ($75,000)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSandboxTx({
-                      chain: 'ethereum',
-                      wallet: '0xBinanceHotETH1',
-                      kind: 'authorization_7702',
-                      asset: 'ETH',
-                      amount_usd: 0,
-                      to: '',
-                      delegate: '0xAttackerSweeperContract00000000000000',
-                    });
-                    setEvaluationResult(null);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 cursor-pointer font-medium"
-                >
-                  ✕ Unapproved 7702 Delegate
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSandboxTx({
-                      chain: 'tron',
-                      wallet: 'TBinanceHotTRX1',
-                      kind: 'transfer',
-                      asset: 'USDT',
-                      amount_usd: 650000,
-                      to: 'TAttackerTRONAddress0000000000000000',
-                      delegate: '',
-                    });
-                    setEvaluationResult(null);
-                  }}
-                  className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-purple-400 cursor-pointer font-medium"
-                >
-                  ⚡ Multi-Chain USDT Spike ($650k)
-                </button>
+            {DATA_SOURCE === 'api' ? (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
+                  Quick Raw TX Presets (Live API Evaluation):
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRawTxHex('0xec018504a817c80082520894742d35cc6634c0532925a3b844bc454e4438f44e880de0b6b3a764000080018080');
+                      setIntentId('');
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 cursor-pointer font-medium"
+                  >
+                    ✓ Benign Transfer (1 ETH)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRawTxHex('0xec018504a817c80082520894742d35cc6634c0532925a3b844bc454e4438f44e880de0b6b3a764000080018080');
+                      setIntentId('intent-binance-001');
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 cursor-pointer font-medium"
+                  >
+                    ✓ With Intent ID
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRawTxHex('0xec018504a817c80082520894742d35cc6634c0532925a3b844bc454e4438f44e89015af1d78b58c4000080018080');
+                      setIntentId('');
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 cursor-pointer font-medium"
+                  >
+                    ⚠ Velocity Breach (25 ETH)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRawTxHex('0x04f86601018477359400847735940082520894742d35cc6634c0532925a3b844bc454e4438f44e8080f84bf849019433333333333333333333333333333333333333330080808080');
+                      setIntentId('');
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 cursor-pointer font-medium"
+                  >
+                    ✕ Unapproved 7702 Delegate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRawTxHex('0xdeadbeef001122');
+                      setIntentId('');
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 cursor-pointer font-medium"
+                  >
+                    ✕ Invalid Bytes (Decode Error)
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
+                  Quick Scenario Presets:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSandboxTx({
+                        chain: 'ethereum',
+                        wallet: '0xBinanceHotETH1',
+                        kind: 'transfer',
+                        asset: 'ETH',
+                        amount_usd: 2500,
+                        to: '0x3333333333333333333333333333333333333333',
+                        delegate: '',
+                      });
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 cursor-pointer font-medium"
+                  >
+                    ✓ Benign Transfer ($2,500)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSandboxTx({
+                        chain: 'ethereum',
+                        wallet: '0xBinanceHotETH1',
+                        kind: 'transfer',
+                        asset: 'ETH',
+                        amount_usd: 75000,
+                        to: '0x4444444444444444444444444444444444444444',
+                        delegate: '',
+                      });
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 cursor-pointer font-medium"
+                  >
+                    ⚠ Velocity Breach ($75,000)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSandboxTx({
+                        chain: 'ethereum',
+                        wallet: '0xBinanceHotETH1',
+                        kind: 'authorization_7702',
+                        asset: 'ETH',
+                        amount_usd: 0,
+                        to: '',
+                        delegate: '0xAttackerSweeperContract00000000000000',
+                      });
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 cursor-pointer font-medium"
+                  >
+                    ✕ Unapproved 7702 Delegate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSandboxTx({
+                        chain: 'tron',
+                        wallet: 'TBinanceHotTRX1',
+                        kind: 'transfer',
+                        asset: 'USDT',
+                        amount_usd: 650000,
+                        to: 'TAttackerTRONAddress0000000000000000',
+                        delegate: '',
+                      });
+                      setEvaluationResult(null);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-purple-400 cursor-pointer font-medium"
+                  >
+                    ⚡ Multi-Chain USDT Spike ($650k)
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Input Form Fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
-              <div>
-                <label className="block text-slate-400 mb-1 font-mono">Chain</label>
-                <select
-                  value={sandboxTx.chain}
-                  onChange={(e) => setSandboxTx({ ...sandboxTx, chain: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
-                >
-                  <option value="ethereum">Ethereum</option>
-                  <option value="solana">Solana</option>
-                  <option value="bitcoin">Bitcoin</option>
-                  <option value="tron">Tron</option>
-                  <option value="arbitrum">Arbitrum</option>
-                  <option value="base">Base</option>
-                  <option value="optimism">Optimism</option>
-                </select>
-              </div>
+            {DATA_SOURCE === 'api' ? (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-400 font-mono">Raw Transaction Hex (raw_tx)</label>
+                    <span className="text-[10px] text-cyan-400 font-mono">Source of truth raw bytes</span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={rawTxHex}
+                    onChange={(e) => setRawTxHex(e.target.value)}
+                    placeholder="0x... (EVM raw unsigned transaction hex bytes)"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs break-all"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1 font-mono">Operation Kind</label>
-                <select
-                  value={sandboxTx.kind}
-                  onChange={(e) => setSandboxTx({ ...sandboxTx, kind: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
-                >
-                  <option value="transfer">transfer</option>
-                  <option value="contract_call">contract_call</option>
-                  <option value="authorization_7702">authorization_7702</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 font-mono">Signing Wallet</label>
-                <input
-                  type="text"
-                  value={sandboxTx.wallet}
-                  onChange={(e) => setSandboxTx({ ...sandboxTx, wallet: e.target.value })}
-                  placeholder="0xBinanceHotETH1"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 font-mono">Asset & Amount (USD)</label>
-                <div className="flex gap-2">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-400 font-mono">Correlated Intent ID (intent_id, optional)</label>
+                    <span className="text-[10px] text-slate-500 font-mono">Exchange withdrawal ledger intent</span>
+                  </div>
                   <input
                     type="text"
-                    value={sandboxTx.asset}
-                    onChange={(e) => setSandboxTx({ ...sandboxTx, asset: e.target.value })}
-                    className="w-20 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono uppercase"
-                  />
-                  <input
-                    type="number"
-                    value={sandboxTx.amount_usd}
-                    onChange={(e) => setSandboxTx({ ...sandboxTx, amount_usd: parseFloat(e.target.value) || 0 })}
-                    className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                    value={intentId}
+                    onChange={(e) => setIntentId(e.target.value)}
+                    placeholder="e.g. intent-binance-001 (optional withdrawal intent reconciliation)"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
                   />
                 </div>
               </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-mono">Chain</label>
+                  <select
+                    value={sandboxTx.chain}
+                    onChange={(e) => setSandboxTx({ ...sandboxTx, chain: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                  >
+                    <option value="ethereum">Ethereum</option>
+                    <option value="solana">Solana</option>
+                    <option value="bitcoin">Bitcoin</option>
+                    <option value="tron">Tron</option>
+                    <option value="arbitrum">Arbitrum</option>
+                    <option value="base">Base</option>
+                    <option value="optimism">Optimism</option>
+                  </select>
+                </div>
 
-              {sandboxTx.kind === 'authorization_7702' ? (
-                <div className="sm:col-span-2">
-                  <label className="block text-slate-400 mb-1 font-mono">EIP-7702 Delegate Contract Address</label>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-mono">Operation Kind</label>
+                  <select
+                    value={sandboxTx.kind}
+                    onChange={(e) => setSandboxTx({ ...sandboxTx, kind: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                  >
+                    <option value="transfer">transfer</option>
+                    <option value="contract_call">contract_call</option>
+                    <option value="authorization_7702">authorization_7702</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 font-mono">Signing Wallet</label>
                   <input
                     type="text"
-                    value={sandboxTx.delegate}
-                    onChange={(e) => setSandboxTx({ ...sandboxTx, delegate: e.target.value })}
-                    placeholder="0xUnapprovedSweeperContract..."
+                    value={sandboxTx.wallet}
+                    onChange={(e) => setSandboxTx({ ...sandboxTx, wallet: e.target.value })}
+                    placeholder="0xBinanceHotETH1"
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                   />
                 </div>
-              ) : (
-                <div className="sm:col-span-2">
-                  <label className="block text-slate-400 mb-1 font-mono">Recipient Address (To)</label>
-                  <input
-                    type="text"
-                    value={sandboxTx.to}
-                    onChange={(e) => setSandboxTx({ ...sandboxTx, to: e.target.value })}
-                    placeholder="0xDestinationAddress..."
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
-                  />
+
+                <div>
+                  <label className="block text-slate-400 mb-1 font-mono">Asset & Amount (USD)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={sandboxTx.asset}
+                      onChange={(e) => setSandboxTx({ ...sandboxTx, asset: e.target.value })}
+                      className="w-20 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono uppercase"
+                    />
+                    <input
+                      type="number"
+                      value={sandboxTx.amount_usd}
+                      onChange={(e) => setSandboxTx({ ...sandboxTx, amount_usd: parseFloat(e.target.value) || 0 })}
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {sandboxTx.kind === 'authorization_7702' ? (
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-400 mb-1 font-mono">EIP-7702 Delegate Contract Address</label>
+                    <input
+                      type="text"
+                      value={sandboxTx.delegate}
+                      onChange={(e) => setSandboxTx({ ...sandboxTx, delegate: e.target.value })}
+                      placeholder="0xUnapprovedSweeperContract..."
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-400 mb-1 font-mono">Recipient Address (To)</label>
+                    <input
+                      type="text"
+                      value={sandboxTx.to}
+                      onChange={(e) => setSandboxTx({ ...sandboxTx, to: e.target.value })}
+                      placeholder="0xDestinationAddress..."
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Evaluate Button */}
             <div className="flex justify-end gap-3 pt-2">
@@ -1099,58 +1215,180 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
 
             {/* Evaluation Results Banner */}
             {evalError && (
-              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono">
                 {evalError}
               </div>
             )}
 
             {evaluationResult && (
               <div className="mt-3 p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 font-mono text-xs">
-                <div className="flex items-center justify-between">
+                {/* Dry run note banner */}
+                <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-800/50 text-cyan-300 text-xs font-mono">
                   <div className="flex items-center space-x-2">
-                    <span className="text-slate-400">ACTION:</span>
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                    <span className="font-bold">dry run - nothing signed or reserved</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 uppercase font-mono">
+                    {evaluationResult.data_label || 'SYNTHETIC'}
+                  </span>
+                </div>
+
+                {/* Verdict / Action & Risk Score */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-slate-400">VERDICT:</span>
                     <span
                       className={cn(
                         'px-2.5 py-0.5 rounded text-xs font-bold uppercase border',
-                        evaluationResult.action === 'allow' && 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                        evaluationResult.action === 'hold' && 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                        evaluationResult.action === 'deny' && 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        (evaluationResult.verdict === 'ALLOW' || evaluationResult.action === 'allow') &&
+                          'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                        (evaluationResult.verdict === 'HOLD' || evaluationResult.action === 'hold') &&
+                          'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                        (evaluationResult.verdict === 'DENY' || evaluationResult.action === 'deny') &&
+                          'bg-rose-500/30 text-rose-200 border-rose-500/60 font-black'
                       )}
                     >
-                      {evaluationResult.action}
+                      {evaluationResult.verdict || evaluationResult.action.toUpperCase()}
                     </span>
+                    {evaluationResult.mode && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-900 border border-slate-700 text-slate-300">
+                        {evaluationResult.mode}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center space-x-4">
                     <div>
-                      <span className="text-slate-400">RISK: </span>
-                      <span className={cn(
-                        'font-bold',
-                        evaluationResult.risk === 0 ? 'text-emerald-400' : evaluationResult.risk < 70 ? 'text-amber-400' : 'text-rose-400'
-                      )}>
-                        {evaluationResult.risk}/100
+                      <span className="text-slate-400">RISK SCORE: </span>
+                      <span
+                        className={cn(
+                          'font-bold',
+                          (evaluationResult.risk_score ?? evaluationResult.risk) === 0
+                            ? 'text-emerald-400'
+                            : (evaluationResult.risk_score ?? evaluationResult.risk) < 70
+                            ? 'text-amber-400'
+                            : 'text-rose-400'
+                        )}
+                      >
+                        {evaluationResult.risk_score ?? evaluationResult.risk}/100
                       </span>
                     </div>
                     <div>
                       <span className="text-slate-400">BREAKER: </span>
                       <span className="font-bold text-cyan-300">
-                        {evaluationResult.breaker_state}
+                        {evaluationResult.breaker_state || 'NORMAL'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {evaluationResult.reasons.length > 0 && (
-                  <div className="pt-2 border-t border-slate-900 space-y-1">
-                    <span className="text-slate-500 text-[10px] uppercase block">Rule Violations:</span>
-                    {evaluationResult.reasons.map((r, i) => (
-                      <div key={i} className="text-[11px] text-amber-300/90 bg-amber-500/5 px-2 py-1 rounded border border-amber-500/20">
-                        <span className="font-bold text-amber-400">{r.rule}</span>: {r.message}
-                      </div>
-                    ))}
+                {/* Policy Reasons and Weights */}
+                {evaluationResult.reasons && evaluationResult.reasons.length > 0 && (
+                  <div className="pt-2 border-t border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase block">Policy Reasons & Weights:</span>
+                    <div className="space-y-1">
+                      {evaluationResult.reasons.map((r: any, idx: number) => {
+                        const code = r.code || r.rule || 'RULE';
+                        const weight = r.weight ?? (r.code === 'ENGINE_ERROR' ? 100 : 0);
+                        const detail = r.detail || r.message || '';
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-start justify-between p-2 rounded bg-slate-900/60 border border-slate-800 text-[11px]"
+                          >
+                            <div className="flex-1 pr-2">
+                              <span className="font-bold text-amber-300">{code}</span>
+                              {detail && <span className="text-slate-300 ml-1.5">— {detail}</span>}
+                            </div>
+                            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-bold text-[10px] whitespace-nowrap">
+                              Weight: {weight}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
+                {/* Decoded Transaction Fields (chain, from, to, asset, amount, calls, authorizations, fee) */}
+                {evaluationResult.decoded_tx && (
+                  <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                    <span className="text-slate-400 text-[10px] uppercase block">Decoded Fields (Source of Truth):</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 rounded-lg bg-slate-900/70 border border-slate-800 text-[11px]">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">CHAIN</span>
+                        <span className="text-slate-200 font-semibold">{evaluationResult.decoded_tx.chain || 'ethereum'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">ASSET</span>
+                        <span className="text-slate-200 font-semibold">{evaluationResult.decoded_tx.asset || 'ETH'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">AMOUNT</span>
+                        <span className="text-slate-200 font-semibold truncate block" title={evaluationResult.decoded_tx.amount}>
+                          {evaluationResult.decoded_tx.amount || '0'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">FEE (GAS)</span>
+                        <span className="text-slate-200 font-semibold truncate block" title={JSON.stringify(evaluationResult.decoded_tx.fee)}>
+                          {evaluationResult.decoded_tx.fee?.gas_limit ? `${evaluationResult.decoded_tx.fee.gas_limit} gas` : 'Standard'}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500 block text-[10px]">FROM (SIGNING WALLET)</span>
+                        <span className="text-slate-300 truncate block" title={evaluationResult.decoded_tx.from || evaluationResult.decoded_tx.from_address}>
+                          {truncateAddress(evaluationResult.decoded_tx.from || evaluationResult.decoded_tx.from_address || '0x00...')}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500 block text-[10px]">TO (RECIPIENT)</span>
+                        <span className="text-slate-300 truncate block" title={evaluationResult.decoded_tx.to || evaluationResult.decoded_tx.to_address}>
+                          {truncateAddress(evaluationResult.decoded_tx.to || evaluationResult.decoded_tx.to_address || '0x00...')}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500 block text-[10px]">CALLS</span>
+                        <span className="text-slate-300 block">
+                          {Array.isArray(evaluationResult.decoded_tx.calls) ? `${evaluationResult.decoded_tx.calls.length} call(s)` : '0 calls'}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500 block text-[10px]">AUTHORIZATIONS (7702)</span>
+                        <span className="text-slate-300 block">
+                          {Array.isArray(evaluationResult.decoded_tx.authorizations) ? `${evaluationResult.decoded_tx.authorizations.length} auth(s)` : '0 auths'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Per-Stage Timings */}
+                {evaluationResult.timings && Object.keys(evaluationResult.timings).length > 0 && (
+                  <div className="pt-2 border-t border-slate-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 text-[10px] uppercase block">Per-Stage Execution Latencies:</span>
+                      {evaluationResult.evaluation_latency_ms !== undefined && (
+                        <span className="text-[10px] text-cyan-400 font-semibold">
+                          Total: {Number(evaluationResult.evaluation_latency_ms).toFixed(2)} ms
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(evaluationResult.timings).map(([stage, ms]) => (
+                        <span
+                          key={stage}
+                          className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-300"
+                        >
+                          <span className="text-slate-500">{stage}:</span>{' '}
+                          <span className="font-semibold text-cyan-300">{Number(ms).toFixed(2)} ms</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Inject into Timeline Stream */}
                 <div className="pt-2 flex justify-end">
                   <button
                     type="button"

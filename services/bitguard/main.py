@@ -119,6 +119,7 @@ def create_app() -> FastAPI:
 
     # Include V1 canonical API routes
     app.include_router(v1_router, prefix="/v1")
+    app.include_router(v1_router, prefix="/api/v1")
 
     # Include JSON-RPC 2.0 Gateway routes (Milestone S12)
     app.include_router(gateway_router)

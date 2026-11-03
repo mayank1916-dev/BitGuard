@@ -152,6 +152,10 @@ export async function evaluate(tx) {
     return res.json();
   }
 
+  if (tx && tx.raw_tx) {
+    return evaluateCustomTx(tx);
+  }
+
   const res = await fetch(`${API_BASE}/evaluate`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -165,14 +169,81 @@ export async function evaluate(tx) {
     request_id: raw.request_id || tx.id || `req-${Date.now()}`,
     action: (raw.action || (raw.verdict ? raw.verdict.toLowerCase() : 'deny')),
     risk: raw.risk ?? raw.risk_score ?? 0,
+    risk_score: raw.risk_score ?? raw.risk ?? 0,
     reasons: raw.reasons || [],
     breaker_state: raw.breaker_state || 'Normal',
     verdict: raw.verdict || (raw.action ? raw.action.toUpperCase() : 'DENY'),
     mode: raw.mode || 'ENFORCE',
     data_label: raw.data_label || 'REAL',
+    timings: raw.timings || {},
+    decoded_tx: raw.decoded_tx || null,
+    evaluation_latency_ms: raw.evaluation_latency_ms,
     signature: raw.signature,
     tx_hash: raw.tx_hash,
     hold_id: raw.hold_id,
+  };
+}
+
+/**
+ * Evaluates custom raw transaction bytes via POST /v1/evaluate (Task U4).
+ */
+export async function evaluateCustomTx(params) {
+  if (getDataSource() === 'demo') {
+    const res = await fetch(`${API_BASE}/evaluate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      throw new Error(`Evaluation failed: ${res.statusText}`);
+    }
+    return res.json();
+  }
+
+  const endpoint = `${API_BASE}/v1/evaluate`;
+  let res = await fetch(endpoint, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(params),
+  });
+  if (!res.ok && res.status === 404) {
+    res = await fetch(`/v1/evaluate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(params),
+    });
+  }
+  if (!res.ok) {
+    let errDetail = res.statusText;
+    try {
+      const errJson = await res.json();
+      if (errJson && errJson.detail) {
+        errDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {}
+    throw new Error(`Evaluation failed (${res.status}): ${errDetail}`);
+  }
+  const raw = await res.json();
+  return {
+    request_id: raw.request_id || `req-${Date.now()}`,
+    action: (raw.action || (raw.verdict ? raw.verdict.toLowerCase() : 'deny')),
+    risk: raw.risk_score ?? raw.risk ?? 0,
+    risk_score: raw.risk_score ?? raw.risk ?? 0,
+    reasons: raw.reasons || [],
+    breaker_state: raw.breaker_state || 'Normal',
+    verdict: raw.verdict || (raw.action ? raw.action.toUpperCase() : 'DENY'),
+    mode: raw.mode || 'SIMULATION',
+    data_label: raw.data_label || 'SYNTHETIC',
+    timings: raw.timings || {},
+    decoded_tx: raw.decoded_tx || null,
+    evaluation_latency_ms: raw.evaluation_latency_ms,
+    policy_version: raw.policy_version,
+    wallet: raw.wallet,
+    chain: raw.chain,
+    signature: raw.signature,
+    tx_hash: raw.tx_hash,
+    hold_id: raw.hold_id,
+    dry_run_note: 'dry run - nothing signed or reserved',
   };
 }
 
@@ -639,6 +710,7 @@ export default {
   setActiveAuthToken,
   login,
   evaluate,
+  evaluateCustomTx,
   getDecisions,
   getBreaker,
   escalateBreaker,

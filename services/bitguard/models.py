@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -85,10 +86,10 @@ class SigningRequest(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    id: str
+    id: str = Field(default_factory=lambda: f"req-{uuid4().hex[:12]}")
     raw_tx: str = Field(description="Raw unsigned transaction hex bytes (source of truth)")
-    chain: str
-    wallet: str
+    chain: str = Field(default="ethereum", description="Target blockchain identifier")
+    wallet: str = Field(default="", description="Originating wallet address (optional if extracted from raw tx)")
     wallet_group: str | None = Field(default=None, description="Assigned hot wallet group identifier")
     intent_id: str | None = Field(default=None, description="Correlated withdrawal intent ID")
     mode: OperationMode | None = Field(

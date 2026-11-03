@@ -229,6 +229,7 @@ export interface Decision {
   request_id: string;
   action: 'allow' | 'hold' | 'deny';
   risk: number; // 0 - 100
+  risk_score?: number;
   reasons: DecisionReason[];
   breaker_state: 'Normal' | 'Elevated' | 'Hold' | 'Lockdown' | string;
   verdict?: 'ALLOW' | 'HOLD' | 'DENY';
@@ -237,6 +238,13 @@ export interface Decision {
   signature?: string;
   tx_hash?: string;
   hold_id?: string;
+  timings?: Record<string, number>;
+  decoded_tx?: any;
+  evaluation_latency_ms?: number;
+  policy_version?: string;
+  wallet?: string;
+  chain?: string;
+  dry_run_note?: string;
 }
 
 export interface StepEvent {
@@ -564,7 +572,12 @@ export async function evaluate(tx: SigningRequest | any): Promise<Decision> {
     return evaluateSigningRequest(tx);
   }
 
-  // Live API Mode: Query BitGuard /api/evaluate or /rpc
+  // If raw transaction hex is provided, route directly to POST /v1/evaluate (Task U4)
+  if (tx && tx.raw_tx) {
+    return evaluateCustomTx(tx);
+  }
+
+  // Live API Mode: Query BitGuard /api/evaluate or legacy policy endpoint
   const res = await fetch(`${API_BASE}/evaluate`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -578,14 +591,79 @@ export async function evaluate(tx: SigningRequest | any): Promise<Decision> {
     request_id: raw.request_id || tx.id || `req-${Date.now()}`,
     action: (raw.action || (raw.verdict ? raw.verdict.toLowerCase() : 'deny')) as 'allow' | 'hold' | 'deny',
     risk: raw.risk ?? raw.risk_score ?? 0,
+    risk_score: raw.risk_score ?? raw.risk ?? 0,
     reasons: raw.reasons || [],
     breaker_state: raw.breaker_state || 'Normal',
     verdict: raw.verdict || (raw.action ? (raw.action.toUpperCase() as any) : 'DENY'),
     mode: raw.mode || 'ENFORCE',
     data_label: raw.data_label || 'REAL',
+    timings: raw.timings || {},
+    decoded_tx: raw.decoded_tx || null,
+    evaluation_latency_ms: raw.evaluation_latency_ms,
     signature: raw.signature,
     tx_hash: raw.tx_hash,
     hold_id: raw.hold_id,
+  };
+}
+
+/**
+ * Evaluates custom raw transaction bytes via POST /v1/evaluate (Task U4).
+ * Returns canonical decision with risk score 0-100, reasons with weights, decoded fields, and timings.
+ */
+export async function evaluateCustomTx(params: {
+  raw_tx: string;
+  intent_id?: string;
+  chain?: string;
+  wallet?: string;
+}): Promise<Decision> {
+  if (DATA_SOURCE === 'demo') {
+    return evaluateSigningRequest(params as any);
+  }
+
+  const endpoint = `${API_BASE}/v1/evaluate`;
+  let res = await fetch(endpoint, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(params),
+  });
+  if (!res.ok && res.status === 404) {
+    res = await fetch(`/v1/evaluate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(params),
+    });
+  }
+  if (!res.ok) {
+    let errDetail = res.statusText;
+    try {
+      const errJson = await res.json();
+      if (errJson && errJson.detail) {
+        errDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {}
+    throw new Error(`Evaluation failed (${res.status}): ${errDetail}`);
+  }
+  const raw = await res.json();
+  return {
+    request_id: raw.request_id || `req-${Date.now()}`,
+    action: (raw.action || (raw.verdict ? raw.verdict.toLowerCase() : 'deny')) as 'allow' | 'hold' | 'deny',
+    risk: raw.risk_score ?? raw.risk ?? 0,
+    risk_score: raw.risk_score ?? raw.risk ?? 0,
+    reasons: raw.reasons || [],
+    breaker_state: raw.breaker_state || 'Normal',
+    verdict: raw.verdict || (raw.action ? (raw.action.toUpperCase() as any) : 'DENY'),
+    mode: raw.mode || 'SIMULATION',
+    data_label: raw.data_label || 'SYNTHETIC',
+    timings: raw.timings || {},
+    decoded_tx: raw.decoded_tx || null,
+    evaluation_latency_ms: raw.evaluation_latency_ms,
+    policy_version: raw.policy_version,
+    wallet: raw.wallet,
+    chain: raw.chain,
+    signature: raw.signature,
+    tx_hash: raw.tx_hash,
+    hold_id: raw.hold_id,
+    dry_run_note: 'dry run - nothing signed or reserved',
   };
 }
 
