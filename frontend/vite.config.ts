@@ -14,6 +14,7 @@ export default defineConfig({
       '/v1': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        ws: true,
       },
     },
   },

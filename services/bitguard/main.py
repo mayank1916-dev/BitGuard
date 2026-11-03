@@ -65,6 +65,8 @@ from services.bitguard.models import (
     WatcherAlert,
 )
 from services.bitguard.stream.broadcaster import stream_broadcaster
+from services.bitguard.timelock.store import TimelockItem
+from services.bitguard.v1.router import CancelTimelockRequest
 from services.bitguard.v1.router import router as v1_router
 
 logger = logging.getLogger(__name__)
@@ -176,6 +178,8 @@ def create_app() -> FastAPI:
             JsonRpcError,
             SignTransactionParams,
             SignTransactionResult,
+            TimelockItem,
+            CancelTimelockRequest,
         ]
         for model_cls in canonical_models:
             model_schema = model_cls.model_json_schema(ref_template="#/components/schemas/{model}")

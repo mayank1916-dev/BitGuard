@@ -670,6 +670,17 @@
         "title": "CallItem",
         "type": "object"
       },
+      "CancelTimelockRequest": {
+        "properties": {
+          "reason": {
+            "default": "Operator manual cancellation",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "CancelTimelockRequest",
+        "type": "object"
+      },
       "CreateWatchedAddressRequest": {
         "description": "Payload to register a new hot wallet address for delegation monitoring.",
         "properties": {
@@ -2294,6 +2305,93 @@
           "cumulative_protected_loss_usd"
         ],
         "title": "StepEvent",
+        "type": "object"
+      },
+      "TimelockItem": {
+        "description": "Quarantined or delayed large withdrawal awaiting time-lock release.",
+        "properties": {
+          "amount_usd": {
+            "title": "Amount Usd",
+            "type": "number"
+          },
+          "asset": {
+            "default": "ETH",
+            "title": "Asset",
+            "type": "string"
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cancel Reason"
+          },
+          "cancelled_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cancelled By"
+          },
+          "chain": {
+            "default": "ethereum",
+            "title": "Chain",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "recipient": {
+            "default": "0x1111111111111111111111111111111111111111",
+            "title": "Recipient",
+            "type": "string"
+          },
+          "release_time": {
+            "format": "date-time",
+            "title": "Release Time",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "default": "QUEUED",
+            "title": "Status",
+            "type": "string"
+          },
+          "wallet": {
+            "title": "Wallet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "wallet",
+          "amount_usd",
+          "release_time"
+        ],
+        "title": "TimelockItem",
         "type": "object"
       },
       "UpdateWatchedAddressRequest": {
@@ -4634,6 +4732,90 @@
         ]
       }
     },
+    "/api/v1/outflows": {
+      "get": {
+        "description": "Returns current cumulative outflow aggregates across all supported blockchains.",
+        "operationId": "get_outflows_api_v1_outflows_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Outflows Api V1 Outflows Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get 5-second per-chain outflow aggregates",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
     "/api/v1/promotion-checklist": {
       "get": {
         "description": "Checks minimum days in SHADOW, false-positive rate, and unexplained decode failures.",
@@ -4815,6 +4997,195 @@
           }
         },
         "summary": "Submit transaction signing request",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/api/v1/timelocks": {
+      "get": {
+        "description": "Returns queued delayed transactions awaiting cooldown expiration.",
+        "operationId": "list_timelocks_api_v1_timelocks_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TimelockItem"
+                  },
+                  "title": "Response List Timelocks Api V1 Timelocks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List queued time-locked withdrawals",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/api/v1/timelocks/{item_id}/cancel": {
+      "post": {
+        "description": "Cancels a queued withdrawal before the time-lock window expires.",
+        "operationId": "cancel_timelock_api_v1_timelocks__item_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelTimelockRequest",
+                "default": {
+                  "reason": "Operator manual cancellation"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelockItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel time-locked withdrawal",
         "tags": [
           "V1 Policy Decision Point"
         ]
@@ -7695,6 +8066,90 @@
         ]
       }
     },
+    "/v1/outflows": {
+      "get": {
+        "description": "Returns current cumulative outflow aggregates across all supported blockchains.",
+        "operationId": "get_outflows_v1_outflows_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Outflows V1 Outflows Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get 5-second per-chain outflow aggregates",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
     "/v1/promotion-checklist": {
       "get": {
         "description": "Checks minimum days in SHADOW, false-positive rate, and unexplained decode failures.",
@@ -7876,6 +8331,195 @@
           }
         },
         "summary": "Submit transaction signing request",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/timelocks": {
+      "get": {
+        "description": "Returns queued delayed transactions awaiting cooldown expiration.",
+        "operationId": "list_timelocks_v1_timelocks_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TimelockItem"
+                  },
+                  "title": "Response List Timelocks V1 Timelocks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List queued time-locked withdrawals",
+        "tags": [
+          "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/timelocks/{item_id}/cancel": {
+      "post": {
+        "description": "Cancels a queued withdrawal before the time-lock window expires.",
+        "operationId": "cancel_timelock_v1_timelocks__item_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelTimelockRequest",
+                "default": {
+                  "reason": "Operator manual cancellation"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelockItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel time-locked withdrawal",
         "tags": [
           "V1 Policy Decision Point"
         ]

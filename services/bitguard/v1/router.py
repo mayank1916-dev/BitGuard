@@ -1,7 +1,7 @@
 """V1 API Router defining core BitGuard Decision Point contracts."""
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import (
@@ -13,6 +13,7 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from pydantic import BaseModel
 
 from services.bitguard.approvals.router import router as approvals_router
 from services.bitguard.audit import router as audit_router
@@ -44,8 +45,10 @@ from services.bitguard.rbac import (
     create_access_token,
     decode_access_token,
     require_permission,
+    require_role,
 )
 from services.bitguard.stream.broadcaster import stream_broadcaster
+from services.bitguard.timelock.store import TimelockItem, timelock_store
 from services.bitguard.watcher.router import router as watcher_router
 
 router = APIRouter(tags=["V1 Policy Decision Point"])
@@ -411,3 +414,51 @@ async def websocket_event_stream(websocket: WebSocket) -> None:
     finally:
         client.is_alive = False
         stream_broadcaster.unregister_client(client.id)
+
+
+@router.get(
+    "/outflows",
+    summary="Get 5-second per-chain outflow aggregates",
+    description="Returns current cumulative outflow aggregates across all supported blockchains.",
+    dependencies=[Depends(require_permission(Permission.READ_METRICS))],
+)
+def get_outflows() -> dict[str, Any]:
+    return {
+        "outflows": stream_broadcaster.get_chain_outflows(),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "data_label": "REAL",
+    }
+
+
+class CancelTimelockRequest(BaseModel):
+    reason: str = "Operator manual cancellation"
+
+
+@router.get(
+    "/timelocks",
+    response_model=list[TimelockItem],
+    summary="List queued time-locked withdrawals",
+    description="Returns queued delayed transactions awaiting cooldown expiration.",
+    dependencies=[Depends(require_permission(Permission.READ_DECISIONS))],
+)
+def list_timelocks() -> list[TimelockItem]:
+    return timelock_store.list_all()
+
+
+@router.post(
+    "/timelocks/{item_id}/cancel",
+    response_model=TimelockItem,
+    summary="Cancel time-locked withdrawal",
+    description="Cancels a queued withdrawal before the time-lock window expires.",
+    dependencies=[Depends(require_role(Role.OPERATOR, Role.SECOPS, Role.APPROVER, Role.ADMIN))],
+)
+def cancel_timelock(
+    item_id: str,
+    payload: CancelTimelockRequest = CancelTimelockRequest(),
+    current_user: UserResponse = Depends(require_role(Role.OPERATOR, Role.SECOPS, Role.APPROVER, Role.ADMIN)),
+) -> TimelockItem:
+    try:
+        return timelock_store.cancel(item_id, reason=payload.reason, user_id=current_user.id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+

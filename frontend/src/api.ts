@@ -441,6 +441,22 @@ export interface HoldTicketItem {
   data_label: string;
 }
 
+export interface TimelockItem {
+  id: string;
+  request_id: string;
+  chain: string;
+  wallet: string;
+  recipient: string;
+  asset: string;
+  amount_usd: number;
+  status: 'QUEUED' | 'CANCELLED' | 'RELEASED' | string;
+  release_time: string;
+  created_at: string;
+  data_label: 'REAL' | 'SYNTHETIC' | 'REPORTED' | string;
+  cancel_reason?: string | null;
+  cancelled_by?: string | null;
+}
+
 export interface DecodedTxCall {
   to: string;
   value: number;
@@ -480,6 +496,22 @@ export interface HoldViewResponse {
   approvals: ApprovalRecordItem[];
   signed_result?: Record<string, any>;
   data_label: string;
+}
+
+export interface TimelockItem {
+  id: string;
+  request_id: string;
+  chain: string;
+  wallet: string;
+  recipient: string;
+  asset: string;
+  amount_usd: number;
+  status: 'QUEUED' | 'CANCELLED' | 'RELEASED' | string;
+  release_time: string;
+  created_at: string;
+  data_label: 'REAL' | 'SYNTHETIC' | 'REPORTED' | string;
+  cancel_reason?: string | null;
+  cancelled_by?: string | null;
 }
 
 export interface ApproveHoldResponse {
@@ -852,6 +884,128 @@ export async function approve(
 
   const token = getActiveAuthToken() || (await login('Approver')).access_token;
   return submitHoldApproval(holdId, finalAssertion, token);
+}
+
+/**
+ * Retrieves active queued time-locked withdrawals (Milestone U5).
+ */
+export async function fetchTimelocks(): Promise<TimelockItem[]> {
+  if (DATA_SOURCE === 'demo') {
+    return [
+      {
+        id: 'tl-req-001',
+        request_id: 'req-timelock-large-01',
+        chain: 'ethereum',
+        wallet: '0xBinanceHotETH1',
+        recipient: '0x3333333333333333333333333333333333333333',
+        asset: 'ETH',
+        amount_usd: 150000.0,
+        status: 'QUEUED',
+        release_time: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        created_at: new Date().toISOString(),
+        data_label: 'SYNTHETIC',
+      },
+      {
+        id: 'tl-req-002',
+        request_id: 'req-timelock-large-02',
+        chain: 'tron',
+        wallet: 'TBinanceHotTRX1',
+        recipient: 'TAttackerTRONAddress0000000000000000',
+        asset: 'USDT',
+        amount_usd: 650000.0,
+        status: 'QUEUED',
+        release_time: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
+        created_at: new Date().toISOString(),
+        data_label: 'SYNTHETIC',
+      },
+    ];
+  }
+
+  try {
+    let res = await fetch(`${API_BASE}/v1/timelocks`, { headers: getAuthHeaders() });
+    if (!res.ok) {
+      res = await fetch(`/v1/timelocks`, { headers: getAuthHeaders() });
+    }
+    if (res.ok) {
+      return res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch timelocks:', err);
+  }
+  return [];
+}
+
+/**
+ * Cancels a queued time-locked withdrawal (Milestone U5).
+ */
+export async function cancelTimelock(
+  id: string,
+  reason: string = 'Manual operator cancellation'
+): Promise<TimelockItem> {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      id,
+      request_id: 'req-cancelled',
+      chain: 'ethereum',
+      wallet: '0xBinanceHotETH1',
+      recipient: '0x3333333333333333333333333333333333333333',
+      asset: 'ETH',
+      amount_usd: 150000.0,
+      status: 'CANCELLED',
+      release_time: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      data_label: 'SYNTHETIC',
+      cancel_reason: reason,
+    };
+  }
+
+  let res = await fetch(`${API_BASE}/v1/timelocks/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok && res.status === 404) {
+    res = await fetch(`/v1/timelocks/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ reason }),
+    });
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to cancel timelock: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Retrieves per-chain cumulative outflow aggregates (Milestone U5).
+ */
+export async function fetchChainOutflows(): Promise<Record<string, number>> {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      ethereum: 25000.0,
+      bitcoin: 120000.0,
+      solana: 45000.0,
+      tron: 650000.0,
+      arbitrum: 15000.0,
+      base: 8500.0,
+      optimism: 3200.0,
+    };
+  }
+
+  try {
+    let res = await fetch(`${API_BASE}/v1/outflows`, { headers: getAuthHeaders() });
+    if (!res.ok) {
+      res = await fetch(`/v1/outflows`, { headers: getAuthHeaders() });
+    }
+    if (res.ok) {
+      const data = await res.json();
+      return data.outflows || {};
+    }
+  } catch (err) {
+    console.warn('Failed to fetch outflows:', err);
+  }
+  return {};
 }
 
 /**
