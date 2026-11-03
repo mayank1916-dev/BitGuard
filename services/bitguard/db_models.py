@@ -26,7 +26,7 @@ class DecisionRecord(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     request_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
-    verdict: Mapped[str] = mapped_column(String(16), nullable=False)
+    verdict: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     would_have_verdict: Mapped[str | None] = mapped_column(String(16), nullable=True)
     risk_score: Mapped[int] = mapped_column(Integer, nullable=False)
     reasons: Mapped[list[dict[str, Any]]] = mapped_column(JsonType, nullable=False, default=list)
@@ -34,11 +34,15 @@ class DecisionRecord(Base):
     policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
     data_label: Mapped[str] = mapped_column(String(16), nullable=False)
     wallet_group: Mapped[str] = mapped_column(String(64), default="default", nullable=False)
+    wallet: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    chain: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     is_false_positive: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     evaluation_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    timings: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
+        index=True,
         nullable=False,
     )
 

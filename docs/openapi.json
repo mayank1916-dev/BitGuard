@@ -321,6 +321,18 @@
       "Decision": {
         "description": "Deterministic evaluation outcome issued by BitGuard Decision Point.",
         "properties": {
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Target blockchain identifier",
+            "title": "Chain"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -402,6 +414,18 @@
           },
           "verdict": {
             "$ref": "#/components/schemas/Verdict"
+          },
+          "wallet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Originating wallet address",
+            "title": "Wallet"
           },
           "wallet_group": {
             "default": "default",
@@ -1662,9 +1686,119 @@
     },
     "/v1/decisions": {
       "get": {
-        "description": "Returns recorded policy decisions ordered by timestamp descending.",
+        "description": "Returns recorded policy decisions ordered by timestamp descending with filtering and cursor pagination.",
         "operationId": "list_decisions_v1_decisions_get",
         "parameters": [
+          {
+            "description": "Start timestamp filter (ISO 8601)",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start timestamp filter (ISO 8601)",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "End timestamp filter (ISO 8601)",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End timestamp filter (ISO 8601)",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Verdict filter (ALLOW, HOLD, DENY)",
+            "in": "query",
+            "name": "verdict",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Verdict"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Verdict filter (ALLOW, HOLD, DENY)",
+              "title": "Verdict"
+            }
+          },
+          {
+            "description": "Wallet address filter",
+            "in": "query",
+            "name": "wallet",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Wallet address filter",
+              "title": "Wallet"
+            }
+          },
+          {
+            "description": "Blockchain identifier filter",
+            "in": "query",
+            "name": "chain",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Blockchain identifier filter",
+              "title": "Chain"
+            }
+          },
+          {
+            "description": "Cursor pointer for pagination",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor pointer for pagination",
+              "title": "Cursor"
+            }
+          },
           {
             "description": "Max decisions to retrieve",
             "in": "query",

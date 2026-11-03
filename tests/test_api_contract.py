@@ -280,7 +280,11 @@ def test_get_breaker_endpoint():
 
 def test_websocket_stream_contract():
     """WebSocket /v1/stream establishes handshake and responds to ping."""
-    with client.websocket_connect("/v1/stream") as ws:
+    from services.bitguard.models import Role
+    from services.bitguard.rbac import SEEDED_USERS, create_access_token
+
+    viewer_token = create_access_token(SEEDED_USERS[Role.VIEWER])
+    with client.websocket_connect(f"/v1/stream?token={viewer_token}") as ws:
         init_data = ws.receive_json()
         assert init_data["type"] == "connected"
         assert init_data["service"] == "bitguard"

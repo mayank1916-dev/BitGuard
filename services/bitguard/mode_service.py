@@ -107,24 +107,39 @@ class ModeService:
         group.unexplained_decode_failures += 1
 
     def save_decision(self, decision: Decision) -> Decision:
-        """Persists a decision in memory and registers in audit log."""
+        """Persists a decision in Postgres, audit log, and streaming broadcaster."""
         self._decisions[decision.request_id] = decision
-        audit_service.append_entry(
-            event_type="DECISION",
-            request_id=decision.request_id,
-            verdict=decision.verdict.value,
-            data_label=decision.data_label,
-        )
-        return decision
+        from services.bitguard.decision_store import decision_store
+        return decision_store.save_decision(decision)
 
     def get_decision(self, decision_id: str) -> Decision | None:
         """Finds a decision by request_id."""
-        return self._decisions.get(decision_id)
+        from services.bitguard.decision_store import decision_store
+        return decision_store.get_decision(decision_id) or self._decisions.get(decision_id)
 
-    def list_decisions(self, limit: int = 50, offset: int = 0) -> list[Decision]:
-        """Lists decisions with pagination."""
-        all_decs = list(self._decisions.values())
-        return all_decs[offset : offset + limit]
+    def list_decisions(
+        self,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        verdict: Verdict | str | None = None,
+        wallet: str | None = None,
+        chain: str | None = None,
+        cursor: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Decision], str | None]:
+        """Lists decisions with multi-field filtering and cursor pagination."""
+        from services.bitguard.decision_store import decision_store
+        return decision_store.list_decisions(
+            start_time=start_time,
+            end_time=end_time,
+            verdict=verdict,
+            wallet=wallet,
+            chain=chain,
+            cursor=cursor,
+            limit=limit,
+            offset=offset,
+        )
 
     def label_false_positive(
         self,

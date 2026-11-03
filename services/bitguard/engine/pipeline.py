@@ -154,7 +154,8 @@ class DecisionEngine:
             decision.evaluation_latency_ms = timer.timings.get("total", 0.0)
             decision.timings = dict(timer.timings)
 
-            return decision
+            from services.bitguard.mode_service import mode_service
+            return mode_service.save_decision(decision)
 
         except Exception as exc:
             # Invariant #3: Fail-closed on engine errors
@@ -522,6 +523,8 @@ class DecisionEngine:
             policy_version=self.config.policy_version,
             data_label=DataLabel.SYNTHETIC,
             wallet_group=context.wallet_group,
+            wallet=context.decoded_tx.from_address if context.decoded_tx else context.request.wallet,
+            chain=context.decoded_tx.chain if context.decoded_tx else context.request.chain,
             created_at=start_time,
             evaluation_latency_ms=0.0,
             timings={},
@@ -529,8 +532,7 @@ class DecisionEngine:
             decoded_tx=context.decoded_tx,
         )
 
-        from services.bitguard.mode_service import mode_service
-        return mode_service.save_decision(decision)
+        return decision
 
 
 # Global singleton instance

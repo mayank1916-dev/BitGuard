@@ -139,6 +139,8 @@ class Decision(BaseModel):
     )
     reservation_id: str | None = Field(default=None, description="Active limit reservation ID if reserved")
     decoded_tx: DecodedTx | None = Field(default=None, description="Decoded transaction payload if available")
+    wallet: str | None = Field(default=None, description="Originating wallet address")
+    chain: str | None = Field(default=None, description="Target blockchain identifier")
 
 
 class HoldTicket(BaseModel):

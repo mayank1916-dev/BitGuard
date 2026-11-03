@@ -39,6 +39,7 @@ from services.bitguard.models import (
     WalletGroupModeUpdate,
     WatchedAddress,
 )
+from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.v1.router import router as v1_router
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "signer_shim_url": settings.signer_shim_url,
         },
     )
+    stream_broadcaster.start_ticker()
     yield
+    stream_broadcaster.stop_ticker()
     logger.info("BitGuard Firewall service shutting down")
 
 

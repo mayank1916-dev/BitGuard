@@ -15,7 +15,7 @@ import time
 import fakeredis
 import pytest
 import rlp
-import yaml  # type: ignore[import-untyped]
+import yaml
 from fastapi.testclient import TestClient
 
 from services.bitguard.decoders.evm import evm_decoder

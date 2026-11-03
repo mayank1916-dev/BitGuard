@@ -1,5 +1,6 @@
 """V1 API Router defining core BitGuard Decision Point contracts."""
 
+import asyncio
 from datetime import UTC, datetime
 
 from fastapi import (
@@ -9,9 +10,11 @@ from fastapi import (
     Query,
     WebSocket,
     WebSocketDisconnect,
+    status,
 )
 
 from services.bitguard.config import settings
+from services.bitguard.decision_store import decision_store
 from services.bitguard.ledger.metrics import IntentMetricsResponse, intent_metrics
 from services.bitguard.mode_service import mode_service
 from services.bitguard.models import (
@@ -25,16 +28,21 @@ from services.bitguard.models import (
     FalsePositiveRequest,
     Permission,
     PromotionChecklistResponse,
+    Role,
     SigningRequest,
     UserResponse,
+    Verdict,
     WalletGroupConfig,
     WalletGroupModeUpdate,
 )
 from services.bitguard.rbac import (
+    PERMISSION_MATRIX,
     SEEDED_USERS,
     create_access_token,
+    decode_access_token,
     require_permission,
 )
+from services.bitguard.stream.broadcaster import stream_broadcaster
 
 router = APIRouter(tags=["V1 Policy Decision Point"])
 
@@ -112,15 +120,31 @@ async def submit_sign_request(request: SigningRequest) -> Decision:
     "/decisions",
     response_model=list[Decision],
     summary="Query policy decision history",
-    description="Returns recorded policy decisions ordered by timestamp descending.",
+    description="Returns recorded policy decisions ordered by timestamp descending with filtering and cursor pagination.",
     dependencies=[Depends(require_permission(Permission.READ_DECISIONS))],
 )
 async def list_decisions(
+    start_time: datetime | None = Query(default=None, description="Start timestamp filter (ISO 8601)"),
+    end_time: datetime | None = Query(default=None, description="End timestamp filter (ISO 8601)"),
+    verdict: Verdict | None = Query(default=None, description="Verdict filter (ALLOW, HOLD, DENY)"),
+    wallet: str | None = Query(default=None, description="Wallet address filter"),
+    chain: str | None = Query(default=None, description="Blockchain identifier filter"),
+    cursor: str | None = Query(default=None, description="Cursor pointer for pagination"),
     limit: int = Query(default=50, ge=1, le=500, description="Max decisions to retrieve"),
     offset: int = Query(default=0, ge=0, description="Offset for pagination"),
 ) -> list[Decision]:
-    """Retrieve decision log."""
-    return mode_service.list_decisions(limit=limit, offset=offset)
+    """Retrieve decision log with multi-field filtering and cursor pagination."""
+    decisions, _next_cursor = mode_service.list_decisions(
+        start_time=start_time,
+        end_time=end_time,
+        verdict=verdict,
+        wallet=wallet,
+        chain=chain,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+    )
+    return decisions
 
 
 @router.get(
@@ -270,20 +294,98 @@ async def get_intent_metrics() -> IntentMetricsResponse:
 
 @router.websocket("/stream")
 async def websocket_event_stream(websocket: WebSocket) -> None:
-    """Real-time event stream for decision notifications and breaker status changes."""
-    await websocket.accept()
+    """Real-time event stream for decision notifications, breaker status changes, and outflow aggregates.
+
+    Requires a valid JWT with at least Viewer role.
+    On connect: sends last 50 decisions, then pushes live decisions, breaker changes,
+    and 5-second per-chain outflow aggregates. Enforces queue-based backpressure.
+    """
+    token = websocket.query_params.get("token")
+    if not token:
+        auth_header = websocket.headers.get("authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header.split(" ", 1)[1]
+
+    is_unauth = (
+        websocket.headers.get("x-anonymous") == "true"
+        or websocket.query_params.get("anonymous") == "true"
+    )
+
+    if is_unauth or not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication credentials required")
+        return
+
     try:
-        await websocket.send_json(
-            {
-                "type": "connected",
-                "service": "bitguard",
-                "channel": "events",
-                "timestamp": datetime.now(UTC).isoformat(),
-            }
+        payload = decode_access_token(token)
+        role_val = payload.get("role")
+        user_role = None
+        for r in Role:
+            if r.value.lower() == str(role_val).lower():
+                user_role = r
+                break
+        if not user_role:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unrecognized role in token")
+            return
+
+        user_perms = PERMISSION_MATRIX.get(user_role, set())
+        if Permission.READ_DECISIONS not in user_perms:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Role lacks Viewer read permissions")
+            return
+    except Exception as exc:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=f"Invalid or expired JWT: {exc}")
+        return
+
+    await websocket.accept()
+
+    # Replay last 50 decisions on connect
+    last_50 = decision_store.get_last_n_decisions(50)
+    await websocket.send_json(
+        {
+            "type": "connected",
+            "service": "bitguard",
+            "channel": "events",
+            "data_label": "REAL",
+            "payload": {
+                "last_decisions": [d.model_dump(mode="json") for d in last_50],
+                "count": len(last_50),
+            },
+        }
+    )
+
+    client = stream_broadcaster.register_client(websocket)
+
+    async def writer() -> None:
+        try:
+            while client.is_alive:
+                event = await client.queue.get()
+                await websocket.send_json(event)
+                client.queue.task_done()
+        except (asyncio.CancelledError, WebSocketDisconnect, Exception):
+            client.is_alive = False
+
+    async def reader() -> None:
+        try:
+            while client.is_alive:
+                text = await websocket.receive_text()
+                if text == "ping":
+                    await websocket.send_text("pong")
+        except (asyncio.CancelledError, WebSocketDisconnect, Exception):
+            client.is_alive = False
+
+    w_task = asyncio.create_task(writer())
+    r_task = asyncio.create_task(reader())
+
+    try:
+        done, pending = await asyncio.wait(
+            [w_task, r_task],
+            return_when=asyncio.FIRST_COMPLETED,
         )
-        while True:
-            text = await websocket.receive_text()
-            if text == "ping":
-                await websocket.send_text("pong")
-    except WebSocketDisconnect:
-        pass
+        for t in pending:
+            t.cancel()
+            try:
+                await t
+            except (asyncio.CancelledError, Exception):
+                pass
+    finally:
+        client.is_alive = False
+        stream_broadcaster.unregister_client(client.id)
