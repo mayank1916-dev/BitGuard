@@ -1,7 +1,7 @@
+import copy
 import hashlib
 import time
-import copy
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 from backend.app.models import Decision
@@ -55,7 +55,7 @@ class AuditLog:
         action: str,
         risk: int,
         rule_hits: list[str],
-        timestamp: Optional[float] = None,
+        timestamp: float | None = None,
     ) -> AuditEntry:
         """Appends a new decision to the hash chain."""
         ts = timestamp if timestamp is not None else time.time()
@@ -88,7 +88,7 @@ class AuditLog:
     def append_decision(
         self,
         decision: Decision,
-        timestamp: Optional[float] = None,
+        timestamp: float | None = None,
     ) -> AuditEntry:
         """Helper to append directly from a PolicyEngine Decision model."""
         rules: list[str] = []
@@ -106,7 +106,7 @@ class AuditLog:
             timestamp=timestamp,
         )
 
-    def verify_integrity(self) -> tuple[bool, Optional[int]]:
+    def verify_integrity(self) -> tuple[bool, int | None]:
         """
         Iterates through the chain, recomputes hashes, and checks link integrity.
         Returns (True, None) if intact, or (False, corrupted_index) if compromised.

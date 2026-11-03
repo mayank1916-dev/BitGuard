@@ -1,4 +1,5 @@
-from typing import Optional, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -14,8 +15,8 @@ class SigningRequest(BaseModel):
     kind: str  # 'transfer' | 'contract_call' | 'authorization_7702'
     asset: str
     amount_usd: float
-    to: Optional[str] = None
-    delegate: Optional[str] = None
+    to: str | None = None
+    delegate: str | None = None
     meta: dict[str, Any] = Field(default_factory=dict)
 
 

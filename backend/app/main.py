@@ -1,26 +1,25 @@
-from typing import Optional, Union, Any
-from fastapi import FastAPI, Query, HTTPException
-from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from typing import Any
 
-from backend.app.models import SigningRequest, Decision
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import Response
+from pydantic import BaseModel
+
+from backend.app.core.audit import AuditLog
 from backend.app.core.policy import PolicyEngine
-from backend.app.core.replay import (
-    ReplayRunner,
-    ReplayReport,
-    ReplayMetrics,
-    StepEvent,
-    SensitivityPoint,
-    run_sensitivity_matrix,
-    create_engine_with_overrides,
-)
 from backend.app.core.radar import (
     RadarScanner,
     RadarScanResult,
-    Type4Finding,
 )
-from backend.app.core.audit import AuditLog, AuditEntry
+from backend.app.core.replay import (
+    ReplayMetrics,
+    ReplayReport,
+    ReplayRunner,
+    SensitivityPoint,
+    StepEvent,
+    run_sensitivity_matrix,
+)
 from backend.app.core.report import generate_post_mortem_pdf
+from backend.app.models import Decision, SigningRequest
 
 
 class ReplayBatchRequest(BaseModel):
@@ -29,8 +28,8 @@ class ReplayBatchRequest(BaseModel):
     Supports supplying custom event batches and policy parameter overrides.
     If events is omitted, runs the default synthetic Binance attack timeline dataset.
     """
-    events: Optional[list[SigningRequest]] = None
-    policy_overrides: Optional[dict[str, Any]] = None
+    events: list[SigningRequest] | None = None
+    policy_overrides: dict[str, Any] | None = None
 
 
 class EnhancedReplayResponse(BaseModel):
@@ -50,17 +49,17 @@ class EnhancedReplayResponse(BaseModel):
 
 
 class SensitivityRequest(BaseModel):
-    base_limits: Optional[dict[str, Any]] = None
-    multipliers: Optional[list[float]] = None
+    base_limits: dict[str, Any] | None = None
+    multipliers: list[float] | None = None
     # Direct custom base values supported for slider updates
-    base_single_tx_usd: Optional[float] = None
-    base_wallet_limit_usd: Optional[float] = None
-    base_global_limit_usd: Optional[float] = None
-    base_new_recipient_usd: Optional[float] = None
-    single_tx_usd: Optional[float] = None
-    wallet_limit_usd: Optional[float] = None
-    global_limit_usd: Optional[float] = None
-    new_recipient_usd: Optional[float] = None
+    base_single_tx_usd: float | None = None
+    base_wallet_limit_usd: float | None = None
+    base_global_limit_usd: float | None = None
+    base_new_recipient_usd: float | None = None
+    single_tx_usd: float | None = None
+    wallet_limit_usd: float | None = None
+    global_limit_usd: float | None = None
+    new_recipient_usd: float | None = None
 
 
 class SensitivityResponse(BaseModel):
@@ -68,7 +67,7 @@ class SensitivityResponse(BaseModel):
     base_limits: dict[str, Any]
 
 
-def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
+def create_app(engine: PolicyEngine | None = None) -> FastAPI:
     app = FastAPI(
         title="BitGuard Firewall, Replay & 7702 Radar",
         description="Autonomous signing-request firewall, incident-replay lab, and EIP-7702 live radar for exchange hot wallets",
@@ -105,10 +104,10 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
 
     @app.post("/api/replay", response_model=EnhancedReplayResponse)
     def replay(
-        payload: Optional[Union[ReplayBatchRequest, list[SigningRequest]]] = None,
+        payload: ReplayBatchRequest | list[SigningRequest] | None = None,
     ) -> EnhancedReplayResponse:
-        events: Optional[list[SigningRequest]] = None
-        policy_overrides: Optional[dict[str, Any]] = None
+        events: list[SigningRequest] | None = None
+        policy_overrides: dict[str, Any] | None = None
 
         if isinstance(payload, list):
             events = payload
@@ -158,7 +157,7 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
         return scanner.scan_recent_blocks(n_blocks=n_blocks, force_cached=force_cached)
 
     @app.post("/api/policy/sensitivity", response_model=SensitivityResponse)
-    def get_sensitivity(payload: Optional[SensitivityRequest] = None) -> SensitivityResponse:
+    def get_sensitivity(payload: SensitivityRequest | None = None) -> SensitivityResponse:
         """
         Runs sensitivity analysis across limit multipliers, charting capital saved vs false positives.
         Accepts custom base limits dynamically from interactive sliders.
@@ -234,13 +233,13 @@ def create_app(engine: Optional[PolicyEngine] = None) -> FastAPI:
         }
 
     @app.post("/api/audit/simulate-tamper")
-    def simulate_tamper(index: Optional[int] = Query(default=None)):
+    def simulate_tamper(index: int | None = Query(default=None)):
         """Modifies a stored record's payload to demonstrate live tamper detection."""
         ensure_audit_chain_seeded()
         if not app.state.audit_log.entries:
             raise HTTPException(status_code=400, detail="Audit chain is empty")
         target_idx = index if index is not None else (len(app.state.audit_log.entries) // 2)
-        corrupted = app.state.audit_log.tamper_test_corrupt_entry(target_idx)
+        _ = app.state.audit_log.tamper_test_corrupt_entry(target_idx)
         valid, corrupted_idx = app.state.audit_log.verify_integrity()
         return {
             "status": "tampered",

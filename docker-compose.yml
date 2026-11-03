@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bitguard-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bitguard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - public
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bitguard"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: bitguard-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - public
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: bitguard-anvil
+    restart: unless-stopped
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--port", "8545", "--chain-id", "31337"]
+    ports:
+      - "8545:8545"
+    networks:
+      - public
+      - signer_internal
+
+  ledger_mock:
+    build:
+      context: .
+      dockerfile: services/ledger_mock/Dockerfile
+    container_name: bitguard-ledger-mock
+    restart: unless-stopped
+    environment:
+      LEDGER_MOCK_HOST: "0.0.0.0"
+      LEDGER_MOCK_PORT: 8002
+      LEDGER_MOCK_ENVIRONMENT: "development"
+    ports:
+      - "8002:8002"
+    networks:
+      - public
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8002/healthz\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  signer_shim:
+    build:
+      context: .
+      dockerfile: services/signer_shim/Dockerfile
+    container_name: bitguard-signer-shim
+    restart: unless-stopped
+    environment:
+      SIGNER_SHIM_HOST: "0.0.0.0"
+      SIGNER_SHIM_PORT: 8001
+      SIGNER_SHIM_ENVIRONMENT: "development"
+      SIGNER_SHIM_ANVIL_URL: "http://anvil:8545"
+    # Port 8001 is EXPOSED internally to signer_internal, NEVER published to host
+    expose:
+      - "8001"
+    networks:
+      - signer_internal
+    depends_on:
+      - anvil
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/healthz\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  bitguard:
+    build:
+      context: .
+      dockerfile: services/bitguard/Dockerfile
+    container_name: bitguard-firewall
+    restart: unless-stopped
+    environment:
+      BITGUARD_HOST: "0.0.0.0"
+      BITGUARD_PORT: 8000
+      BITGUARD_ENVIRONMENT: "development"
+      BITGUARD_DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/bitguard"
+      BITGUARD_REDIS_URL: "redis://redis:6379/0"
+      BITGUARD_ANVIL_URL: "http://anvil:8545"
+      BITGUARD_SIGNER_SHIM_URL: "http://signer_shim:8001"
+      BITGUARD_LEDGER_MOCK_URL: "http://ledger_mock:8002"
+    ports:
+      - "8000:8000"
+    networks:
+      - public
+      - signer_internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      anvil:
+        condition: service_started
+      signer_shim:
+        condition: service_started
+      ledger_mock:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/healthz\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  public:
+    driver: bridge
+  signer_internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:

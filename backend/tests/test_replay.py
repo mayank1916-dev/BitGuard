@@ -1,10 +1,9 @@
 from pathlib import Path
-import pytest
+
 from fastapi.testclient import TestClient
 
-from backend.app.models import SigningRequest
-from backend.app.core.replay import ReplayRunner, ReplayReport
-from backend.app.main import app, create_app
+from backend.app.core.replay import ReplayReport, ReplayRunner
+from backend.app.main import app
 
 
 def test_binance_replay_blocks_attack_cascade_and_trips_lockdown():

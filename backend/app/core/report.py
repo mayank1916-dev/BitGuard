@@ -1,18 +1,19 @@
-import io
 import datetime
-from typing import Optional, Any
-from reportlab.lib.pagesizes import letter
+import io
+from typing import Any
+
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import (
-    SimpleDocTemplate,
+    HRFlowable,
+    KeepTogether,
     Paragraph,
+    SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
-    HRFlowable,
-    KeepTogether,
 )
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 
 def format_usd(val: float) -> str:
@@ -101,11 +102,12 @@ def generate_post_mortem_pdf(
         leading=10,
         textColor=colors.HexColor("#0f172a"),
     )
+    _ = code_style
 
     story = []
 
     # 1. Header & Classification
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now_utc = datetime.datetime.now(datetime.UTC)
     ist_offset = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
     now_ist = datetime.datetime.now(ist_offset)
     utc_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -257,7 +259,7 @@ def generate_post_mortem_pdf(
                     str(chain).upper(),
                     f"{str(kind).upper()} [{str(action).upper()}]",
                     str(wallet)[:18],
-                    format_usd(float(amount)),
+                    format_usd(float(amount or 0.0)),
                     str(rule)[:28],
                     f"{risk}/100",
                 ]

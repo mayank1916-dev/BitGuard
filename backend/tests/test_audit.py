@@ -1,9 +1,7 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.core.audit import AuditLog, compute_entry_hash
 from backend.app.main import create_app
-from backend.app.models import Decision
 
 
 def test_genesis_block_and_hash_chain():

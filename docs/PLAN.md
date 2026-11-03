@@ -40,7 +40,7 @@
 
 ## Master Checklist of Steps
 
-- [ ] S02 Scaffold the backend, signer shim and lab environment
+- [x] S02 Scaffold the backend, signer shim and lab environment
 - [ ] S03 Canonical data model, API contract and dry-run evaluate endpoint
 - [ ] S04 Mode flag: SIMULATION / SHADOW / ENFORCE (F7)
 - [ ] S05 Basic roles and permission checks (F9 basic)

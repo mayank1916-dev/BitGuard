@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Any
 
 
 class Breaker:
@@ -30,7 +30,7 @@ class Breaker:
     def is_locked_down(self) -> bool:
         return self.state == "Lockdown"
 
-    def trip_lockdown(self, reason: str, details: Optional[dict[str, Any]] = None) -> None:
+    def trip_lockdown(self, reason: str, details: dict[str, Any] | None = None) -> None:
         """Force transition to Lockdown state."""
         prev = self.state
         self.state = "Lockdown"
@@ -42,7 +42,7 @@ class Breaker:
         }
         self.history.append(entry)
 
-    def trip_elevated(self, reason: str, details: Optional[dict[str, Any]] = None) -> None:
+    def trip_elevated(self, reason: str, details: dict[str, Any] | None = None) -> None:
         """Elevate state if not currently in Hold or Lockdown."""
         if self.state not in ("Hold", "Lockdown"):
             prev = self.state
@@ -55,7 +55,7 @@ class Breaker:
             }
             self.history.append(entry)
 
-    def trip_hold(self, reason: str, details: Optional[dict[str, Any]] = None) -> None:
+    def trip_hold(self, reason: str, details: dict[str, Any] | None = None) -> None:
         """Transition to Hold if not in Lockdown."""
         if self.state != "Lockdown":
             prev = self.state

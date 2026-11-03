@@ -1,7 +1,8 @@
-from typing import Optional, Any
-from backend.app.models import SigningRequest, Decision
+from typing import Any
+
 from backend.app.core.breaker import Breaker
 from backend.app.core.delegation import DelegationGuard
+from backend.app.models import Decision, SigningRequest
 
 
 class PolicyEngine:
@@ -21,9 +22,9 @@ class PolicyEngine:
         single_tx_usd: float = 50_000.0,
         new_recipient_usd: float = 10_000.0,
         window_seconds: float = 3600.0,  # 1-hour rolling window
-        known_recipients: Optional[set[str] | list[str]] = None,
-        breaker: Optional[Breaker] = None,
-        delegation_guard: Optional[DelegationGuard] = None,
+        known_recipients: set[str] | list[str] | None = None,
+        breaker: Breaker | None = None,
+        delegation_guard: DelegationGuard | None = None,
     ):
         self.wallet_limit_usd = float(wallet_limit_usd)
         self.global_limit_usd = float(global_limit_usd)

@@ -1,8 +1,6 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.core.radar import RadarScanner, find_max_consecutive_nonces
-from backend.app.core.replay import run_sensitivity_matrix
 from backend.app.main import app
 
 

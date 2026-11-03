@@ -1,8 +1,9 @@
-from pathlib import Path
-from typing import Optional, Any, Union
 import json
 import logging
 import time
+from pathlib import Path
+from typing import Any
+
 import httpx
 from pydantic import BaseModel, Field
 
@@ -20,9 +21,9 @@ class Type4Finding(BaseModel):
     """Represents a discovered or evaluated Type-4 EIP-7702 transaction."""
     tx_hash: str
     block_number: int
-    from_address: Optional[str] = None
-    to_address: Optional[str] = None
-    delegate_address: Optional[str] = None
+    from_address: str | None = None
+    to_address: str | None = None
+    delegate_address: str | None = None
     unique_delegates_count: int = 0
     auth_count: int = 0
     has_consecutive_nonces: bool = False
@@ -32,7 +33,7 @@ class Type4Finding(BaseModel):
     is_suspicious: bool = False
     timestamp: int = 0
     source: str = "live_rpc"
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class RadarScanResult(BaseModel):
@@ -83,8 +84,8 @@ class RadarScanner:
 
     def __init__(
         self,
-        rpc_url: Optional[str] = None,
-        cached_data_path: Optional[Union[str, Path]] = None,
+        rpc_url: str | None = None,
+        cached_data_path: str | Path | None = None,
         timeout: float = 6.0,
     ):
         self.rpc_url = rpc_url or DEFAULT_RPC_ENDPOINTS[0]
@@ -128,7 +129,7 @@ class RadarScanner:
         """Loads pre-recorded Type-4 findings from disk."""
         if not self.cached_data_path.exists():
             return []
-        with open(self.cached_data_path, "r", encoding="utf-8") as f:
+        with open(self.cached_data_path, encoding="utf-8") as f:
             raw = json.load(f)
         findings = []
         for item in raw:
@@ -143,7 +144,7 @@ class RadarScanner:
         block_number: int = 0,
         timestamp: int = 0,
         source: str = "live_rpc",
-    ) -> Optional[Type4Finding]:
+    ) -> Type4Finding | None:
         """
         Evaluates a Type-4 transaction against heuristic patterns:
         - Consecutive nonces (>= 5 in sequence: +40 risk)

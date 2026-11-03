@@ -1,12 +1,13 @@
-from pathlib import Path
-from typing import Optional, Any, Union
 import json
-from pydantic import BaseModel, Field
+from pathlib import Path
+from typing import Any
 
-from backend.app.models import SigningRequest, Decision
-from backend.app.core.policy import PolicyEngine
+from pydantic import BaseModel
+
 from backend.app.core.breaker import Breaker
 from backend.app.core.delegation import DelegationGuard
+from backend.app.core.policy import PolicyEngine
+from backend.app.models import Decision, SigningRequest
 
 
 class StepEvent(BaseModel):
@@ -35,9 +36,9 @@ class ReplayMetrics(BaseModel):
     loss_prevented_pct: float
     time_to_contain_seconds: float
     seconds_to_first_block: float
-    first_blocked_event: Optional[dict[str, Any]] = None
-    breaker_lockdown_ts: Optional[float] = None
-    breaker_lockdown_event_id: Optional[str] = None
+    first_blocked_event: dict[str, Any] | None = None
+    breaker_lockdown_ts: float | None = None
+    breaker_lockdown_event_id: str | None = None
     breaker_final_state: str
     false_positive_count: int
 
@@ -64,34 +65,34 @@ class SensitivityPoint(BaseModel):
     breaker_final_state: str
 
     # Direct requested naming aliases
-    multiplier: Optional[float] = None
-    effective_single_tx_cap: Optional[float] = None
-    capital_saved_usd: Optional[float] = None
-    mitigated_pct: Optional[float] = None
-    false_positives_count: Optional[int] = None
-    breaker_state: Optional[str] = None
+    multiplier: float | None = None
+    effective_single_tx_cap: float | None = None
+    capital_saved_usd: float | None = None
+    mitigated_pct: float | None = None
+    false_positives_count: int | None = None
+    breaker_state: str | None = None
 
 
-def create_engine_with_overrides(overrides: Optional[dict[str, Any]] = None) -> PolicyEngine:
+def create_engine_with_overrides(overrides: dict[str, Any] | None = None) -> PolicyEngine:
     """Helper to construct a PolicyEngine with optional parameter overrides."""
     if not overrides:
         return PolicyEngine()
 
-    breaker_kwargs = {}
+    breaker_kwargs: dict[str, Any] = {}
     if "multi_chain_lockdown_threshold" in overrides:
         breaker_kwargs["multi_chain_lockdown_threshold"] = overrides["multi_chain_lockdown_threshold"]
     if "multi_chain_elevate_threshold" in overrides:
         breaker_kwargs["multi_chain_elevate_threshold"] = overrides["multi_chain_elevate_threshold"]
     breaker = Breaker(**breaker_kwargs) if breaker_kwargs else None
 
-    delegation_kwargs = {}
+    delegation_kwargs: dict[str, Any] = {}
     if "delegate_allowlist" in overrides:
         delegation_kwargs["delegate_allowlist"] = overrides["delegate_allowlist"]
     if "spray_threshold" in overrides:
         delegation_kwargs["spray_threshold"] = overrides["spray_threshold"]
     delegation_guard = DelegationGuard(**delegation_kwargs) if delegation_kwargs else None
 
-    engine_kwargs = {}
+    engine_kwargs: dict[str, Any] = {}
     for key in (
         "wallet_limit_usd",
         "global_limit_usd",
@@ -121,10 +122,10 @@ class ReplayRunner:
 
     def __init__(
         self,
-        dataset_path: Optional[Union[str, Path]] = None,
-        requests: Optional[list[SigningRequest]] = None,
-        policy_engine: Optional[PolicyEngine] = None,
-        policy_overrides: Optional[dict[str, Any]] = None,
+        dataset_path: str | Path | None = None,
+        requests: list[SigningRequest] | None = None,
+        policy_engine: PolicyEngine | None = None,
+        policy_overrides: dict[str, Any] | None = None,
     ):
         self.default_dataset_path = (
             Path(__file__).resolve().parent.parent.parent / "data" / "replay_binance_like.json"
@@ -144,7 +145,7 @@ class ReplayRunner:
     @staticmethod
     def load_dataset(path: Path) -> list[SigningRequest]:
         """Loads and parses SigningRequest dataset from JSON file."""
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             raw_data = json.load(f)
         return [SigningRequest(**item) for item in raw_data]
 
@@ -159,14 +160,14 @@ class ReplayRunner:
         protected_loss_usd = 0.0
         steps: list[StepEvent] = []
 
-        first_blocked_event: Optional[dict[str, Any]] = None
-        breaker_lockdown_ts: Optional[float] = None
-        breaker_lockdown_event_id: Optional[str] = None
+        first_blocked_event: dict[str, Any] | None = None
+        breaker_lockdown_ts: float | None = None
+        breaker_lockdown_event_id: str | None = None
         false_positive_count = 0
         normal_count = 0
         attack_count = 0
 
-        attack_start_ts: Optional[float] = None
+        attack_start_ts: float | None = None
 
         for req in sorted_requests:
             scenario = (req.meta or {}).get("scenario", "normal")
@@ -265,9 +266,9 @@ class ReplayRunner:
 
 
 def run_sensitivity_matrix(
-    multipliers: Optional[list[float]] = None,
-    base_limits: Optional[dict[str, Any]] = None,
-    dataset_path: Optional[Union[str, Path]] = None,
+    multipliers: list[float] | None = None,
+    base_limits: dict[str, Any] | None = None,
+    dataset_path: str | Path | None = None,
 ) -> list[SensitivityPoint]:
     """
     Evaluates the synthetic replay across multiple limit multipliers to produce
@@ -278,26 +279,17 @@ def run_sensitivity_matrix(
     raw_base = base_limits or {}
 
     # Support both base_single_tx_usd and single_tx_usd keys
-    single_tx_base = float(
-        raw_base.get("base_single_tx_usd")
-        if raw_base.get("base_single_tx_usd") is not None
-        else raw_base.get("single_tx_usd", 50_000.0)
-    )
-    wallet_limit_base = float(
-        raw_base.get("base_wallet_limit_usd")
-        if raw_base.get("base_wallet_limit_usd") is not None
-        else raw_base.get("wallet_limit_usd", 100_000.0)
-    )
-    global_limit_base = float(
-        raw_base.get("base_global_limit_usd")
-        if raw_base.get("base_global_limit_usd") is not None
-        else raw_base.get("global_limit_usd", 500_000.0)
-    )
-    new_recipient_base = float(
-        raw_base.get("base_new_recipient_usd")
-        if raw_base.get("base_new_recipient_usd") is not None
-        else raw_base.get("new_recipient_usd", 10_000.0)
-    )
+    single_val = raw_base.get("base_single_tx_usd") if raw_base.get("base_single_tx_usd") is not None else raw_base.get("single_tx_usd", 50_000.0)
+    single_tx_base = float(single_val or 50_000.0)
+
+    wallet_val = raw_base.get("base_wallet_limit_usd") if raw_base.get("base_wallet_limit_usd") is not None else raw_base.get("wallet_limit_usd", 100_000.0)
+    wallet_limit_base = float(wallet_val or 100_000.0)
+
+    global_val = raw_base.get("base_global_limit_usd") if raw_base.get("base_global_limit_usd") is not None else raw_base.get("global_limit_usd", 500_000.0)
+    global_limit_base = float(global_val or 500_000.0)
+
+    new_recip_val = raw_base.get("base_new_recipient_usd") if raw_base.get("base_new_recipient_usd") is not None else raw_base.get("new_recipient_usd", 10_000.0)
+    new_recipient_base = float(new_recip_val or 10_000.0)
 
     results: list[SensitivityPoint] = []
 

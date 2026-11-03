@@ -1,4 +1,5 @@
-from typing import Optional, Any
+from typing import Any
+
 from backend.app.models import SigningRequest
 
 
@@ -13,7 +14,7 @@ class DelegationGuard:
 
     def __init__(
         self,
-        delegate_allowlist: Optional[set[str] | list[str]] = None,
+        delegate_allowlist: set[str] | list[str] | None = None,
         spray_threshold: int = 50,
     ):
         self.delegate_allowlist: set[str] = {
@@ -29,12 +30,12 @@ class DelegationGuard:
     def remove_delegate(self, address: str) -> None:
         self.delegate_allowlist.discard(address.lower())
 
-    def is_delegate_allowed(self, address: Optional[str]) -> bool:
+    def is_delegate_allowed(self, address: str | None) -> bool:
         if not address:
             return False
         return address.lower() in self.delegate_allowlist
 
-    def _extract_nonce(self, req: SigningRequest) -> Optional[int]:
+    def _extract_nonce(self, req: SigningRequest) -> int | None:
         if not req.meta:
             return None
         val = req.meta.get("nonce")
@@ -49,7 +50,7 @@ class DelegationGuard:
             return int(val)
         return None
 
-    def check_nonce_spray(self, req: SigningRequest) -> Optional[dict[str, Any]]:
+    def check_nonce_spray(self, req: SigningRequest) -> dict[str, Any] | None:
         """
         Detects batch nonce-spraying patterns.
         Flags requests with consecutive nonces for the same hot wallet when the streak
@@ -114,7 +115,7 @@ class DelegationGuard:
 
         return None
 
-    def evaluate_request(self, req: SigningRequest) -> Optional[dict[str, Any]]:
+    def evaluate_request(self, req: SigningRequest) -> dict[str, Any] | None:
         """
         Evaluate delegation and nonce rules.
         Returns a violation dict if any rule is violated, or None if passed.
