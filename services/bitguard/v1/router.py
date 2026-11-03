@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import datetime
+from typing import Any
 
 from fastapi import (
     APIRouter,
@@ -209,6 +210,32 @@ async def get_promotion_checklist(
 ) -> PromotionChecklistResponse:
     """Returns pass/fail checklist evaluating whether a group can promote from SHADOW to ENFORCE."""
     return mode_service.get_promotion_checklist(wallet_group)
+
+
+@router.get(
+    "/mode",
+    response_model=dict[str, Any],
+    summary="Get current operational mode",
+    tags=["V1 Policy Decision Point"],
+)
+async def get_current_mode() -> dict[str, Any]:
+    """Returns the primary operational mode (SIMULATION, SHADOW, or ENFORCE)."""
+    default_group = mode_service.get_wallet_group("default")
+    return {
+        "mode": default_group.mode.value,
+        "wallet_group": default_group.id,
+    }
+
+
+@router.get(
+    "/metrics/shadow",
+    response_model=dict[str, Any],
+    summary="Get aggregated shadow mode metrics and would_have counters (Milestone S04 / U2)",
+    tags=["V1 Policy Decision Point"],
+)
+async def get_shadow_metrics(wallet_group: str = "default") -> dict[str, Any]:
+    """Returns aggregated would_have_* counters from S04."""
+    return mode_service.get_shadow_counters(wallet_group)
 
 
 @router.get(

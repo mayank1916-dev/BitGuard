@@ -342,6 +342,7 @@ class DailyGroupMetrics(BaseModel):
     would_have_blocked_count: int = 0
     would_have_blocked_value: float = 0.0
     allowed_count: int = 0
+    would_have_allowed_value: float = 0.0
     false_positive_count: int = 0
 
 

@@ -96,6 +96,21 @@ def create_app(engine: PolicyEngine | None = None) -> FastAPI:
             "breaker_state": app.state.engine.breaker.state,
         }
 
+    @app.get("/api/mode")
+    def get_mode():
+        return {"mode": "SIMULATION", "wallet_group": "default"}
+
+    @app.get("/api/metrics/shadow")
+    def get_shadow_metrics(wallet_group: str = "default"):
+        return {
+            "mode": "SIMULATION",
+            "wallet_group": wallet_group,
+            "would_have_allowed_count": 0,
+            "would_have_allowed_value": 0.0,
+            "would_have_blocked_count": 0,
+            "would_have_blocked_value": 0.0,
+        }
+
     @app.post("/api/evaluate", response_model=Decision)
     def evaluate(request: SigningRequest) -> Decision:
         decision = app.state.engine.evaluate(request)

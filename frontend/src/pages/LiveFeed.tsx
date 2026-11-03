@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StepEvent } from '../api';
-import { formatFullCurrency, getChainBadgeStyle, truncateAddress, cn } from '../utils';
+import { StepEvent, DATA_SOURCE } from '../api';
+import { formatFullCurrency, getChainBadgeStyle, getDataLabelBadgeStyle, truncateAddress, cn } from '../utils';
 import { Search, Filter } from 'lucide-react';
 
 interface LiveFeedProps {
@@ -236,7 +236,32 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({ steps, currentStep, isPlayin
                     >
                       {/* Request ID */}
                       <td className="px-4 py-3 font-bold text-slate-200">
-                        {step.request_id}
+                        <div className="flex items-center gap-2">
+                          <span>{step.request_id}</span>
+                          {(() => {
+                            const pLabel =
+                              decision.data_label ||
+                              step.data_label ||
+                              (DATA_SOURCE === 'api'
+                                ? 'REAL'
+                                : step.scenario === 'attack'
+                                ? 'REPORTED'
+                                : 'SYNTHETIC');
+                            const pStyle = getDataLabelBadgeStyle(pLabel);
+                            return (
+                              <span
+                                className={cn(
+                                  'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border uppercase',
+                                  pStyle.bg,
+                                  pStyle.text,
+                                  pStyle.border
+                                )}
+                              >
+                                {pLabel}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </td>
 
                       {/* Time */}

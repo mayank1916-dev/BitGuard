@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, ShieldAlert, ShieldCheck, Activity, RefreshCw } from 'lucide-react';
 import { cn } from '../utils';
+import { DATA_SOURCE } from '../api';
 
 export type DashboardTab = 'replay' | 'feed' | 'radar' | 'lab' | 'reports' | 'approvals';
 
@@ -10,6 +11,7 @@ interface NavbarProps {
   breakerState: 'Normal' | 'Elevated' | 'Hold' | 'Lockdown' | string;
   onReset: () => void;
   isResetting?: boolean;
+  mode?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   breakerState,
   onReset,
   isResetting,
+  mode,
 }) => {
   const getBreakerBadge = (state: string) => {
     switch (state) {
@@ -73,8 +76,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </h1>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-800/40">
-                    DEFENSIVE SIMULATION
+                  <span
+                    className={cn(
+                      'text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded border',
+                      DATA_SOURCE === 'api'
+                        ? (mode || 'SIMULATION').toUpperCase() === 'SHADOW'
+                          ? 'bg-amber-950/60 text-amber-300 border-amber-800/40'
+                          : (mode || 'SIMULATION').toUpperCase() === 'ENFORCE'
+                          ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/40'
+                          : 'bg-blue-950/60 text-blue-300 border-blue-800/40'
+                        : 'bg-blue-950/60 text-blue-300 border-blue-800/40'
+                    )}
+                  >
+                    {DATA_SOURCE === 'api' ? (mode || 'SIMULATION').toUpperCase() : 'DEFENSIVE SIMULATION'}
                   </span>
                 </div>
               </div>

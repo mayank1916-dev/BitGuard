@@ -114,6 +114,93 @@ export function setActiveAuthToken(token: string | null): void {
 // DATA MODELS & INTERFACES (Full Backward Compatibility)
 // =========================================================================
 
+export type OperationMode = 'SIMULATION' | 'SHADOW' | 'ENFORCE';
+
+export interface ShadowMetrics {
+  mode: OperationMode;
+  wallet_group?: string;
+  would_have_allowed_count: number;
+  would_have_allowed_value: number;
+  would_have_blocked_count: number;
+  would_have_blocked_value: number;
+}
+
+/**
+ * Reads the active operational mode (SIMULATION, SHADOW, ENFORCE).
+ * In demo mode, defaults to SIMULATION (or ?mode= query param).
+ * In API mode, reads from GET /v1/mode.
+ */
+export async function fetchCurrentMode(): Promise<OperationMode> {
+  if (DATA_SOURCE === 'demo') {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const m = params.get('mode')?.toUpperCase();
+      if (m === 'SHADOW' || m === 'ENFORCE' || m === 'SIMULATION') {
+        return m as OperationMode;
+      }
+    }
+    return 'SIMULATION';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/mode`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.mode) {
+        return data.mode.toUpperCase() as OperationMode;
+      }
+    }
+    const wgRes = await fetch(`${API_BASE}/v1/wallet-groups`, { headers: getAuthHeaders() });
+    if (wgRes.ok) {
+      const list = await wgRes.json();
+      if (Array.isArray(list) && list.length > 0 && list[0].mode) {
+        return list[0].mode.toUpperCase() as OperationMode;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch mode from API, fallback to SIMULATION:', err);
+  }
+  return 'SIMULATION';
+}
+
+export const getMode = fetchCurrentMode;
+
+/**
+ * Reads aggregated shadow mode metrics and would_have counters from S04.
+ */
+export async function fetchShadowMetrics(walletGroup = 'default'): Promise<ShadowMetrics> {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      mode: 'SIMULATION',
+      wallet_group: walletGroup,
+      would_have_allowed_count: 0,
+      would_have_allowed_value: 0,
+      would_have_blocked_count: 0,
+      would_have_blocked_value: 0,
+    };
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/metrics/shadow?wallet_group=${encodeURIComponent(walletGroup)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch shadow metrics from API:', err);
+  }
+
+  return {
+    mode: 'SIMULATION',
+    wallet_group: walletGroup,
+    would_have_allowed_count: 0,
+    would_have_allowed_value: 0,
+    would_have_blocked_count: 0,
+    would_have_blocked_value: 0,
+  };
+}
+
 export interface SigningRequest {
   id: string;
   ts: number;
@@ -165,6 +252,7 @@ export interface StepEvent {
   protected_decision: Decision;
   cumulative_unprotected_loss_usd: number;
   cumulative_protected_loss_usd: number;
+  data_label?: 'REAL' | 'SYNTHETIC' | 'REPORTED';
 }
 
 export interface ReplayMetrics {

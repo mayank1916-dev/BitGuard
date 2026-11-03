@@ -10,8 +10,8 @@ import {
   X,
   Send,
 } from 'lucide-react';
-import { StepEvent, ReplayMetrics, evaluateSigningRequest, Decision } from '../api';
-import { formatCurrency, formatFullCurrency, getChainBadgeStyle, truncateAddress, cn } from '../utils';
+import { StepEvent, ReplayMetrics, evaluateSigningRequest, Decision, DATA_SOURCE, fetchShadowMetrics, ShadowMetrics } from '../api';
+import { formatCurrency, formatFullCurrency, getChainBadgeStyle, getDataLabelBadgeStyle, truncateAddress, cn } from '../utils';
 
 interface ReplayViewProps {
   steps: StepEvent[];
@@ -20,12 +20,14 @@ interface ReplayViewProps {
   isLoading?: boolean;
   onStepChange?: (step: number) => void;
   onPlayStateChange?: (playing: boolean) => void;
+  mode?: string;
 }
 
 export const ReplayView: React.FC<ReplayViewProps> = ({
   steps,
   onStepChange,
   onPlayStateChange,
+  mode,
 }) => {
   const [injectedEvents, setInjectedEvents] = useState<StepEvent[]>([]);
   const events = [...steps, ...injectedEvents];
@@ -140,6 +142,41 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
   const currentLossPrevented = Math.max(0, currentUnprotectedLoss - currentProtectedLoss);
   const currentPreventedPct =
     currentUnprotectedLoss > 0 ? (currentLossPrevented / currentUnprotectedLoss) * 100 : 100;
+
+  // Operational Mode & Shadow Mode Counters (Milestones S04 / U2)
+  const isShadowMode = (mode || '').toUpperCase() === 'SHADOW';
+  const [shadowMetrics, setShadowMetrics] = useState<ShadowMetrics | null>(null);
+
+  useEffect(() => {
+    if (isShadowMode && DATA_SOURCE === 'api') {
+      fetchShadowMetrics('default').then(setShadowMetrics).catch(() => {});
+    }
+  }, [isShadowMode]);
+
+  const shadowBlockedSteps = visibleSteps.filter(
+    (s) =>
+      (s.protected_decision as any).would_have_verdict === 'HOLD' ||
+      (s.protected_decision as any).would_have_verdict === 'DENY' ||
+      s.protected_decision.action === 'hold' ||
+      s.protected_decision.action === 'deny'
+  );
+  const shadowBlockedCount = shadowMetrics?.would_have_blocked_count || shadowBlockedSteps.length;
+  const shadowBlockedSum = shadowBlockedSteps.reduce((acc, s) => acc + (s.amount_usd || 0), 0);
+  const finalBlockedValue = isResetState ? 0 : (shadowMetrics?.would_have_blocked_value || shadowBlockedSum);
+
+  const shadowAllowedSteps = visibleSteps.filter(
+    (s) =>
+      s.protected_decision.action === 'allow' &&
+      (s.protected_decision as any).would_have_verdict !== 'HOLD' &&
+      (s.protected_decision as any).would_have_verdict !== 'DENY'
+  );
+  const shadowAllowedSum = shadowAllowedSteps.reduce((acc, s) => acc + (s.amount_usd || 0), 0);
+  const finalWouldHaveAllowedValue = isResetState
+    ? 0
+    : (shadowMetrics?.would_have_allowed_value || shadowAllowedSum);
+
+  const counterDataLabel = DATA_SOURCE === 'api' ? 'REAL' : 'REPORTED';
+  const counterLabelStyle = getDataLabelBadgeStyle(counterDataLabel);
 
   // Identify tripwire event if one has fired by this step
   const tripwireStep = isResetState
@@ -412,19 +449,31 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
             {/* Ticking Loss Counter */}
             <div className="mt-4 p-3 rounded-lg bg-black/50 border border-rose-900/50 flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-mono text-slate-400 tracking-wider uppercase block">
-                  CUMULATIVE EXPLOIT LOSS
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono text-slate-400 tracking-wider uppercase block">
+                    {isShadowMode ? 'WOULD HAVE BEEN ALLOWED' : 'CUMULATIVE EXPLOIT LOSS'}
+                  </span>
+                  <span
+                    className={cn(
+                      'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border uppercase',
+                      counterLabelStyle.bg,
+                      counterLabelStyle.text,
+                      counterLabelStyle.border
+                    )}
+                  >
+                    {counterDataLabel}
+                  </span>
+                </div>
                 <span className="text-2xl sm:text-3xl font-mono font-black text-rose-400 tracking-tight">
-                  {formatFullCurrency(currentUnprotectedLoss)}
+                  {formatFullCurrency(isShadowMode ? finalWouldHaveAllowedValue : currentUnprotectedLoss)}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-mono text-slate-400 uppercase block">
-                  DRAINED ASSETS
+                  {isShadowMode ? 'ALLOWED VALUE' : 'DRAINED ASSETS'}
                 </span>
                 <span className="text-sm font-mono font-bold text-rose-300">
-                  {formatCurrency(currentUnprotectedLoss)}
+                  {formatCurrency(isShadowMode ? finalWouldHaveAllowedValue : currentUnprotectedLoss)}
                 </span>
               </div>
             </div>
@@ -444,6 +493,8 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
               visibleSteps.map((step) => {
                 const chainStyle = getChainBadgeStyle(step.chain);
                 const isAttack = step.scenario === 'attack';
+                const leftLabel = step.data_label || (step.scenario === 'attack' ? 'REPORTED' : 'SYNTHETIC');
+                const leftLabelStyle = getDataLabelBadgeStyle(leftLabel);
 
                 return (
                   <div
@@ -455,7 +506,7 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
                         : 'bg-slate-950/40 border-slate-800 hover:bg-slate-900/50'
                     )}
                   >
-                    <div className="flex items-center space-x-2.5">
+                    <div className="flex items-center space-x-2">
                       <span
                         className={cn(
                           'px-2 py-0.5 rounded text-[10px] font-bold border',
@@ -465,6 +516,16 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
                         )}
                       >
                         {step.chain.toUpperCase()}
+                      </span>
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border uppercase',
+                          leftLabelStyle.bg,
+                          leftLabelStyle.text,
+                          leftLabelStyle.border
+                        )}
+                      >
+                        {leftLabel}
                       </span>
                       <span className="text-slate-400 text-[11px]">{truncateAddress(step.wallet)}</span>
                       <span className="text-slate-600">→</span>
@@ -520,27 +581,50 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
             {/* Frozen Loss Counter & Loss Prevented Hero */}
             <div className="mt-4 p-3 rounded-lg bg-black/50 border border-emerald-900/50 flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-mono text-slate-400 tracking-wider uppercase block">
-                  HOT WALLET LOSS
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono text-slate-400 tracking-wider uppercase block">
+                    {isShadowMode ? 'BLOCKED VALUE' : 'HOT WALLET LOSS'}
+                  </span>
+                  <span
+                    className={cn(
+                      'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border uppercase',
+                      counterLabelStyle.bg,
+                      counterLabelStyle.text,
+                      counterLabelStyle.border
+                    )}
+                  >
+                    {counterDataLabel}
+                  </span>
+                </div>
                 <span
                   className={cn(
                     'text-2xl sm:text-3xl font-mono font-black tracking-tight',
-                    currentProtectedLoss === 0 ? 'text-emerald-400' : 'text-amber-400'
+                    (isShadowMode ? finalBlockedValue : currentProtectedLoss) === 0 ? 'text-emerald-400' : 'text-amber-400'
                   )}
                 >
-                  {formatFullCurrency(currentProtectedLoss)}
+                  {formatFullCurrency(isShadowMode ? finalBlockedValue : currentProtectedLoss)}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold block">
-                  ASSETS SAVED
+                  {isShadowMode ? 'CONTAINED BLOCKS' : 'ASSETS SAVED'}
                 </span>
                 <span className="text-base sm:text-lg font-mono font-black text-emerald-300">
-                  {formatCurrency(currentLossPrevented)}{' '}
-                  <span className="text-xs text-emerald-400 font-normal">
-                    ({currentPreventedPct.toFixed(1)}%)
-                  </span>
+                  {isShadowMode ? (
+                    <>
+                      {formatCurrency(finalBlockedValue)}{' '}
+                      <span className="text-xs text-emerald-400 font-normal">
+                        ({shadowBlockedCount} txs)
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {formatCurrency(currentLossPrevented)}{' '}
+                      <span className="text-xs text-emerald-400 font-normal">
+                        ({currentPreventedPct.toFixed(1)}%)
+                      </span>
+                    </>
+                  )}
                 </span>
               </div>
             </div>
@@ -588,6 +672,8 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
                 const isAllowed = decision.action === 'allow';
                 const isHeld = decision.action === 'hold';
                 const isDenied = decision.action === 'deny';
+                const rightLabel = decision.data_label || step.data_label || (DATA_SOURCE === 'api' ? 'REAL' : (step.scenario === 'attack' ? 'REPORTED' : 'SYNTHETIC'));
+                const rightLabelStyle = getDataLabelBadgeStyle(rightLabel);
 
                 return (
                   <div
@@ -599,7 +685,7 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
                       isDenied && 'bg-rose-950/30 border-rose-900/60 hover:bg-rose-950/40'
                     )}
                   >
-                    <div className="flex items-center space-x-2.5">
+                    <div className="flex items-center space-x-2">
                       <span
                         className={cn(
                           'px-2 py-0.5 rounded text-[10px] font-bold border',
@@ -609,6 +695,16 @@ export const ReplayView: React.FC<ReplayViewProps> = ({
                         )}
                       >
                         {step.chain.toUpperCase()}
+                      </span>
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border uppercase',
+                          rightLabelStyle.bg,
+                          rightLabelStyle.text,
+                          rightLabelStyle.border
+                        )}
+                      >
+                        {rightLabel}
                       </span>
                       <span className="text-slate-400 text-[11px]">{truncateAddress(step.wallet)}</span>
                       <span className="text-slate-600">→</span>

@@ -435,6 +435,85 @@ export function openStream(onEvent) {
   };
 }
 
+/**
+ * 9. getMode() / fetchCurrentMode()
+ * Reads the active operational mode (SIMULATION, SHADOW, ENFORCE).
+ */
+export async function fetchCurrentMode() {
+  if (DATA_SOURCE === 'demo') {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const m = params.get('mode');
+      if (m) {
+        const upper = m.toUpperCase();
+        if (upper === 'SHADOW' || upper === 'ENFORCE' || upper === 'SIMULATION') {
+          return upper;
+        }
+      }
+    }
+    return 'SIMULATION';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/mode`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.mode) {
+        return data.mode.toUpperCase();
+      }
+    }
+    const wgRes = await fetch(`${API_BASE}/v1/wallet-groups`, { headers: getAuthHeaders() });
+    if (wgRes.ok) {
+      const list = await wgRes.json();
+      if (Array.isArray(list) && list.length > 0 && list[0].mode) {
+        return list[0].mode.toUpperCase();
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch mode from API, fallback to SIMULATION:', err);
+  }
+  return 'SIMULATION';
+}
+
+export const getMode = fetchCurrentMode;
+
+/**
+ * 10. fetchShadowMetrics(walletGroup)
+ * Reads aggregated shadow mode metrics and would_have counters from S04.
+ */
+export async function fetchShadowMetrics(walletGroup = 'default') {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      mode: 'SIMULATION',
+      wallet_group: walletGroup,
+      would_have_allowed_count: 0,
+      would_have_allowed_value: 0,
+      would_have_blocked_count: 0,
+      would_have_blocked_value: 0,
+    };
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/metrics/shadow?wallet_group=${encodeURIComponent(walletGroup)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch shadow metrics from API:', err);
+  }
+
+  return {
+    mode: 'SIMULATION',
+    wallet_group: walletGroup,
+    would_have_allowed_count: 0,
+    would_have_allowed_value: 0,
+    would_have_blocked_count: 0,
+    would_have_blocked_value: 0,
+  };
+}
+
 export default {
   DATA_SOURCE,
   getDataSource,
@@ -449,4 +528,7 @@ export default {
   getHolds,
   approve,
   openStream,
+  getMode,
+  fetchCurrentMode,
+  fetchShadowMetrics,
 };

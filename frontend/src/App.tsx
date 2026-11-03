@@ -7,7 +7,7 @@ import { PolicyLabView } from './pages/PolicyLabView';
 import { ReportsView } from './pages/ReportsView';
 import { ApprovalView } from './pages/ApprovalView';
 import { PolicySliders } from './components/PolicySliders';
-import { runReplay, resetSystem, ReplayResponse, PolicyOverrides, StepEvent, ReplayMetrics } from './api';
+import { runReplay, resetSystem, ReplayResponse, PolicyOverrides, StepEvent, ReplayMetrics, fetchCurrentMode } from './api';
 import { Shield, AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -21,6 +21,7 @@ export const App: React.FC = () => {
     spray_threshold: 50,
   });
   const [breakerState, setBreakerState] = useState<string>('Normal');
+  const [currentMode, setCurrentMode] = useState<string>('SIMULATION');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [replayStep, setReplayStep] = useState<number>(0);
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     loadSimulation();
+    fetchCurrentMode().then(setCurrentMode).catch(() => {});
   }, []);
 
   const handleReset = async () => {
@@ -74,6 +76,7 @@ export const App: React.FC = () => {
         breakerState={breakerState}
         onReset={handleReset}
         isResetting={isLoading}
+        mode={currentMode}
       />
 
       {/* Main Content Area */}
@@ -103,6 +106,7 @@ export const App: React.FC = () => {
               isLoading={isLoading}
               onStepChange={setReplayStep}
               onPlayStateChange={setIsReplayPlaying}
+              mode={currentMode}
             />
             {/* Embedded Policy Tuning section at the bottom for quick access */}
             <div className="pt-4">

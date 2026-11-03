@@ -1,21 +1,26 @@
-# BitGuard UI Visual Stability Checklist (Milestone U1)
+# BitGuard UI Visual Stability Checklist (Milestone U1 & U2)
 
 ## Purpose & Strict Invariants
 
 Under **AGENTS.md Invariant #10 (Visual Stability)**:
 > *"The existing UI look stays unchanged: do not edit existing CSS tokens, colours, fonts or layout. New UI elements must reuse existing classes."*
 
-When adding or updating the API client layer (`web/api.js` / `frontend/src/api.ts` / `DATA_SOURCE`):
+Under **AGENTS.md Invariant #8 (Explicit Data Provenance)**:
+> *"Every number shown in the UI is labelled REAL, SYNTHETIC or REPORTED."*
+
+When adding or updating the API client layer (`web/api.js` / `frontend/src/api.ts` / `DATA_SOURCE`), mode indicator, and data provenance chips:
 - When `DATA_SOURCE='demo'`, existing demo simulation behavior must remain **100% identical**.
 - Zero visual drift across layout, typography, palette, borders, shadows, or existing class names.
+- New provenance tags and state badges must strictly reuse existing classes (`bg-emerald-500/20`, `bg-purple-500/20`, `bg-cyan-500/20`, etc.).
 
 ---
 
-## Data Source Toggle
+## Data Source & Mode Toggle
 
 The client layer selects between demo simulation and live API via:
 - **Demo Mode (default):** `http://localhost:3000/?datasource=demo` (or default without query param)
 - **Live API Mode:** `http://localhost:3000/?datasource=api`
+- **Mode Selector:** `http://localhost:3000/?datasource=api&mode=SHADOW` or `?mode=ENFORCE`
 - **Config Storage:** `localStorage.setItem('DATA_SOURCE', 'demo' | 'api')`
 
 ---
@@ -24,13 +29,14 @@ The client layer selects between demo simulation and live API via:
 
 | View / Component | Key Visual Elements | Expected Classes & Styling | Pass / Fail |
 | :--- | :--- | :--- | :--- |
-| **Top Navigation Bar** | BitGuard Shield Logo (`text-cyan-400`), title `BitGuard \| Hot Wallet Signing Firewall`, badge `DEFENSIVE SIMULATION`, Breaker Pill (`NORMAL OPERATION` emerald-500/10), Reset Button (`Reset System`) | `border-slate-800 bg-slate-950/80 backdrop-blur`, `font-sans`, exact padding | [ ] |
-| **Tab 1: Incident Replay** (`replay`) | Split-screen loss cards: Unprotected loss ($30.4M) in red/rose, BitGuard protected loss in emerald/cyan; interactive step slider; playback controls (`Run Simulation`, `Next Step`); Policy Sliders at footer | `bg-slate-900/60 border-slate-800`, monospace numbers `font-mono`, unchanged colors | [ ] |
-| **Tab 2: Live Decision Stream** (`feed`) | Real-time verdict cards (`ALLOW`, `HOLD`, `DENY`), risk percentage meters, transaction detail rows, per-chain outflow velocity bars | Dark slate card background, colored verdict badges (`bg-emerald-500/20`, `bg-rose-500/20`) | [ ] |
-| **Tab 3: 7702 Radar** (`radar`) | Block scanner controls, scan depth buttons (`5 blocks`, `10 blocks`), delegation findings cards, suspicious pattern tags (`UNAPPROVED_BYTECODE`) | Emerald/cyan borders on clean delegates; amber tags on suspicious contracts | [ ] |
-| **Tab 4: Policy Sensitivity Lab** (`lab`) | Multiplier sliders, 2D sensitivity table, loss mitigated percentage curves, false positives count | Recharts SVG graphs without layout shift, slate table borders | [ ] |
-| **Tab 5: Cryptographic Audit** (`reports`) | Chain integrity badge (`INTEGRITY VERIFIED`), root hash box, simulate tamper buttons, audit entry timeline, export buttons | Monospace hash text, green/red verified badges, download action links | [ ] |
-| **Tab 6: Quorum Approvals** (`approvals`) | Quarantined tickets list, ticket inspector, raw tx decoding breakdown, dual-approver role selector, WebAuthn approve button | Amber quarantine badges, 2-approver progress step dots, monospace hex bytes | [ ] |
+| **Top Navigation Bar** | BitGuard Shield Logo (`text-cyan-400`), title `BitGuard \| Hot Wallet Signing Firewall`, badge `DEFENSIVE SIMULATION` (demo) or `SIMULATION` / `SHADOW` / `ENFORCE` (api), Breaker Pill (`NORMAL OPERATION` emerald-500/10), Reset Button (`Reset System`) | `border-slate-800 bg-slate-950/80 backdrop-blur`, `font-sans`, exact padding, blue badge `bg-blue-950/60` | [x] Pass |
+| **Tab 1: Incident Replay** (`replay`) | Split-screen loss cards: Unprotected loss / allowed value, BitGuard protected loss / blocked value; provenance tag (`REAL`, `SYNTHETIC`, `REPORTED`) on counter headers and every event card; interactive step slider; playback controls (`Run Simulation`, `Next Step`); Policy Sliders at footer | `bg-slate-900/60 border-slate-800`, monospace numbers `font-mono`, unchanged colors | [x] Pass |
+| **Shadow Mode Counters** (`replay` in SHADOW) | Left counter reads `WOULD HAVE BEEN ALLOWED` (allowed value), right counter reads `BLOCKED VALUE` (blocked value) using S04 `would_have_*` counters | `bg-black/50 border-rose-900/50` / `border-emerald-900/50`, exact font and padding tokens | [x] Pass |
+| **Tab 2: Live Decision Stream** (`feed`) | Real-time verdict cards (`ALLOW`, `HOLD`, `DENY`), risk percentage meters, transaction detail rows with `REAL` / `SYNTHETIC` / `REPORTED` provenance tags, per-chain outflow velocity bars | Dark slate card background, colored verdict badges (`bg-emerald-500/20`, `bg-rose-500/20`), provenance chips | [x] Pass |
+| **Tab 3: 7702 Radar** (`radar`) | Block scanner controls, scan depth buttons (`5 blocks`, `10 blocks`), delegation findings cards, suspicious pattern tags (`UNAPPROVED_BYTECODE`) | Emerald/cyan borders on clean delegates; amber tags on suspicious contracts | [x] Pass |
+| **Tab 4: Policy Sensitivity Lab** (`lab`) | Multiplier sliders, 2D sensitivity table, loss mitigated percentage curves, false positives count | Recharts SVG graphs without layout shift, slate table borders | [x] Pass |
+| **Tab 5: Cryptographic Audit** (`reports`) | Chain integrity badge (`INTEGRITY VERIFIED`), root hash box, simulate tamper buttons, audit entry timeline, export buttons | Monospace hash text, green/red verified badges, download action links | [x] Pass |
+| **Tab 6: Quorum Approvals** (`approvals`) | Quarantined tickets list, ticket inspector, raw tx decoding breakdown, dual-approver role selector, WebAuthn approve button | Amber quarantine badges, 2-approver progress step dots, monospace hex bytes | [x] Pass |
 
 ---
 

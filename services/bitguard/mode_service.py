@@ -1,6 +1,7 @@
 """Mode resolution, wallet group configuration, and promotion checklist service (Milestone S04 / F7)."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from services.bitguard.audit_service import audit_service
 from services.bitguard.config import settings
@@ -96,10 +97,28 @@ class ModeService:
             rec.would_have_blocked_value += value_usd
         if is_allowed:
             rec.allowed_count += 1
+            rec.would_have_allowed_value += value_usd
 
     def get_metrics_for_group(self, wallet_group: str) -> list[DailyGroupMetrics]:
         """Returns all recorded daily metric records for a wallet group."""
         return [m for m in self._metrics.values() if m.wallet_group == wallet_group]
+
+    def get_shadow_counters(self, wallet_group: str = "default") -> dict[str, Any]:
+        """Aggregates would_have_* counters from S04 for shadow mode reporting."""
+        group = self.get_wallet_group(wallet_group)
+        metrics = self.get_metrics_for_group(group.id)
+        blocked_count = sum(m.would_have_blocked_count for m in metrics)
+        blocked_val = sum(m.would_have_blocked_value for m in metrics)
+        allowed_count = sum(m.allowed_count for m in metrics)
+        allowed_val = sum(m.would_have_allowed_value for m in metrics)
+        return {
+            "mode": group.mode.value,
+            "wallet_group": group.id,
+            "would_have_allowed_count": allowed_count,
+            "would_have_allowed_value": allowed_val,
+            "would_have_blocked_count": blocked_count,
+            "would_have_blocked_value": blocked_val,
+        }
 
     def record_decode_failure(self, wallet_group: str) -> None:
         """Increments unexplained decode failures for a wallet group."""

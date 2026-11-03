@@ -59,3 +59,18 @@ export function truncateAddress(addr?: string | null): string {
   if (addr.length <= 14) return addr;
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
+
+export type DataLabel = 'REAL' | 'SYNTHETIC' | 'REPORTED';
+
+export function getDataLabelBadgeStyle(label?: string | null): { bg: string; text: string; border: string } {
+  const normalized = (label || 'REPORTED').toUpperCase();
+  switch (normalized) {
+    case 'REAL':
+      return { bg: 'bg-emerald-500/20', text: 'text-emerald-300', border: 'border-emerald-500/40' };
+    case 'SYNTHETIC':
+      return { bg: 'bg-purple-500/20', text: 'text-purple-300', border: 'border-purple-500/40' };
+    case 'REPORTED':
+    default:
+      return { bg: 'bg-cyan-500/20', text: 'text-cyan-300', border: 'border-cyan-500/40' };
+  }
+}
