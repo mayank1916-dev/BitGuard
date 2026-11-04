@@ -16,16 +16,18 @@ Modeled on modern hot wallet compromise vectors (including the late-October 2026
 
 > **Defensive Scope & Target:** Production-ready architecture tested on local forks (Foundry Anvil) and testnets using disposable keys. Reduces and contains exploit blast radius; never holds or uses long-term private signing keys.
 
----
-
 ## 🏛️ Core Architecture: Separation of Policy & Signing
 
 The core security principle of BitGuard is strict separation of concerns: **BitGuard is the Decision Point; a separate Signer Shim is the Enforcement Point.**
+
+---
+
+```text
 ┌──────────────────────────────────────┐
 │  Untrusted Custody / Withdrawal App  │
 └──────────────────┬───────────────────┘
-│ 1. mTLS Client Cert + JSON-RPC (raw_tx, intent_id)
-▼
+                   │ 1. mTLS Client Cert + JSON-RPC (raw_tx, intent_id)
+                   ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        BITGUARD FIREWALL GATEWAY                       │
 │                                                                        │
@@ -39,8 +41,8 @@ The core security principle of BitGuard is strict separation of concerns: **BitG
 │            HOLD  ──────► Durable Quarantine (WebAuthn Quorum)          │
 │            DENY  ──────► Revert & Fail-Closed                          │
 └──────────────────┬─────────────────────────────────────────────────────┘
-│ 2. Isolated Network Call: POST /sign (raw_tx, token)
-▼
+                   │ 2. Isolated Network Call: POST /sign (raw_tx, token)
+                   ▼
 ┌──────────────────────────────────────┐
 │       SIGNER SHIM (Enforcement)      │
 │  - Verifies Ed25519 Token            │
@@ -48,17 +50,19 @@ The core security principle of BitGuard is strict separation of concerns: **BitG
 │  - Atomically Consumes Single Nonce  │
 │  - Signs via Disposable Testnet Key  │
 └──────────────────┬───────────────────┘
-│ 3. Signed Transaction Broadcast
-▼
+                   │ 3. Signed Transaction Broadcast
+                   ▼
 ┌──────────────────────────────────────┐
 │       BLOCKCHAIN (Anvil / EVM)       │
 └──────────────────────────────────────┘
-▲
-│ On-Chain Block Scanner (Every Block)
+                   ▲
+                   │ On-Chain Block Scanner (Every Block)
 ┌──────────────────┴───────────────────────────────────────────────────┐
 │              EIP-7702 DELEGATION & CODE WATCHER (F6)                 │
 │  Monitors owned addresses; trips Breaker on unapproved delegations   │
 └──────────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 🛡️ Implemented Milestone Features
@@ -105,7 +109,7 @@ The core security principle of BitGuard is strict separation of concerns: **BitG
 ---
 
 ## 📂 Repository Directory Layout
-
+```text
 BitGuard/
 ├── backend/
 │   ├── app/
@@ -160,6 +164,7 @@ BitGuard/
 │   └── package.json
 ├── docker-compose.yml            # Multi-network lab setup (Postgres, Redis, Anvil, BitGuard, Shim)
 └── Makefile                      # Build, test, and container orchestration
+```
 ---
 
 ## ⚡ Quickstart & Local Installation
@@ -180,8 +185,11 @@ cd BitGuard
 
 # Launch Postgres, Redis, Anvil EVM, BitGuard Gateway, and Signer Shim
 docker compose up -d
+```
+---
 2. Run the Full Test Suite
 The repository includes comprehensive unit tests and automated integration lab scenarios:
+```bash
 # Set up Python virtual environment
 python -m venv venv
 # Windows (PowerShell):
@@ -197,8 +205,11 @@ pytest backend/tests/ -v
 
 # Run the S23 integration lab scenarios
 python lab/runner.py
+```
+---
 3. Launch the Frontend SOC Console
 In a separate terminal:
+```bash
   cd frontend
 
 # Install UI dependencies
@@ -206,7 +217,12 @@ npm install
 
 # Start Vite development server
 npm run dev
+```
+
 Navigate to http://localhost:3000.
+
+---
+
 ## 🔬 Interactive Feature Verification Guide
 
 | Tab / Capability | Procedure | Expected Forensic Outcome |
@@ -216,7 +232,10 @@ Navigate to http://localhost:3000.
 | **EIP-7702 Detection** | In **7702 Radar**, observe the **"My Addresses"** panel while a test script executes an unapproved delegation on Anvil. | Watcher detects the delegation designator (`0xef0100`) within 1 block, raises `CRITICAL`, and transitions Breaker to `HOLD`. |
 | **Circuit Breaker** | Click **BREAKER LOCKDOWN** in the navigation bar. | Prompts for confirmation. Entering Lockdown stops token issuance and invalidates all active token epochs across the shim. |
 | **Tamper Detection** | Open **Reports & Audit** $\rightarrow$ Click **"Simulate DB Tampering"**. | The cryptographic seal flips to red: `CHAIN COMPROMISED AT RECORD #X - SHA-256 MISMATCH`. Clicking **Restore** rebuilds verified state. |
-📊 Honest Scope & Limitations
+---
+
+## 📊 Honest Scope & Limitations
+---
 To maintain institutional security rigor, BitGuard operates under explicitly stated boundaries:
 
 Signing Boundary: BitGuard protects the automated signing path against pipeline compromise, replay, and unauthorized delegation. It does not replace internal HSM key ceremonies or protect against compromised developer endpoints directly.
@@ -225,5 +244,6 @@ Velocity Evasion: An attacker who stays strictly below configured thresholds can
 
 Fail-Closed Stance: If the atomic limit store (Redis) or ledger database becomes unreachable, the firewall defaults to DENY to prevent race-condition drains.
 
-📜 License
+## 📜 License
+---
 This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
