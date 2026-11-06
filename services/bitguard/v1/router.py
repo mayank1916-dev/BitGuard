@@ -23,6 +23,7 @@ from services.bitguard.auth.step_up import log_admin_action_audit
 from services.bitguard.backtest import backtest_router
 from services.bitguard.breaker import breaker_router
 from services.bitguard.decision_store import decision_store
+from services.bitguard.incidents import incidents_router
 from services.bitguard.ledger.metrics import IntentMetricsResponse, intent_metrics
 from services.bitguard.mode_service import mode_service
 from services.bitguard.models import (
@@ -55,6 +56,7 @@ router.include_router(breaker_router)
 router.include_router(audit_router)
 router.include_router(backtest_router)
 router.include_router(auth_router)
+router.include_router(incidents_router)
 
 
 # --- Core Policy Evaluation & Signing Endpoints ---

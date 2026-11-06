@@ -1,0 +1,74 @@
+id: velocity_spike
+name: High-Velocity Outflow Containment Runbook
+description: >-
+  Automated containment runbook executed when outbound volume or transaction
+  velocity exceeds sliding-window thresholds or triggers spike baselines.
+trigger: VELOCITY_SPIKE
+severity: HIGH
+target_time_to_contain_ms: 100.0
+
+steps:
+  - id: step_01_open_incident
+    name: Open High Velocity Incident
+    type: automatic
+    action: open_incident
+    timeout: 5
+    on_fail: continue
+    params:
+      severity: HIGH
+      description: Outbound velocity surge or aggregate limit breach detected
+
+  - id: step_02_contain_breaker
+    name: Escalate Circuit Breaker to HOLD
+    type: automatic
+    action: set_breaker_state
+    timeout: 5
+    on_fail: abort
+    params:
+      target_state: HOLD
+      reason: "Automated Runbook [velocity_spike]: Holding transactions pending velocity reconciliation"
+
+  - id: step_03_freeze_withdrawals
+    name: Set Hot Wallet Withdrawal Freeze Flag
+    type: automatic
+    action: freeze_withdrawals_flag
+    timeout: 5
+    on_fail: continue
+
+  - id: step_04_page_oncall
+    name: Page Primary On-Call Engineer
+    type: automatic
+    action: notify_oncall
+    timeout: 10
+    on_fail: escalate
+    params:
+      level: 1
+      channel: oncall
+
+  - id: step_05_contact_issuers
+    name: Contact Issuers
+    type: manual
+    action: contact_issuers
+    timeout: 1800
+    on_fail: continue
+    params:
+      description: Contact stablecoin/asset issuers and liquidity partners to cross-check counterparty activity
+
+  - id: step_06_publish_status
+    name: Publish Status
+    type: manual
+    action: publish_status
+    timeout: 1800
+    on_fail: continue
+    params:
+      description: Publish internal operational notification and status advisory
+
+  - id: step_07_approval_unlock
+    name: Approve Velocity Gate De-escalation
+    type: approval
+    action: approve_containment_release
+    timeout: 7200
+    on_fail: abort
+    required_role: SecOps
+    params:
+      description: WebAuthn authorization to de-escalate circuit breaker after volume confirmation

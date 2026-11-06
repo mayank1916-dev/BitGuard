@@ -1,4 +1,4 @@
-"""Delegation and bytecode watcher worker subscribing to blocks and evaluating addresses (Milestone S17 / F6).
+"""Delegation and bytecode watcher worker subscribing to blocks and evaluating addresses (Milestone S17 / F6, S19 / F14).
 
 Invariants:
 - Invariant #3: Fail-Closed Default. Unapproved delegation or provider disagreement trips breaker to HOLD.
@@ -38,8 +38,8 @@ class DelegationWatcher:
         3. Bytecode code hash verification against expected hashes.
         4. Block transactions inspection for type-4 authorizations naming watched addresses.
         5. Nonce velocity jump inspection.
-        6. On CRITICAL: trips circuit breaker to HOLD, emits stream event, appends audit entry,
-           and measures detection latency.
+        6. On CRITICAL: trips circuit breaker to HOLD, executes containment runbook, emits stream event,
+           appends audit entry, and measures detection latency.
         """
         primary_rpc = provider_pool.primary_rpc
         target_block = block_number if block_number is not None else primary_rpc.get_block_number()
@@ -132,6 +132,29 @@ class DelegationWatcher:
             )
 
             if alert.severity == "CRITICAL":
+                # Milestone S19 / F14: Trigger automated incident containment runbook
+                try:
+                    from services.bitguard.incidents.executor import runbook_executor
+
+                    trigger_name = (
+                        "DELEGATION_DETECTED"
+                        if "DELEGATION" in alert.alert_code or "UNAPPROVED" in alert.alert_code
+                        else alert.alert_code
+                    )
+                    runbook_executor.trigger_runbook(
+                        trigger=trigger_name,
+                        context={
+                            "alert_id": alert.id,
+                            "alert_code": alert.alert_code,
+                            "address": alert.address,
+                            "chain": alert.chain,
+                            "block_number": alert.block_number,
+                            "details": alert.details,
+                        },
+                    )
+                except Exception as exc:
+                    logger.error("Failed executing runbook on CRITICAL alert: %s", exc)
+
                 # Invariant #6: Asymmetric tightening - trip circuit breaker to HOLD immediately
                 breaker_store.set_state(
                     BreakerStateEnum.HOLD,

@@ -1,0 +1,81 @@
+id: manual_lockdown
+name: Emergency Manual Platform Lockdown Runbook
+description: >-
+  Immediate defensive response runbook initiated by SecOps or Admin to halt
+  all hot wallet transaction signing across the infrastructure.
+trigger: MANUAL_LOCKDOWN
+severity: CRITICAL
+target_time_to_contain_ms: 100.0
+
+steps:
+  - id: step_01_open_incident
+    name: Open Lockdown Incident
+    type: automatic
+    action: open_incident
+    timeout: 5
+    on_fail: continue
+    params:
+      severity: CRITICAL
+      description: Manual emergency lockdown initiated by operator
+
+  - id: step_02_contain_lockdown
+    name: Escalate Circuit Breaker to LOCKDOWN
+    type: automatic
+    action: set_breaker_state
+    timeout: 5
+    on_fail: abort
+    params:
+      target_state: LOCKDOWN
+      reason: "Automated Runbook [manual_lockdown]: Immediate operator emergency lockdown"
+
+  - id: step_03_revoke_tokens
+    name: Invalidate All Issued Tokens
+    type: automatic
+    action: revoke_tokens
+    timeout: 5
+    on_fail: continue
+
+  - id: step_04_freeze_withdrawals
+    name: Set Global Withdrawal Freeze Flag
+    type: automatic
+    action: freeze_withdrawals_flag
+    timeout: 5
+    on_fail: continue
+
+  - id: step_05_page_oncall
+    name: Page Escalation On-Call Tier
+    type: automatic
+    action: notify_oncall
+    timeout: 10
+    on_fail: escalate
+    params:
+      level: 1
+      channel: oncall
+
+  - id: step_06_sweep_to_cold
+    name: Sweep to Cold
+    type: manual
+    action: sweep_to_cold
+    timeout: 3600
+    on_fail: continue
+    params:
+      description: Evacuate all active hot wallet balances to offline cold storage reserves
+
+  - id: step_07_publish_status
+    name: Publish Status
+    type: manual
+    action: publish_status
+    timeout: 1800
+    on_fail: continue
+    params:
+      description: Post emergency platform maintenance advisory to status dashboard
+
+  - id: step_08_approval_quorum_unlock
+    name: Quorum Dual-Control WebAuthn Unlock
+    type: approval
+    action: approve_lockdown_release
+    timeout: 14400
+    on_fail: abort
+    required_role: Admin
+    params:
+      description: Multi-party quorum WebAuthn authorization to de-escalate from LOCKDOWN

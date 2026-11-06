@@ -66,7 +66,7 @@ class ApproverKeyRegistry:
         """Initializes deterministic ECDSA keys for seeded test approvers."""
         # Generate persistent test keypairs for usr-approver-01 and usr-approver-02
         self.dev_private_keys: dict[str, ec.EllipticCurvePrivateKey] = {}
-        for approver_id in ["usr-approver-01", "usr-approver-02", "usr-admin-01"]:
+        for approver_id in ["usr-approver-01", "usr-approver-02", "usr-admin-01", "usr-secops-01"]:
             priv = ec.generate_private_key(ec.SECP256R1())
             self.dev_private_keys[approver_id] = priv
             self._keys[approver_id] = (priv.public_key(), 0)

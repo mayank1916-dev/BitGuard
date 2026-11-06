@@ -89,6 +89,13 @@ class BitGuardSettings(BaseSettings):
     breaker_unmatched_intents_threshold: int = 3
     breaker_velocity_spike_threshold_usd: float = 1_000_000.0
 
+    # Incident Runbook Automation and Escalation settings (Milestone S19 / F14)
+    runbooks_dir: str = "policy/runbooks"
+    oncall_slack_webhook: str = ""
+    oncall_pagerduty_routing_key: str = ""
+    oncall_ack_timeout_seconds: int = 300
+    incident_target_time_to_contain_ms: float = 100.0
+
     # Tamper-evident Audit Chain and Object-Lock Anchoring (Milestone S21 / F18)
     audit_anchor_enabled: bool = True
     audit_anchor_interval_seconds: int = 60

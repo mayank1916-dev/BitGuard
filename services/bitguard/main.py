@@ -55,6 +55,18 @@ from services.bitguard.gateway.models import (
     SignTransactionResult,
 )
 from services.bitguard.gateway.router import router as gateway_router
+from services.bitguard.incidents.models import (
+    AcknowledgeIncidentRequest,
+    ApproveIncidentStepRequest,
+    ChecklistItem,
+    Incident,
+    IncidentApproval,
+    Runbook,
+    RunbookStep,
+    TickChecklistRequest,
+    TimelineEvent,
+    TriggerRunbookRequest,
+)
 from services.bitguard.logging import setup_json_logging
 from services.bitguard.models import (
     Approval,
@@ -209,6 +221,16 @@ def create_app() -> FastAPI:
             WebAuthnRegisterOptionsResponse,
             WebAuthnRegisterVerifyRequest,
             WebAuthnRegisterVerifyResponse,
+            Incident,
+            Runbook,
+            RunbookStep,
+            TimelineEvent,
+            ChecklistItem,
+            IncidentApproval,
+            TickChecklistRequest,
+            AcknowledgeIncidentRequest,
+            TriggerRunbookRequest,
+            ApproveIncidentStepRequest,
         ]
         for model_cls in canonical_models:
             model_schema = model_cls.model_json_schema(ref_template="#/components/schemas/{model}")

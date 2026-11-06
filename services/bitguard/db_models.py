@@ -373,3 +373,41 @@ class WebAuthnCredentialRecord(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+
+class IncidentRecord(Base):
+    """Incident response records and automated runbook tracking (Milestone S19 / F14)."""
+
+    __tablename__ = "incidents"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    trigger: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="OPEN", index=True, nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), default="CRITICAL", nullable=False)
+    runbook_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    contained_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    time_to_contain_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    timeline: Mapped[list[dict[str, Any]]] = mapped_column(JsonType, nullable=False, default=list)
+    checklist: Mapped[list[dict[str, Any]]] = mapped_column(JsonType, nullable=False, default=list)
+    approvals: Mapped[list[dict[str, Any]]] = mapped_column(JsonType, nullable=False, default=list)
+    escalation_level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    acknowledged_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    data_label: Mapped[str] = mapped_column(String(16), default="REAL", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )

@@ -1,0 +1,90 @@
+id: delegation_detected
+name: Unauthorized EIP-7702 Delegation Response
+description: >-
+  Automated containment and remediation runbook executed when the delegation
+  watcher detects an unapproved delegate on an owned hot wallet.
+trigger: DELEGATION_DETECTED
+severity: CRITICAL
+target_time_to_contain_ms: 100.0
+
+steps:
+  - id: step_01_open_incident
+    name: Open Critical Security Incident
+    type: automatic
+    action: open_incident
+    timeout: 5
+    on_fail: continue
+    params:
+      severity: CRITICAL
+      description: Unauthorized EIP-7702 delegation detected on monitored address
+
+  - id: step_02_contain_breaker
+    name: Escalate Circuit Breaker to HOLD
+    type: automatic
+    action: set_breaker_state
+    timeout: 5
+    on_fail: abort
+    params:
+      target_state: HOLD
+      reason: "Automated Runbook [delegation_detected]: Containing unapproved delegation"
+
+  - id: step_03_revoke_tokens
+    name: Revoke Active Approval Tokens
+    type: automatic
+    action: revoke_tokens
+    timeout: 5
+    on_fail: continue
+
+  - id: step_04_freeze_withdrawals
+    name: Set Hot Wallet Withdrawal Freeze Flag
+    type: automatic
+    action: freeze_withdrawals_flag
+    timeout: 5
+    on_fail: continue
+
+  - id: step_05_page_oncall
+    name: Page Primary On-Call Engineer
+    type: automatic
+    action: notify_oncall
+    timeout: 10
+    on_fail: escalate
+    params:
+      level: 1
+      channel: oncall
+
+  - id: step_06_neutralise_delegation
+    name: Neutralise Delegation
+    type: manual
+    action: neutralise_delegation
+    timeout: 1800
+    on_fail: escalate
+    params:
+      description: Submit an authorized type-4 clearing transaction setting delegate to address(0)
+
+  - id: step_07_sweep_to_cold
+    name: Sweep to Cold
+    type: manual
+    action: sweep_to_cold
+    timeout: 3600
+    on_fail: continue
+    params:
+      description: Sweep remaining hot funds on the affected address to hardware cold storage
+
+  - id: step_08_rotate_deposit_addresses
+    name: Rotate Deposit Addresses
+    type: manual
+    action: rotate_deposit_addresses
+    timeout: 3600
+    on_fail: continue
+    params:
+      description: Update custody deposit router to decommission the affected hot address
+
+  - id: step_09_approval_unlock
+    name: Approve Breaker Containment De-escalation
+    type: approval
+    action: approve_containment_release
+    timeout: 7200
+    on_fail: abort
+    required_role: SecOps
+    params:
+      description: Dual-control WebAuthn authorization from SecOps to restore circuit breaker to NORMAL
