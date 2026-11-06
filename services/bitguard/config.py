@@ -60,6 +60,29 @@ class BitGuardSettings(BaseSettings):
     jwt_expiration_seconds: int = 3600
     dev_auth_bypass: bool = True
 
+    # OIDC Authentication settings (Milestone S15 / F9)
+    oidc_enabled: bool = True
+    oidc_issuer_url: str = "http://localhost:8080/realms/bitguard"
+    oidc_client_id: str = "bitguard-api"
+    oidc_client_secret: str = "bitguard-api-client-secret-2026"
+    oidc_jwks_url: str = "http://localhost:8080/realms/bitguard/protocol/openid-connect/certs"
+
+    # WebAuthn Hardware Authentication settings (Milestone S15 / F9)
+    webauthn_rp_id: str = "localhost"
+    webauthn_rp_name: str = "BitGuard Defensive Firewall"
+    webauthn_origin: str = "http://localhost:3000"
+    webauthn_allowed_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "https://console.bitguard.exchange",
+    ]
+    step_up_token_ttl_seconds: int = 900  # 15 minutes
+    enforce_step_up: bool = False
+
     # Circuit breaker trigger settings (Milestone S18 / F9, F14)
     breaker_auto_triggers_enabled: bool = False
     breaker_denials_threshold: int = 5

@@ -1970,6 +1970,62 @@
         "title": "ManualAnchorResponse",
         "type": "object"
       },
+      "OIDCLoginRequest": {
+        "description": "Payload to exchange OIDC identity tokens for BitGuard access tokens.",
+        "properties": {
+          "access_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional Keycloak access token JWT",
+            "title": "Access Token"
+          },
+          "id_token": {
+            "description": "OIDC OpenID Connect ID token JWT issued by Keycloak",
+            "title": "Id Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_token"
+        ],
+        "title": "OIDCLoginRequest",
+        "type": "object"
+      },
+      "OIDCLoginResponse": {
+        "description": "Authenticated session response from OIDC login.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "user"
+        ],
+        "title": "OIDCLoginResponse",
+        "type": "object"
+      },
       "OperationMode": {
         "description": "BitGuard operational mode.",
         "enum": [
@@ -2989,6 +3045,299 @@
         ],
         "title": "WebAuthnAssertion",
         "type": "object"
+      },
+      "WebAuthnAuthenticateOptionsRequest": {
+        "description": "Request options for WebAuthn authentication ceremony.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "User email (optional)",
+            "title": "Email"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "User ID to authenticate (optional if authenticated)",
+            "title": "User Id"
+          }
+        },
+        "title": "WebAuthnAuthenticateOptionsRequest",
+        "type": "object"
+      },
+      "WebAuthnAuthenticateOptionsResponse": {
+        "description": "Authentication challenge and options returned to client for navigator.credentials.get().",
+        "properties": {
+          "challenge_id": {
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "options",
+          "challenge_id"
+        ],
+        "title": "WebAuthnAuthenticateOptionsResponse",
+        "type": "object"
+      },
+      "WebAuthnAuthenticateVerifyRequest": {
+        "description": "Authentication assertion response from navigator.credentials.get().",
+        "properties": {
+          "challenge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional challenge correlation ID",
+            "title": "Challenge Id"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "description": "JSON-serialized PublicKeyCredential assertion from client",
+            "title": "Credential",
+            "type": "object"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "User ID asserting the authentication",
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "WebAuthnAuthenticateVerifyRequest",
+        "type": "object"
+      },
+      "WebAuthnAuthenticateVerifyResponse": {
+        "description": "Verified WebAuthn authentication with short-lived step-up token and assertion reference.",
+        "properties": {
+          "assertion_ref": {
+            "title": "Assertion Ref",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "new_sign_count": {
+            "title": "New Sign Count",
+            "type": "integer"
+          },
+          "step_up_token": {
+            "title": "Step Up Token",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "verified",
+          "step_up_token",
+          "assertion_ref",
+          "user_id",
+          "new_sign_count",
+          "expires_in"
+        ],
+        "title": "WebAuthnAuthenticateVerifyResponse",
+        "type": "object"
+      },
+      "WebAuthnCredentialSummary": {
+        "description": "Registered WebAuthn credential metadata for user profile.",
+        "properties": {
+          "aaguid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Aaguid"
+          },
+          "backed_up": {
+            "default": false,
+            "title": "Backed Up",
+            "type": "boolean"
+          },
+          "backup_eligible": {
+            "default": false,
+            "title": "Backup Eligible",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "credential_id": {
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Used At"
+          },
+          "sign_count": {
+            "title": "Sign Count",
+            "type": "integer"
+          },
+          "transports": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Transports",
+            "type": "array"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "credential_id",
+          "user_id",
+          "sign_count"
+        ],
+        "title": "WebAuthnCredentialSummary",
+        "type": "object"
+      },
+      "WebAuthnRegisterOptionsResponse": {
+        "description": "Registration challenge and options returned to client for navigator.credentials.create().",
+        "properties": {
+          "challenge_id": {
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "options",
+          "challenge_id"
+        ],
+        "title": "WebAuthnRegisterOptionsResponse",
+        "type": "object"
+      },
+      "WebAuthnRegisterVerifyRequest": {
+        "description": "Registration response payload from navigator.credentials.create().",
+        "properties": {
+          "challenge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional challenge correlation ID",
+            "title": "Challenge Id"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "description": "JSON-serialized PublicKeyCredential from client",
+            "title": "Credential",
+            "type": "object"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "WebAuthnRegisterVerifyRequest",
+        "type": "object"
+      },
+      "WebAuthnRegisterVerifyResponse": {
+        "description": "Outcome of WebAuthn credential registration.",
+        "properties": {
+          "credential_id": {
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "message": {
+            "default": "Credential successfully registered",
+            "title": "Message",
+            "type": "string"
+          },
+          "sign_count": {
+            "title": "Sign Count",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "verified",
+          "credential_id",
+          "sign_count",
+          "user_id"
+        ],
+        "title": "WebAuthnRegisterVerifyResponse",
+        "type": "object"
       }
     }
   },
@@ -3296,9 +3645,183 @@
         ]
       }
     },
+    "/api/v1/auth/admin/action": {
+      "post": {
+        "description": "Invariant #5 & Invariant #7: Admin, SecOps, and Approver roles require a WebAuthn-verified session (step-up) for sensitive actions. Every admin action appends a signed audit record.",
+        "operationId": "execute_admin_action_api_v1_auth_admin_action_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Step-Up-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Step-Up-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-WebAuthn-Assertion-Ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Webauthn-Assertion-Ref"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Payload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Execute Admin Action Api V1 Auth Admin Action Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute sensitive administrative action requiring WebAuthn step-up",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/api/v1/auth/dev-login": {
+      "post": {
+        "description": "Strictly disabled when ENV=production. Returns 403 Forbidden in production.",
+        "operationId": "issue_dev_token_api_v1_auth_dev_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevLoginRequest",
+                "default": {
+                  "role": "Viewer"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevLoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue signed development JWT (alias for dev-token)",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
     "/api/v1/auth/dev-token": {
       "post": {
-        "description": "Issues a signed, short-lived JWT token for any of the 6 seeded roles: Viewer, Operator, SecOps, Compliance, Approver, Admin. Strictly disabled when ENV=production.",
+        "description": "Strictly disabled when ENV=production. Returns 403 Forbidden in production.",
         "operationId": "issue_dev_token_api_v1_auth_dev_token_post",
         "requestBody": {
           "content": {
@@ -3336,7 +3859,400 @@
         },
         "summary": "Issue signed development JWT for seeded test users (DEV ONLY)",
         "tags": [
-          "V1 Policy Decision Point"
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc-login": {
+      "post": {
+        "description": "Exchanges an OIDC ID token for a signed BitGuard session token with mapped realm roles.",
+        "operationId": "oidc_login_api_v1_auth_oidc_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OIDCLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OIDCLoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login via Keycloak OpenID Connect SSO",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/api/v1/auth/webauthn/authenticate/options": {
+      "post": {
+        "description": "Generates challenge and assertion options for hardware key authentication (navigator.credentials.get).",
+        "operationId": "webauthn_authenticate_options_api_v1_auth_webauthn_authenticate_options_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnAuthenticateOptionsRequest",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnAuthenticateOptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate WebAuthn authentication options",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/api/v1/auth/webauthn/authenticate/verify": {
+      "post": {
+        "description": "Verifies hardware key signature, checks monotonic sign count, and issues short-lived step-up token.",
+        "operationId": "webauthn_authenticate_verify_api_v1_auth_webauthn_authenticate_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnAuthenticateVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnAuthenticateVerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify WebAuthn authentication assertion",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/api/v1/auth/webauthn/credentials": {
+      "get": {
+        "description": "Retrieves all registered hardware keys for authenticated user.",
+        "operationId": "list_user_credentials_api_v1_auth_webauthn_credentials_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WebAuthnCredentialSummary"
+                  },
+                  "title": "Response List User Credentials Api V1 Auth Webauthn Credentials Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List registered WebAuthn credentials for current user",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/api/v1/auth/webauthn/register/options": {
+      "post": {
+        "description": "Generates challenge and creation options for registering a hardware security key (navigator.credentials.create).",
+        "operationId": "webauthn_register_options_api_v1_auth_webauthn_register_options_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnRegisterOptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate WebAuthn registration options",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/api/v1/auth/webauthn/register/verify": {
+      "post": {
+        "description": "Cryptographically verifies client registration response and stores public key credentials.",
+        "operationId": "webauthn_register_verify_api_v1_auth_webauthn_register_verify_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnRegisterVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnRegisterVerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify WebAuthn credential registration",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
         ]
       }
     },
@@ -7114,9 +8030,183 @@
         ]
       }
     },
+    "/v1/auth/admin/action": {
+      "post": {
+        "description": "Invariant #5 & Invariant #7: Admin, SecOps, and Approver roles require a WebAuthn-verified session (step-up) for sensitive actions. Every admin action appends a signed audit record.",
+        "operationId": "execute_admin_action_v1_auth_admin_action_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Step-Up-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Step-Up-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-WebAuthn-Assertion-Ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Webauthn-Assertion-Ref"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Payload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Execute Admin Action V1 Auth Admin Action Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute sensitive administrative action requiring WebAuthn step-up",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/v1/auth/dev-login": {
+      "post": {
+        "description": "Strictly disabled when ENV=production. Returns 403 Forbidden in production.",
+        "operationId": "issue_dev_token_v1_auth_dev_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevLoginRequest",
+                "default": {
+                  "role": "Viewer"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevLoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue signed development JWT (alias for dev-token)",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
     "/v1/auth/dev-token": {
       "post": {
-        "description": "Issues a signed, short-lived JWT token for any of the 6 seeded roles: Viewer, Operator, SecOps, Compliance, Approver, Admin. Strictly disabled when ENV=production.",
+        "description": "Strictly disabled when ENV=production. Returns 403 Forbidden in production.",
         "operationId": "issue_dev_token_v1_auth_dev_token_post",
         "requestBody": {
           "content": {
@@ -7154,7 +8244,400 @@
         },
         "summary": "Issue signed development JWT for seeded test users (DEV ONLY)",
         "tags": [
-          "V1 Policy Decision Point"
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/v1/auth/oidc-login": {
+      "post": {
+        "description": "Exchanges an OIDC ID token for a signed BitGuard session token with mapped realm roles.",
+        "operationId": "oidc_login_v1_auth_oidc_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OIDCLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OIDCLoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login via Keycloak OpenID Connect SSO",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/v1/auth/webauthn/authenticate/options": {
+      "post": {
+        "description": "Generates challenge and assertion options for hardware key authentication (navigator.credentials.get).",
+        "operationId": "webauthn_authenticate_options_v1_auth_webauthn_authenticate_options_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnAuthenticateOptionsRequest",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnAuthenticateOptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate WebAuthn authentication options",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/v1/auth/webauthn/authenticate/verify": {
+      "post": {
+        "description": "Verifies hardware key signature, checks monotonic sign count, and issues short-lived step-up token.",
+        "operationId": "webauthn_authenticate_verify_v1_auth_webauthn_authenticate_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnAuthenticateVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnAuthenticateVerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify WebAuthn authentication assertion",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/v1/auth/webauthn/credentials": {
+      "get": {
+        "description": "Retrieves all registered hardware keys for authenticated user.",
+        "operationId": "list_user_credentials_v1_auth_webauthn_credentials_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WebAuthnCredentialSummary"
+                  },
+                  "title": "Response List User Credentials V1 Auth Webauthn Credentials Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List registered WebAuthn credentials for current user",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/v1/auth/webauthn/register/options": {
+      "post": {
+        "description": "Generates challenge and creation options for registering a hardware security key (navigator.credentials.create).",
+        "operationId": "webauthn_register_options_v1_auth_webauthn_register_options_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnRegisterOptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate WebAuthn registration options",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
+        ]
+      }
+    },
+    "/v1/auth/webauthn/register/verify": {
+      "post": {
+        "description": "Cryptographically verifies client registration response and stores public key credentials.",
+        "operationId": "webauthn_register_verify_v1_auth_webauthn_register_verify_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnRegisterVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnRegisterVerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify WebAuthn credential registration",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Authentication & Identity"
         ]
       }
     },

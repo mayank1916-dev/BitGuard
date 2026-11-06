@@ -348,3 +348,28 @@ class DailyGroupMetricsRecord(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+
+class WebAuthnCredentialRecord(Base):
+    """Registered WebAuthn hardware credentials (Milestone S15 / F9)."""
+
+    __tablename__ = "webauthn_credentials"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    credential_id: Mapped[str] = mapped_column(String(256), unique=True, index=True, nullable=False)
+    public_key_cose: Mapped[str] = mapped_column(Text, nullable=False)
+    sign_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    transports: Mapped[list[str]] = mapped_column(JsonType, nullable=False, default=list)
+    aaguid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    backup_eligible: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    backed_up: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )

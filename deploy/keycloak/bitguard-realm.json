@@ -1,0 +1,248 @@
+{
+  "id": "bitguard",
+  "realm": "bitguard",
+  "displayName": "BitGuard Defense Network",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "id": "role-admin",
+        "name": "Admin",
+        "description": "BitGuard Firewall Administrator (full access with step-up)",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "id": "role-secops",
+        "name": "SecOps",
+        "description": "BitGuard Security Operations (breaker control and address watcher)",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "id": "role-operator",
+        "name": "Operator",
+        "description": "BitGuard Operator (signing request submission and false positive flagging)",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "id": "role-compliance",
+        "name": "Compliance",
+        "description": "BitGuard Compliance Auditor (audit log verification and report access)",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "id": "role-approver",
+        "name": "Approver",
+        "description": "BitGuard Quorum Approver (hardware WebAuthn hold ticket release)",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "id": "role-viewer",
+        "name": "Viewer",
+        "description": "BitGuard Read-Only Observer",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "id": "client-bitguard-api",
+      "clientId": "bitguard-api",
+      "name": "BitGuard Decision API",
+      "rootUrl": "http://localhost:8000",
+      "adminUrl": "http://localhost:8000",
+      "baseUrl": "/",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "bitguard-api-client-secret-2026",
+      "redirectUris": [
+        "http://localhost:8000/*",
+        "http://127.0.0.1:8000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "id": "client-bitguard-ui",
+      "clientId": "bitguard-ui",
+      "name": "BitGuard Web Console",
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "/",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "id": "usr-admin-01",
+      "username": "admin",
+      "email": "admin@bitguard.local",
+      "firstName": "Grace",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Admin"
+      ]
+    },
+    {
+      "id": "usr-secops-01",
+      "username": "secops",
+      "email": "secops@bitguard.local",
+      "firstName": "Charlie",
+      "lastName": "SecOps",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "secops123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "SecOps"
+      ]
+    },
+    {
+      "id": "usr-operator-01",
+      "username": "operator",
+      "email": "operator@bitguard.local",
+      "firstName": "Bob",
+      "lastName": "Operator",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "operator123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Operator"
+      ]
+    },
+    {
+      "id": "usr-compliance-01",
+      "username": "compliance",
+      "email": "compliance@bitguard.local",
+      "firstName": "Diana",
+      "lastName": "Compliance",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "compliance123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Compliance"
+      ]
+    },
+    {
+      "id": "usr-approver-01",
+      "username": "approver1",
+      "email": "approver@bitguard.local",
+      "firstName": "Evan",
+      "lastName": "Approver",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "approver123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Approver"
+      ]
+    },
+    {
+      "id": "usr-approver-02",
+      "username": "approver2",
+      "email": "approver2@bitguard.local",
+      "firstName": "Frank",
+      "lastName": "Approver",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "approver123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Approver"
+      ]
+    },
+    {
+      "id": "usr-viewer-01",
+      "username": "viewer",
+      "email": "viewer@bitguard.local",
+      "firstName": "Alice",
+      "lastName": "Viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "viewer123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Viewer"
+      ]
+    }
+  ]
+}

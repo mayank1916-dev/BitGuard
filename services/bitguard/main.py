@@ -26,6 +26,18 @@ from services.bitguard.audit.models import (
     AuditVerifyResponse,
     ManualAnchorResponse,
 )
+from services.bitguard.auth.models import (
+    OIDCLoginRequest,
+    OIDCLoginResponse,
+    WebAuthnAuthenticateOptionsRequest,
+    WebAuthnAuthenticateOptionsResponse,
+    WebAuthnAuthenticateVerifyRequest,
+    WebAuthnAuthenticateVerifyResponse,
+    WebAuthnCredentialSummary,
+    WebAuthnRegisterOptionsResponse,
+    WebAuthnRegisterVerifyRequest,
+    WebAuthnRegisterVerifyResponse,
+)
 from services.bitguard.breaker.models import (
     BreakerStatusResponse,
     DeescalateApprovalResult,
@@ -187,6 +199,16 @@ def create_app() -> FastAPI:
             SignTransactionResult,
             TimelockItem,
             CancelTimelockRequest,
+            OIDCLoginRequest,
+            OIDCLoginResponse,
+            WebAuthnAuthenticateOptionsRequest,
+            WebAuthnAuthenticateOptionsResponse,
+            WebAuthnAuthenticateVerifyRequest,
+            WebAuthnAuthenticateVerifyResponse,
+            WebAuthnCredentialSummary,
+            WebAuthnRegisterOptionsResponse,
+            WebAuthnRegisterVerifyRequest,
+            WebAuthnRegisterVerifyResponse,
         ]
         for model_cls in canonical_models:
             model_schema = model_cls.model_json_schema(ref_template="#/components/schemas/{model}")

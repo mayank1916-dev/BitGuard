@@ -195,6 +195,28 @@ services:
       timeout: 3s
       retries: 5
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: bitguard-keycloak
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8080
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./deploy/keycloak/bitguard-realm.json:/opt/keycloak/data/import/bitguard-realm.json:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - public
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
 networks:
   public:
     driver: bridge

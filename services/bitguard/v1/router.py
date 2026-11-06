@@ -9,6 +9,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Request,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -17,17 +18,16 @@ from pydantic import BaseModel
 
 from services.bitguard.approvals.router import router as approvals_router
 from services.bitguard.audit import router as audit_router
+from services.bitguard.auth.router import router as auth_router
+from services.bitguard.auth.step_up import log_admin_action_audit
 from services.bitguard.backtest import backtest_router
 from services.bitguard.breaker import breaker_router
-from services.bitguard.config import settings
 from services.bitguard.decision_store import decision_store
 from services.bitguard.ledger.metrics import IntentMetricsResponse, intent_metrics
 from services.bitguard.mode_service import mode_service
 from services.bitguard.models import (
     DailyGroupMetrics,
     Decision,
-    DevLoginRequest,
-    DevLoginResponse,
     FalsePositiveRequest,
     Permission,
     PromotionChecklistResponse,
@@ -39,10 +39,7 @@ from services.bitguard.models import (
     WalletGroupModeUpdate,
 )
 from services.bitguard.rbac import (
-    ALL_TEST_USERS,
     PERMISSION_MATRIX,
-    SEEDED_USERS,
-    create_access_token,
     decode_access_token,
     require_permission,
     require_role,
@@ -57,46 +54,7 @@ router.include_router(watcher_router)
 router.include_router(breaker_router)
 router.include_router(audit_router)
 router.include_router(backtest_router)
-
-
-# --- Dev Only Authentication Endpoint (Milestone S05 / F9 basic) ---
-
-
-@router.post(
-    "/auth/dev-token",
-    response_model=DevLoginResponse,
-    summary="Issue signed development JWT for seeded test users (DEV ONLY)",
-    description=(
-        "Issues a signed, short-lived JWT token for any of the 6 seeded roles: "
-        "Viewer, Operator, SecOps, Compliance, Approver, Admin. "
-        "Strictly disabled when ENV=production."
-    ),
-)
-async def issue_dev_token(
-    payload: DevLoginRequest = DevLoginRequest(),
-) -> DevLoginResponse:
-    """Dev login endpoint issuing signed JWTs. Disabled in production."""
-    if settings.environment.lower() == "production":
-        raise HTTPException(
-            status_code=403,
-            detail="Dev login endpoint is disabled in production environment (DEV ONLY)",
-        )
-
-    user: UserResponse | None = None
-    if payload.user_id and payload.user_id in ALL_TEST_USERS:
-        user = ALL_TEST_USERS[payload.user_id]
-    else:
-        user = SEEDED_USERS.get(payload.role)
-    if not user:
-        raise HTTPException(status_code=400, detail=f"Invalid seeded role or user_id: {payload.role}")
-
-    token = create_access_token(user)
-    return DevLoginResponse(
-        access_token=token,
-        token_type="bearer",
-        expires_in=settings.jwt_expiration_seconds,
-        user=user,
-    )
+router.include_router(auth_router)
 
 
 # --- Core Policy Evaluation & Signing Endpoints ---
@@ -185,6 +143,7 @@ async def get_decision(decision_id: str) -> Decision:
     dependencies=[Depends(require_permission(Permission.LABEL_FALSE_POSITIVE))],
 )
 async def label_false_positive(
+    request: Request,
     decision_id: str,
     payload: FalsePositiveRequest = FalsePositiveRequest(),
     current_user: UserResponse = Depends(require_permission(Permission.LABEL_FALSE_POSITIVE)),
@@ -192,11 +151,19 @@ async def label_false_positive(
     """Flags a decision as false positive. Requires Operator or Admin role."""
     try:
         operator_name = payload.operator_id or current_user.email
-        return mode_service.label_false_positive(
+        res = mode_service.label_false_positive(
             decision_id=decision_id,
             operator_id=operator_name,
             reason=payload.reason,
         )
+        assertion_ref = getattr(request.state, "webauthn_assertion_ref", None)
+        log_admin_action_audit(
+            user=current_user,
+            action="LABEL_FALSE_POSITIVE",
+            assertion_ref=assertion_ref,
+            details={"decision_id": decision_id, "reason": payload.reason},
+        )
+        return res
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -276,6 +243,7 @@ async def get_wallet_group(group_id: str) -> WalletGroupConfig:
     dependencies=[Depends(require_permission(Permission.POLICY_TIGHTEN))],
 )
 async def update_group_mode(
+    request: Request,
     group_id: str,
     payload: WalletGroupModeUpdate,
     current_user: UserResponse = Depends(require_permission(Permission.POLICY_TIGHTEN)),
@@ -291,6 +259,13 @@ async def update_group_mode(
     )
     if not success:
         raise HTTPException(status_code=400, detail=message)
+    assertion_ref = getattr(request.state, "webauthn_assertion_ref", None)
+    log_admin_action_audit(
+        user=current_user,
+        action="UPDATE_WALLET_GROUP_MODE",
+        assertion_ref=assertion_ref,
+        details={"group_id": group_id, "new_mode": payload.mode.value, "override": payload.override},
+    )
     return group
 
 

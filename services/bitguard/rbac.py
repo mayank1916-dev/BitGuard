@@ -291,26 +291,32 @@ def require_permission(*required_perms: Permission) -> Callable[..., UserRespons
     return permission_checker
 
 
-# --- Separation of Duties Hooks (to be completed in future steps) ---
+# --- Separation of Duties Hooks (Milestone S15 / F9) ---
 
 
 def hook_requester_cannot_approve_own_request(requester_id: str, approver_id: str) -> bool:
     """Separation of duties hook: A transaction requester cannot approve their own hold ticket."""
-    if requester_id and approver_id and requester_id.strip() == approver_id.strip():
-        logger.warning(
-            "Separation of duties violation: requester cannot approve own request",
-            extra={"requester_id": requester_id, "approver_id": approver_id},
-        )
+    from services.bitguard.auth.separation import (
+        SeparationOfDutiesError,
+        separation_of_duties,
+    )
+
+    try:
+        separation_of_duties.enforce_requester_cannot_approve(requester_id, approver_id)
+        return True
+    except SeparationOfDutiesError:
         return False
-    return True
 
 
 def hook_policy_author_cannot_approve_own_change(author_id: str, approver_id: str) -> bool:
     """Separation of duties hook: A policy change author cannot approve their own change."""
-    if author_id and approver_id and author_id.strip() == approver_id.strip():
-        logger.warning(
-            "Separation of duties violation: policy author cannot approve own change",
-            extra={"author_id": author_id, "approver_id": approver_id},
-        )
+    from services.bitguard.auth.separation import (
+        SeparationOfDutiesError,
+        separation_of_duties,
+    )
+
+    try:
+        separation_of_duties.enforce_policy_author_cannot_approve(author_id, approver_id)
+        return True
+    except SeparationOfDutiesError:
         return False
-    return True
