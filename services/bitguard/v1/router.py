@@ -39,6 +39,7 @@ from services.bitguard.models import (
     WalletGroupConfig,
     WalletGroupModeUpdate,
 )
+from services.bitguard.policy import policy_router
 from services.bitguard.rbac import (
     PERMISSION_MATRIX,
     decode_access_token,
@@ -57,6 +58,7 @@ router.include_router(audit_router)
 router.include_router(backtest_router)
 router.include_router(auth_router)
 router.include_router(incidents_router)
+router.include_router(policy_router)
 
 
 # --- Core Policy Evaluation & Signing Endpoints ---

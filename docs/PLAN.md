@@ -58,7 +58,7 @@
 - [x] S17 Delegation and code watcher for your own addresses (F6)
 - [x] S18 Circuit breaker and asymmetric lockdown / unlock (F9, F14)
 - [x] S19 Incident runbook automation and escalation (F14)
-- [ ] S20 Signed, versioned policy with hot reload and asymmetric changes (D)
+- [x] S20 Signed, versioned policy with hot reload and asymmetric changes (D)
 - [x] S21 Hash-chained audit log with external anchoring and SIEM export (F18)
 - [ ] S22 Policy backtesting on real or exported history (F8)
 - [x] S23 Testnet and local-fork integration lab with automated scenarios (F19)

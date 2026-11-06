@@ -91,6 +91,19 @@ from services.bitguard.models import (
     WatchedAddress,
     WatcherAlert,
 )
+from services.bitguard.policy.models import (
+    ActivatePolicyRequest,
+    ApprovePolicyRequest,
+    LimitsPolicy,
+    PolicyApproval,
+    PolicyDocument,
+    PolicyIntegrityResponse,
+    ProposePolicyRequest,
+    RollbackPolicyRequest,
+    ThresholdsPolicy,
+    TimeLockPolicy,
+    WalletGroupPolicy,
+)
 from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.timelock.store import TimelockItem
 from services.bitguard.v1.router import CancelTimelockRequest
@@ -231,6 +244,17 @@ def create_app() -> FastAPI:
             AcknowledgeIncidentRequest,
             TriggerRunbookRequest,
             ApproveIncidentStepRequest,
+            PolicyDocument,
+            LimitsPolicy,
+            ThresholdsPolicy,
+            WalletGroupPolicy,
+            TimeLockPolicy,
+            PolicyApproval,
+            ProposePolicyRequest,
+            ApprovePolicyRequest,
+            ActivatePolicyRequest,
+            RollbackPolicyRequest,
+            PolicyIntegrityResponse,
         ]
         for model_cls in canonical_models:
             model_schema = model_cls.model_json_schema(ref_template="#/components/schemas/{model}")

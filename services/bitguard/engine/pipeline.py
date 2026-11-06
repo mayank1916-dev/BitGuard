@@ -8,6 +8,7 @@ Pipeline Order:
 import logging
 import traceback
 from datetime import UTC, datetime
+from typing import Any
 
 from services.bitguard.config import settings
 from services.bitguard.decoders.base import DecodeError
@@ -71,6 +72,36 @@ class DecisionEngine:
         self.profiler = profiler or DefaultProfilerEnricher()
         self.simulation = simulation or DefaultSimulationEnricher()
         self.delegation_policy = DelegationPolicy()
+        self.active_policy_document: Any | None = None
+        self.active_policy_hash: str = ""
+
+    def reload_policy(self, policy_doc: Any, content_hash: str = "") -> None:
+        """Hot-reloads signed policy into active decision engine memory."""
+        self.active_policy_document = policy_doc
+        if content_hash:
+            self.active_policy_hash = content_hash
+        elif hasattr(policy_doc, "model_dump"):
+            from services.bitguard.policy.crypto import compute_content_hash
+            self.active_policy_hash = compute_content_hash(policy_doc)
+
+        if hasattr(policy_doc, "version"):
+            self.config.policy_version = policy_doc.version
+        if hasattr(policy_doc, "thresholds"):
+            self.config.single_tx_usd_threshold = policy_doc.thresholds.single_tx_usd
+            self.config.hold_risk_threshold = policy_doc.thresholds.hold_score
+        if hasattr(policy_doc, "delegate_allowlist"):
+            self.delegation_policy.delegate_allowlist.clear()
+            for h in policy_doc.delegate_allowlist:
+                self.delegation_policy.add_allowed_delegate(code_hash=h, name="Policy Allowlist")
+        if hasattr(policy_doc, "owned_addresses"):
+            self.delegation_policy.owned_addresses = {
+                a.lower() for a in policy_doc.owned_addresses
+            }
+        logger.info(
+            "Engine hot-reloaded policy version %s (hash: %s)",
+            getattr(policy_doc, "version", "unknown"),
+            self.active_policy_hash,
+        )
 
     def set_delegation_policy(self, policy: DelegationPolicy) -> None:
         """Configures the active EIP-7702 delegation policy."""

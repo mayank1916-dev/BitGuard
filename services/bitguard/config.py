@@ -109,5 +109,11 @@ class BitGuardSettings(BaseSettings):
     audit_siem_syslog_port: int = 514
     audit_siem_otel_endpoint: str = "http://localhost:4318/v1/logs"
 
+    # Versioned Policy Management settings (Milestone S20 / Section D)
+    policy_cooldown_seconds: int = 60  # Default 60 seconds in lab/dev, 86400 (24h) in prod
+    policy_rollback_window_seconds: int = 300  # 5 minutes auto-rollback observation window
+    policy_signing_ed25519_privkey: str = ""  # Hex-encoded Ed25519 seed or privkey for release authority
+    policy_signing_ed25519_pubkey: str = ""  # Hex-encoded Ed25519 pubkey for verifying activation
+
 
 settings = BitGuardSettings()

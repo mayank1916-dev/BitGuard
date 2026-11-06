@@ -20,6 +20,25 @@
         "title": "AcknowledgeIncidentRequest",
         "type": "object"
       },
+      "ActivatePolicyRequest": {
+        "description": "Payload to activate a policy version.",
+        "properties": {
+          "ed25519_signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ed25519 Signature"
+          }
+        },
+        "title": "ActivatePolicyRequest",
+        "type": "object"
+      },
       "AnchorRecordModel": {
         "description": "Receipt of an external object-lock anchor.",
         "properties": {
@@ -214,6 +233,19 @@
           "assertion"
         ],
         "title": "ApproveIncidentStepRequest",
+        "type": "object"
+      },
+      "ApprovePolicyRequest": {
+        "description": "Payload to approve a policy version with WebAuthn hardware key.",
+        "properties": {
+          "assertion": {
+            "$ref": "#/components/schemas/WebAuthnAssertion"
+          }
+        },
+        "required": [
+          "assertion"
+        ],
+        "title": "ApprovePolicyRequest",
         "type": "object"
       },
       "AuditEntry": {
@@ -774,6 +806,16 @@
         },
         "title": "CancelTimelockRequest",
         "type": "object"
+      },
+      "ChangeClassification": {
+        "description": "Classification of changes between two policy versions.",
+        "enum": [
+          "TIGHTEN",
+          "LOOSEN",
+          "MIXED"
+        ],
+        "title": "ChangeClassification",
+        "type": "string"
       },
       "ChecklistItem": {
         "description": "Actionable manual remediation task for response engineers.",
@@ -2283,6 +2325,49 @@
         "title": "JsonRpcResponse",
         "type": "object"
       },
+      "LimitsPolicy": {
+        "description": "Multi-tiered financial spending limits across scopes.",
+        "properties": {
+          "asset_daily_limits": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Asset Daily Limits",
+            "type": "object"
+          },
+          "chain_daily_limits": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Chain Daily Limits",
+            "type": "object"
+          },
+          "global_daily_usd": {
+            "default": 1000000.0,
+            "title": "Global Daily Usd",
+            "type": "number"
+          },
+          "global_single_tx_usd": {
+            "default": 100000.0,
+            "title": "Global Single Tx Usd",
+            "type": "number"
+          },
+          "global_velocity_limit_usd": {
+            "default": 500000.0,
+            "title": "Global Velocity Limit Usd",
+            "type": "number"
+          },
+          "wallet_daily_usd": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Wallet Daily Usd",
+            "type": "object"
+          }
+        },
+        "title": "LimitsPolicy",
+        "type": "object"
+      },
       "ManualAnchorResponse": {
         "description": "Response returned upon creating a manual object-lock anchor checkpoint.",
         "properties": {
@@ -2398,6 +2483,47 @@
         "title": "Permission",
         "type": "string"
       },
+      "PolicyApproval": {
+        "description": "Cryptographic approval by an authorized approver with WebAuthn.",
+        "properties": {
+          "approved_at": {
+            "format": "date-time",
+            "title": "Approved At",
+            "type": "string"
+          },
+          "approver_email": {
+            "title": "Approver Email",
+            "type": "string"
+          },
+          "approver_id": {
+            "title": "Approver Id",
+            "type": "string"
+          },
+          "approver_role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "assertion_hash": {
+            "default": "",
+            "title": "Assertion Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "webauthn_assertion": {
+            "$ref": "#/components/schemas/WebAuthnAssertion"
+          }
+        },
+        "required": [
+          "approver_id",
+          "approver_email",
+          "approver_role",
+          "webauthn_assertion"
+        ],
+        "title": "PolicyApproval",
+        "type": "object"
+      },
       "PolicyConfig": {
         "description": "Global BitGuard policy configuration containing mode and wallet group mappings.",
         "properties": {
@@ -2430,6 +2556,119 @@
         },
         "title": "PolicyConfig",
         "type": "object"
+      },
+      "PolicyDocument": {
+        "description": "Complete, self-contained declarative policy manifest document.",
+        "properties": {
+          "delegate_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Delegate Allowlist",
+            "type": "array"
+          },
+          "description": {
+            "default": "BitGuard Core Defensive Signing Policy",
+            "title": "Description",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/LimitsPolicy"
+          },
+          "owned_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owned Addresses",
+            "type": "array"
+          },
+          "risk_weights": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Risk Weights",
+            "type": "object"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/ThresholdsPolicy"
+          },
+          "time_lock": {
+            "$ref": "#/components/schemas/TimeLockPolicy"
+          },
+          "version": {
+            "default": "v1.0.0",
+            "title": "Version",
+            "type": "string"
+          },
+          "wallet_groups": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WalletGroupPolicy"
+            },
+            "title": "Wallet Groups",
+            "type": "object"
+          }
+        },
+        "title": "PolicyDocument",
+        "type": "object"
+      },
+      "PolicyIntegrityResponse": {
+        "description": "Result of active policy integrity verification against database and engine memory.",
+        "properties": {
+          "active_version_hash": {
+            "title": "Active Version Hash",
+            "type": "string"
+          },
+          "active_version_id": {
+            "title": "Active Version Id",
+            "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "db_version_hash": {
+            "title": "Db Version Hash",
+            "type": "string"
+          },
+          "details": {
+            "title": "Details",
+            "type": "string"
+          },
+          "ed25519_verified": {
+            "title": "Ed25519 Verified",
+            "type": "boolean"
+          },
+          "memory_version_hash": {
+            "title": "Memory Version Hash",
+            "type": "string"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "active_version_id",
+          "active_version_hash",
+          "memory_version_hash",
+          "db_version_hash",
+          "ed25519_verified",
+          "details"
+        ],
+        "title": "PolicyIntegrityResponse",
+        "type": "object"
+      },
+      "PolicyStatus": {
+        "description": "Lifecycle state of a versioned policy manifest.",
+        "enum": [
+          "DRAFT",
+          "PENDING",
+          "ACTIVE",
+          "ROLLED_BACK"
+        ],
+        "title": "PolicyStatus",
+        "type": "string"
       },
       "PolicyVersion": {
         "description": "Cryptographically signed, versioned policy manifest.",
@@ -2543,6 +2782,48 @@
         "title": "PromotionChecklistResponse",
         "type": "object"
       },
+      "ProposePolicyRequest": {
+        "description": "Payload to propose a new policy version.",
+        "properties": {
+          "backtest_report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Backtest Report Id"
+          },
+          "content": {
+            "$ref": "#/components/schemas/PolicyDocument"
+          },
+          "ed25519_signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ed25519 Signature"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "content"
+        ],
+        "title": "ProposePolicyRequest",
+        "type": "object"
+      },
       "Role": {
         "description": "Development-grade RBAC Roles.",
         "enum": [
@@ -2555,6 +2836,20 @@
         ],
         "title": "Role",
         "type": "string"
+      },
+      "RollbackPolicyRequest": {
+        "description": "Payload to manually or automatically rollback an active policy version.",
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RollbackPolicyRequest",
+        "type": "object"
       },
       "Runbook": {
         "description": "Complete declarative runbook manifest loaded from policy/runbooks/*.yaml.",
@@ -2931,6 +3226,30 @@
         "title": "StepType",
         "type": "string"
       },
+      "ThresholdsPolicy": {
+        "description": "Dynamic risk and quarantine trigger thresholds.",
+        "properties": {
+          "hold_score": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Hold Score",
+            "type": "integer"
+          },
+          "single_tx_usd": {
+            "default": 50000.0,
+            "title": "Single Tx Usd",
+            "type": "number"
+          },
+          "velocity_spike_multiplier": {
+            "default": 3.0,
+            "title": "Velocity Spike Multiplier",
+            "type": "number"
+          }
+        },
+        "title": "ThresholdsPolicy",
+        "type": "object"
+      },
       "TickChecklistRequest": {
         "description": "Payload to mark a manual remediation checklist item as completed.",
         "properties": {
@@ -2960,6 +3279,30 @@
           }
         },
         "title": "TickChecklistRequest",
+        "type": "object"
+      },
+      "TimeLockPolicy": {
+        "description": "Configuration for delayed high-value transfer time-locks.",
+        "properties": {
+          "cancellable_by_roles": {
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            },
+            "title": "Cancellable By Roles",
+            "type": "array"
+          },
+          "delay_seconds": {
+            "default": 3600,
+            "title": "Delay Seconds",
+            "type": "integer"
+          },
+          "min_amount_usd": {
+            "default": 100000.0,
+            "title": "Min Amount Usd",
+            "type": "number"
+          }
+        },
+        "title": "TimeLockPolicy",
         "type": "object"
       },
       "TimelineEvent": {
@@ -3341,6 +3684,24 @@
           "mode"
         ],
         "title": "WalletGroupModeUpdate",
+        "type": "object"
+      },
+      "WalletGroupPolicy": {
+        "description": "Operational mode and address membership for a wallet group.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/OperationMode",
+            "default": "SIMULATION"
+          },
+          "wallets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Wallets",
+            "type": "array"
+          }
+        },
+        "title": "WalletGroupPolicy",
         "type": "object"
       },
       "WatchedAddress": {
@@ -7696,6 +8057,769 @@
         "summary": "Get 5-second per-chain outflow aggregates",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/api/v1/policies": {
+      "get": {
+        "description": "Returns all versioned policy manifests sorted by creation time descending.",
+        "operationId": "list_policies_api_v1_policies_get",
+        "parameters": [
+          {
+            "description": "Max versions to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Max versions to return",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyVersion"
+                  },
+                  "title": "Response List Policies Api V1 Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List all policy versions",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      },
+      "post": {
+        "description": "Proposes a new declarative policy version. Automatically classifies change as TIGHTEN, LOOSEN, or MIXED, and schedules governance requirements.",
+        "operationId": "propose_policy_api_v1_policies_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose new versioned policy manifest",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/api/v1/policies/active": {
+      "get": {
+        "description": "Returns the currently active, verified policy version governing the decision engines.",
+        "operationId": "get_active_policy_api_v1_policies_active_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get currently active policy version",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/api/v1/policies/integrity-check": {
+      "post": {
+        "description": "Compares engine memory loaded hash against database active record and cryptographic release signature. Direct DB tampering triggers fail-closed remediation.",
+        "operationId": "check_policy_integrity_api_v1_policies_integrity_check_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyIntegrityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute policy integrity scan across engine memory and database",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/api/v1/policies/{version_id}": {
+      "get": {
+        "description": "Retrieves a specific policy version including content, hash, classification, approvals, and signatures.",
+        "operationId": "get_policy_api_v1_policies__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get policy version details by ID",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/api/v1/policies/{version_id}/activate": {
+      "post": {
+        "description": "Activates a policy version after verifying signature, content hash, approval quorum, and cool-down delay. Hot-reloads decision engine memory.",
+        "operationId": "activate_policy_api_v1_policies__version_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ActivatePolicyRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate policy change and hot-reload engines",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/api/v1/policies/{version_id}/approve": {
+      "post": {
+        "description": "Submits an authorized WebAuthn assertion over policy content hash. Enforces separation of duties (author cannot approve).",
+        "operationId": "approve_policy_api_v1_policies__version_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve policy change with WebAuthn hardware key",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/api/v1/policies/{version_id}/rollback": {
+      "post": {
+        "description": "Rolls back from an active policy version to the previous verified healthy version.",
+        "operationId": "rollback_policy_api_v1_policies__version_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollback active policy to previous version",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
         ]
       }
     },
@@ -13138,6 +14262,769 @@
         "summary": "Get 5-second per-chain outflow aggregates",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/policies": {
+      "get": {
+        "description": "Returns all versioned policy manifests sorted by creation time descending.",
+        "operationId": "list_policies_v1_policies_get",
+        "parameters": [
+          {
+            "description": "Max versions to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Max versions to return",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyVersion"
+                  },
+                  "title": "Response List Policies V1 Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List all policy versions",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      },
+      "post": {
+        "description": "Proposes a new declarative policy version. Automatically classifies change as TIGHTEN, LOOSEN, or MIXED, and schedules governance requirements.",
+        "operationId": "propose_policy_v1_policies_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose new versioned policy manifest",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/v1/policies/active": {
+      "get": {
+        "description": "Returns the currently active, verified policy version governing the decision engines.",
+        "operationId": "get_active_policy_v1_policies_active_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get currently active policy version",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/v1/policies/integrity-check": {
+      "post": {
+        "description": "Compares engine memory loaded hash against database active record and cryptographic release signature. Direct DB tampering triggers fail-closed remediation.",
+        "operationId": "check_policy_integrity_v1_policies_integrity_check_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyIntegrityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute policy integrity scan across engine memory and database",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/v1/policies/{version_id}": {
+      "get": {
+        "description": "Retrieves a specific policy version including content, hash, classification, approvals, and signatures.",
+        "operationId": "get_policy_v1_policies__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get policy version details by ID",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/v1/policies/{version_id}/activate": {
+      "post": {
+        "description": "Activates a policy version after verifying signature, content hash, approval quorum, and cool-down delay. Hot-reloads decision engine memory.",
+        "operationId": "activate_policy_v1_policies__version_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ActivatePolicyRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate policy change and hot-reload engines",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/v1/policies/{version_id}/approve": {
+      "post": {
+        "description": "Submits an authorized WebAuthn assertion over policy content hash. Enforces separation of duties (author cannot approve).",
+        "operationId": "approve_policy_v1_policies__version_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve policy change with WebAuthn hardware key",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
+        ]
+      }
+    },
+    "/v1/policies/{version_id}/rollback": {
+      "post": {
+        "description": "Rolls back from an active policy version to the previous verified healthy version.",
+        "operationId": "rollback_policy_v1_policies__version_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollback active policy to previous version",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Management"
         ]
       }
     },

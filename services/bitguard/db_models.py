@@ -153,14 +153,26 @@ class ApprovalRecord(Base):
 
 
 class PolicyVersionRecord(Base):
-    """Cryptographically signed, versioned policy manifests."""
+    """Cryptographically signed, versioned policy manifests (Milestone S20 / Section D)."""
 
     __tablename__ = "policy_versions"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     version: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     author: Mapped[str] = mapped_column(String(128), nullable=False)
-    rules: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
+    content: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT")
+    change_type: Mapped[str] = mapped_column(String(32), nullable=False, default="TIGHTEN")
+    ed25519_signature: Mapped[str | None] = mapped_column(Text, nullable=True)
+    signatures: Mapped[list[Any]] = mapped_column(JsonType, nullable=False, default=list)
+    approvals: Mapped[list[Any]] = mapped_column(JsonType, nullable=False, default=list)
+    backtest_report_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    cool_down_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rolled_back_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rollback_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rules: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=True, default=dict)
     signature: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -168,6 +180,21 @@ class PolicyVersionRecord(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+    def __init__(self, **kwargs: Any) -> None:
+        if "content" in kwargs and "rules" not in kwargs:
+            kwargs["rules"] = kwargs["content"]
+        elif "rules" in kwargs and "content" not in kwargs:
+            kwargs["content"] = kwargs["rules"]
+        if "ed25519_signature" in kwargs and "signature" not in kwargs:
+            kwargs["signature"] = kwargs["ed25519_signature"]
+        elif "signature" in kwargs and "ed25519_signature" not in kwargs:
+            kwargs["ed25519_signature"] = kwargs["signature"]
+        if "status" in kwargs and "is_active" not in kwargs:
+            kwargs["is_active"] = kwargs["status"] == "ACTIVE"
+        elif "is_active" in kwargs and "status" not in kwargs:
+            kwargs["status"] = "ACTIVE" if kwargs["is_active"] else "DRAFT"
+        super().__init__(**kwargs)
 
 
 class AuditEntryRecord(Base):
