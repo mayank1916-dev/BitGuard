@@ -3,7 +3,19 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    Integer,
+    String,
+    Text,
+    event,
+    inspect,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import JSON
@@ -48,30 +60,77 @@ class DecisionRecord(Base):
 
 
 class HoldTicketRecord(Base):
-    """Durable quarantine record for transactions placed in HOLD."""
+    """Durable quarantine record for transactions placed in HOLD (Milestone S14)."""
 
     __tablename__ = "hold_tickets"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('PENDING', 'APPROVED', 'DENIED', 'EXPIRED', 'CANCELLED', 'RELEASED')",
+            name="ck_hold_tickets_valid_state",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     request_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     tx_digest: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    digest: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    decoded_tx: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
     raw_tx: Mapped[str | None] = mapped_column(Text, nullable=True)
     chain: Mapped[str | None] = mapped_column(String(32), nullable=True, default="ethereum")
     wallet: Mapped[str | None] = mapped_column(String(128), nullable=True)
     amount_usd: Mapped[float | None] = mapped_column(Float, nullable=True, default=0.0)
     requester_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    requester_identity: Mapped[str | None] = mapped_column(String(128), nullable=True)
     reservation_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
     reasons: Mapped[list[dict[str, Any]]] = mapped_column(JsonType, nullable=False, default=list)
-    status: Mapped[str] = mapped_column(String(32), default="PENDING", nullable=False)
+    state: Mapped[str] = mapped_column(String(32), default="PENDING", server_default="PENDING", nullable=False, active_history=True)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING", server_default="PENDING", nullable=False, active_history=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+    release_not_before: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     signed_result: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
     data_label: Mapped[str | None] = mapped_column(String(16), nullable=True, default="REAL")
+
+
+@event.listens_for(HoldTicketRecord, "before_update")
+def validate_hold_ticket_record_transition(mapper: Any, connection: Any, target: HoldTicketRecord) -> None:
+    from services.bitguard.approvals.state_machine import validate_transition
+
+    insp = inspect(target)
+    state_history = insp.attrs.state.history
+    if state_history.has_changes():
+        old_state = state_history.deleted[0] if state_history.deleted else target.state
+        validate_transition(old_state, target.state, ticket_id=target.id)
+        target.status = target.state
+    elif insp.attrs.status.history.has_changes():
+        old_status = insp.attrs.status.history.deleted[0] if insp.attrs.status.history.deleted else target.status
+        validate_transition(old_status, target.status, ticket_id=target.id)
+        target.state = target.status
+
+
+
+@event.listens_for(HoldTicketRecord.__table__, "after_create")
+def create_hold_ticket_triggers(target: Any, connection: Any, **kw: Any) -> None:
+    dialect = connection.dialect.name
+    if dialect == "sqlite":
+        connection.execute(
+            text("""
+            CREATE TRIGGER IF NOT EXISTS trg_hold_tickets_terminal_state
+            BEFORE UPDATE OF state, status ON hold_tickets
+            FOR EACH ROW
+            WHEN OLD.state IN ('DENIED', 'EXPIRED', 'CANCELLED', 'RELEASED') AND OLD.state != NEW.state
+            BEGIN
+                SELECT RAISE(ABORT, 'Cannot transition from terminal state');
+            END;
+            """)
+        )
+
 
 
 class ApprovalRecord(Base):

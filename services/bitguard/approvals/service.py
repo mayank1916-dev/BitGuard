@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 
+from services.bitguard.approvals.exceptions import TicketAlreadyReleasedError
 from services.bitguard.approvals.hold_store import hold_store
 from services.bitguard.approvals.models import (
     ApproveHoldResponse,
@@ -24,6 +25,7 @@ from services.bitguard.approvals.models import (
     HoldViewResponse,
     WebAuthnAssertion,
 )
+from services.bitguard.approvals.state_machine import TERMINAL_STATES
 from services.bitguard.approvals.webauthn import (
     WebAuthnVerificationError,
     webauthn_verifier,
@@ -32,7 +34,13 @@ from services.bitguard.audit_service import audit_service
 from services.bitguard.decoders.evm import evm_decoder
 from services.bitguard.gateway.client_shim import SignerShimClient, signer_shim_client
 from services.bitguard.limits.store import limit_store
-from services.bitguard.models import Approval, DecodedTx, HoldTicket, UserResponse
+from services.bitguard.models import (
+    Approval,
+    CancelHoldResponse,
+    DecodedTx,
+    HoldTicket,
+    UserResponse,
+)
 from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.tokens.manager import token_manager
 
@@ -238,10 +246,17 @@ class QuorumApprovalService:
             except Exception as exc:
                 logger.warning("failed_committing_limit_reservation: %s", exc)
 
-        # Mark ticket APPROVED
-        hold_store.update_status(ticket.id, "APPROVED", signed_result=shim_res)
-        ticket.status = "APPROVED"
-        ticket.signed_result = shim_res
+        # Mark ticket RELEASED with single-use guarantee (SELECT ... FOR UPDATE)
+        try:
+            hold_store.atomic_release(ticket.id, actor="system", signed_result=shim_res)
+            ticket.state = "RELEASED"
+            ticket.status = "RELEASED"
+            ticket.signed_result = shim_res
+        except TicketAlreadyReleasedError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"TICKET_ALREADY_RELEASED: {exc.message}",
+            ) from exc
 
         # Invariant #7: Audit log entries
         audit_service.append_entry(
@@ -255,24 +270,6 @@ class QuorumApprovalService:
             request_id=ticket.request_id,
             verdict="ALLOW",
             data_label=ticket.data_label,
-        )
-
-        # Stream update event
-        data_label_val = (
-            ticket.data_label.value
-            if hasattr(ticket.data_label, "value")
-            else str(ticket.data_label)
-        )
-        stream_broadcaster.publish_event(
-            event_type="HOLD_RELEASED",
-            payload={
-                "hold_id": ticket.id,
-                "request_id": ticket.request_id,
-                "status": "APPROVED",
-                "signature": shim_res.get("signature"),
-                "tx_hash": shim_res.get("tx_hash"),
-            },
-            data_label=data_label_val,
         )
 
         return ApproveHoldResponse(
@@ -343,6 +340,50 @@ class QuorumApprovalService:
         return DenyHoldResponse(
             status="DENIED",
             hold_id=ticket.id,
+            reason=reason,
+            data_label=ticket.data_label,
+        )
+
+
+    def cancel_hold(
+        self,
+        hold_id: str,
+        cancelled_by_user: UserResponse,
+        reason: str = "Cancelled by authorized operator",
+    ) -> CancelHoldResponse:
+        """Invariant #6: Operator or SecOps cancels and tightens immediately."""
+        ticket = hold_store.get(hold_id)
+        if ticket is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Hold ticket '{hold_id}' not found",
+            )
+
+        if ticket.state in TERMINAL_STATES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Hold ticket '{hold_id}' cannot be cancelled: already in terminal state {ticket.state}",
+            )
+
+        # Release limit reservation if present
+        if ticket.reservation_id:
+            try:
+                limit_store.release(ticket.reservation_id)
+            except Exception as exc:
+                logger.warning("failed_releasing_limit_reservation_on_cancel: %s", exc)
+
+        hold_store.transition_state(
+            ticket_id=ticket.id,
+            new_state="CANCELLED",
+            actor=cancelled_by_user.id,
+            reason=reason,
+        )
+
+        return CancelHoldResponse(
+            status="CANCELLED",
+            state="CANCELLED",
+            hold_id=ticket.id,
+            cancelled_by=cancelled_by_user.id,
             reason=reason,
             data_label=ticket.data_label,
         )

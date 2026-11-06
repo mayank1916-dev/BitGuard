@@ -493,11 +493,11 @@ class LabScenarioExecutor:
 
         # Check stored status in store
         stored_ticket = hold_store.get(hold_id)
-        ticket_approved = stored_ticket is not None and stored_ticket.status == "APPROVED"
+        ticket_approved = stored_ticket is not None and stored_ticket.status in ("APPROVED", "RELEASED")
         checks.append(AssertionCheck(
             name="stored_ticket_status_approved",
             passed=ticket_approved,
-            expected="APPROVED",
+            expected="RELEASED",
             actual=stored_ticket.status if stored_ticket else None,
         ))
 

@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Verdict(StrEnum):
@@ -157,25 +157,77 @@ class Approval(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class HoldState(StrEnum):
+    """Quarantine hold ticket lifecycle states (Milestone S14)."""
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+    RELEASED = "RELEASED"
+
+
 class HoldTicket(BaseModel):
-    """Durable quarantine record for transactions placed in HOLD."""
+    """Durable quarantine record for transactions placed in HOLD (Milestone S14)."""
 
     id: str
     request_id: str
-    tx_digest: str
+    tx_digest: str = ""
+    digest: str = ""
+    decoded_tx: dict[str, Any] | None = None
     raw_tx: str | None = None
     chain: str = "ethereum"
     wallet: str | None = None
     amount_usd: float = 0.0
     requester_id: str | None = None
+    requester_identity: str | None = None
     reservation_id: str | None = None
     risk_score: int = 0
     reasons: list[DecisionReason] = Field(default_factory=list)
-    status: str = "PENDING"  # PENDING, APPROVED, DENIED, EXPIRED
+    state: str = "PENDING"  # PENDING, APPROVED, DENIED, EXPIRED, CANCELLED, RELEASED
+    status: str = "PENDING"
     expires_at: datetime
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    release_not_before: datetime | None = None
+    released_at: datetime | None = None
     approvals: list[Approval] = Field(default_factory=list)
     signed_result: dict[str, Any] | None = None
+    data_label: DataLabel = DataLabel.REAL
+
+    @model_validator(mode="after")
+    def sync_aliases(self) -> "HoldTicket":
+        if not self.digest and self.tx_digest:
+            self.digest = self.tx_digest
+        elif not self.tx_digest and self.digest:
+            self.tx_digest = self.digest
+
+        if not self.requester_identity and self.requester_id:
+            self.requester_identity = self.requester_id
+        elif not self.requester_id and self.requester_identity:
+            self.requester_id = self.requester_identity
+
+        if self.state and (not self.status or (self.status == "PENDING" and self.state != "PENDING")):
+            self.status = self.state
+        elif self.status and (not self.state or (self.state == "PENDING" and self.status != "PENDING")):
+            self.state = self.status
+        return self
+
+
+class CancelHoldRequest(BaseModel):
+    """Request payload to cancel a quarantined hold ticket (tightening action)."""
+
+    reason: str = Field(default="Cancelled by authorized operator")
+
+
+class CancelHoldResponse(BaseModel):
+    """Response returned upon cancelling a quarantined hold ticket."""
+
+    status: str = "CANCELLED"
+    state: str = "CANCELLED"
+    hold_id: str
+    cancelled_by: str
+    reason: str
     data_label: DataLabel = DataLabel.REAL
 
 

@@ -19,6 +19,7 @@ from services.bitguard.approvals.models import (
     HoldViewResponse,
     WebAuthnAssertion,
 )
+from services.bitguard.approvals.worker import hold_expiry_worker
 from services.bitguard.audit.models import (
     AnchorRecordModel,
     AuditEntryModel,
@@ -46,6 +47,8 @@ from services.bitguard.logging import setup_json_logging
 from services.bitguard.models import (
     Approval,
     AuditEntry,
+    CancelHoldRequest,
+    CancelHoldResponse,
     CreateWatchedAddressRequest,
     DailyGroupMetrics,
     DecodedTx,
@@ -88,7 +91,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         },
     )
     stream_broadcaster.start_ticker()
+    hold_expiry_worker.start()
     yield
+    hold_expiry_worker.stop()
     stream_broadcaster.stop_ticker()
     logger.info("BitGuard Firewall service shutting down")
 
@@ -143,6 +148,8 @@ def create_app() -> FastAPI:
             ApproveHoldResponse,
             AuditEntry,
             BreakerStatusResponse,
+            CancelHoldRequest,
+            CancelHoldResponse,
             CreateWatchedAddressRequest,
             DailyGroupMetrics,
             DecodedTx,

@@ -52,7 +52,7 @@
 - [x] S11 Approval token and signer shim (F1) with bypass protection
 - [x] S12 Signing gateway: mTLS identity and JSON-RPC interface
 - [x] S13 Decision persistence and live WebSocket stream
-- [ ] S14 Durable quarantine and HOLD state machine
+- [x] S14 Durable quarantine and HOLD state machine
 - [ ] S15 Full authentication: OIDC SSO and WebAuthn hardware keys (F9)
 - [x] S16 Quorum approval with WebAuthn over the tx digest (F10)
 - [x] S17 Delegation and code watcher for your own addresses (F6)

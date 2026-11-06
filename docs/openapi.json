@@ -670,6 +670,56 @@
         "title": "CallItem",
         "type": "object"
       },
+      "CancelHoldRequest": {
+        "description": "Request payload to cancel a quarantined hold ticket (tightening action).",
+        "properties": {
+          "reason": {
+            "default": "Cancelled by authorized operator",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "CancelHoldRequest",
+        "type": "object"
+      },
+      "CancelHoldResponse": {
+        "description": "Response returned upon cancelling a quarantined hold ticket.",
+        "properties": {
+          "cancelled_by": {
+            "title": "Cancelled By",
+            "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "hold_id": {
+            "title": "Hold Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "state": {
+            "default": "CANCELLED",
+            "title": "State",
+            "type": "string"
+          },
+          "status": {
+            "default": "CANCELLED",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hold_id",
+          "cancelled_by",
+          "reason"
+        ],
+        "title": "CancelHoldResponse",
+        "type": "object"
+      },
       "CancelTimelockRequest": {
         "properties": {
           "reason": {
@@ -1395,7 +1445,7 @@
         "type": "object"
       },
       "HoldTicket": {
-        "description": "Durable quarantine record for transactions placed in HOLD.",
+        "description": "Durable quarantine record for transactions placed in HOLD (Milestone S14).",
         "properties": {
           "amount_usd": {
             "default": 0.0,
@@ -1422,6 +1472,24 @@
           "data_label": {
             "$ref": "#/components/schemas/DataLabel",
             "default": "REAL"
+          },
+          "decoded_tx": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decoded Tx"
+          },
+          "digest": {
+            "default": "",
+            "title": "Digest",
+            "type": "string"
           },
           "expires_at": {
             "format": "date-time",
@@ -1451,6 +1519,32 @@
             "title": "Reasons",
             "type": "array"
           },
+          "release_not_before": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Release Not Before"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Released At"
+          },
           "request_id": {
             "title": "Request Id",
             "type": "string"
@@ -1466,6 +1560,18 @@
             ],
             "default": null,
             "title": "Requester Id"
+          },
+          "requester_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requester Identity"
           },
           "reservation_id": {
             "anyOf": [
@@ -1497,12 +1603,18 @@
             "default": null,
             "title": "Signed Result"
           },
+          "state": {
+            "default": "PENDING",
+            "title": "State",
+            "type": "string"
+          },
           "status": {
             "default": "PENDING",
             "title": "Status",
             "type": "string"
           },
           "tx_digest": {
+            "default": "",
             "title": "Tx Digest",
             "type": "string"
           },
@@ -1522,7 +1634,6 @@
         "required": [
           "id",
           "request_id",
-          "tx_digest",
           "expires_at"
         ],
         "title": "HoldTicket",
@@ -4405,7 +4516,7 @@
     },
     "/api/v1/holds": {
       "get": {
-        "description": "Returns active quarantined hold tickets (requires READ_DECISIONS).",
+        "description": "Returns active quarantined hold tickets optionally filtered by state (requires READ_DECISIONS).",
         "operationId": "list_holds_api_v1_holds_get",
         "parameters": [
           {
@@ -4420,6 +4531,24 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Optional state filter (PENDING, APPROVED, DENIED, EXPIRED, CANCELLED, RELEASED)",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional state filter (PENDING, APPROVED, DENIED, EXPIRED, CANCELLED, RELEASED)",
+              "title": "State"
             }
           },
           {
@@ -4498,6 +4627,98 @@
           }
         },
         "summary": "List quarantined hold tickets",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
+        ]
+      }
+    },
+    "/api/v1/holds/{hold_id}": {
+      "get": {
+        "description": "Retrieves the hold ticket by ID including decoded transaction, reasons, state, and approvals.",
+        "operationId": "get_hold_api_v1_holds__hold_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldTicket"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get single quarantined hold ticket by ID",
         "tags": [
           "V1 Policy Decision Point",
           "Quorum Approvals & Quarantine Holds"
@@ -4600,6 +4821,110 @@
           }
         },
         "summary": "Submit WebAuthn hardware key approval for hold ticket",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
+        ]
+      }
+    },
+    "/api/v1/holds/{hold_id}/cancel": {
+      "post": {
+        "description": "Invariant #6: Operator or SecOps cancels and tightens immediately. Releases limit reservations and marks the ticket CANCELLED.",
+        "operationId": "cancel_hold_api_v1_holds__hold_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelHoldRequest",
+                "default": {
+                  "reason": "Cancelled by authorized operator"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelHoldResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel quarantined hold ticket (tighten policy)",
         "tags": [
           "V1 Policy Decision Point",
           "Quorum Approvals & Quarantine Holds"
@@ -8009,7 +8334,7 @@
     },
     "/v1/holds": {
       "get": {
-        "description": "Returns active quarantined hold tickets (requires READ_DECISIONS).",
+        "description": "Returns active quarantined hold tickets optionally filtered by state (requires READ_DECISIONS).",
         "operationId": "list_holds_v1_holds_get",
         "parameters": [
           {
@@ -8024,6 +8349,24 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Optional state filter (PENDING, APPROVED, DENIED, EXPIRED, CANCELLED, RELEASED)",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional state filter (PENDING, APPROVED, DENIED, EXPIRED, CANCELLED, RELEASED)",
+              "title": "State"
             }
           },
           {
@@ -8102,6 +8445,98 @@
           }
         },
         "summary": "List quarantined hold tickets",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
+        ]
+      }
+    },
+    "/v1/holds/{hold_id}": {
+      "get": {
+        "description": "Retrieves the hold ticket by ID including decoded transaction, reasons, state, and approvals.",
+        "operationId": "get_hold_v1_holds__hold_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldTicket"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get single quarantined hold ticket by ID",
         "tags": [
           "V1 Policy Decision Point",
           "Quorum Approvals & Quarantine Holds"
@@ -8204,6 +8639,110 @@
           }
         },
         "summary": "Submit WebAuthn hardware key approval for hold ticket",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Quorum Approvals & Quarantine Holds"
+        ]
+      }
+    },
+    "/v1/holds/{hold_id}/cancel": {
+      "post": {
+        "description": "Invariant #6: Operator or SecOps cancels and tightens immediately. Releases limit reservations and marks the ticket CANCELLED.",
+        "operationId": "cancel_hold_v1_holds__hold_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "title": "Hold Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelHoldRequest",
+                "default": {
+                  "reason": "Cancelled by authorized operator"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelHoldResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel quarantined hold ticket (tighten policy)",
         "tags": [
           "V1 Policy Decision Point",
           "Quorum Approvals & Quarantine Holds"

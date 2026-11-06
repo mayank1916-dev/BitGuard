@@ -1,13 +1,13 @@
-"""V1 API Router for Quorum Approvals and Hold Tickets (Milestone S16 / F10).
+"""V1 API Router for Quorum Approvals and Hold Tickets (Milestones S14 & S16).
 
 Invariants:
 - Invariant #4: Raw Byte Source of Truth (independent decode).
 - Invariant #5: WebAuthn Hardware Approvals over tx digest.
-- Invariant #6: Asymmetric Policy Evolution (deny = 1 approver instant; approval = quorum of 2 distinct approvers).
+- Invariant #6: Asymmetric Policy Evolution (deny/cancel = 1 authorized person instant; approval = quorum of 2 distinct approvers).
 - Invariant #7: Immutable Audit Trail.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from services.bitguard.approvals.hold_store import hold_store
 from services.bitguard.approvals.models import (
@@ -18,7 +18,13 @@ from services.bitguard.approvals.models import (
     HoldViewResponse,
 )
 from services.bitguard.approvals.service import approval_service
-from services.bitguard.models import HoldTicket, Permission, UserResponse
+from services.bitguard.models import (
+    CancelHoldRequest,
+    CancelHoldResponse,
+    HoldTicket,
+    Permission,
+    UserResponse,
+)
 from services.bitguard.rbac import require_permission
 
 router = APIRouter(prefix="/holds", tags=["Quorum Approvals & Quarantine Holds"])
@@ -28,14 +34,15 @@ router = APIRouter(prefix="/holds", tags=["Quorum Approvals & Quarantine Holds"]
     "",
     response_model=list[HoldTicket],
     summary="List quarantined hold tickets",
-    description="Returns active quarantined hold tickets (requires READ_DECISIONS).",
+    description="Returns active quarantined hold tickets optionally filtered by state (requires READ_DECISIONS).",
 )
 def list_holds(
     limit: int = Query(50, ge=1, le=200, description="Maximum tickets to return"),
+    state: str | None = Query(None, description="Optional state filter (PENDING, APPROVED, DENIED, EXPIRED, CANCELLED, RELEASED)"),
     current_user: UserResponse = Depends(require_permission(Permission.READ_DECISIONS)),
 ) -> list[HoldTicket]:
     """Retrieves list of active and recent hold tickets."""
-    return hold_store.list_active(limit=limit)
+    return hold_store.list_active(limit=limit, state=state)
 
 
 @router.get(
@@ -53,6 +60,26 @@ def view_hold(
 ) -> HoldViewResponse:
     """Returns console payload view with ground-truth decoded transaction."""
     return approval_service.view_hold(hold_id=hold_id)
+
+
+@router.get(
+    "/{hold_id}",
+    response_model=HoldTicket,
+    summary="Get single quarantined hold ticket by ID",
+    description="Retrieves the hold ticket by ID including decoded transaction, reasons, state, and approvals.",
+)
+def get_hold(
+    hold_id: str,
+    current_user: UserResponse = Depends(require_permission(Permission.READ_DECISIONS)),
+) -> HoldTicket:
+    """Retrieves a single hold ticket by ID."""
+    ticket = hold_store.get(hold_id)
+    if ticket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Hold ticket '{hold_id}' not found",
+        )
+    return ticket
 
 
 @router.post(
@@ -96,5 +123,27 @@ def deny_hold(
     return approval_service.deny_hold(
         hold_id=hold_id,
         approver_user=current_user,
+        reason=payload.reason,
+    )
+
+
+@router.post(
+    "/{hold_id}/cancel",
+    response_model=CancelHoldResponse,
+    summary="Cancel quarantined hold ticket (tighten policy)",
+    description=(
+        "Invariant #6: Operator or SecOps cancels and tightens immediately. "
+        "Releases limit reservations and marks the ticket CANCELLED."
+    ),
+)
+def cancel_hold(
+    hold_id: str,
+    payload: CancelHoldRequest = CancelHoldRequest(),
+    current_user: UserResponse = Depends(require_permission(Permission.POLICY_TIGHTEN)),
+) -> CancelHoldResponse:
+    """Cancels a quarantined hold ticket immediately."""
+    return approval_service.cancel_hold(
+        hold_id=hold_id,
+        cancelled_by_user=current_user,
         reason=payload.reason,
     )
