@@ -428,3 +428,30 @@ def test_policy_hash_chained_audit_trail():
 
     # Verify cryptographic hash-chain integrity
     assert audit_service.verify_chain().ok is True
+
+
+# ---------------------------------------------------------------------------
+# Test 10: Engines Poll and Hot-Reload Active Version Pointer
+# ---------------------------------------------------------------------------
+def test_engine_polls_and_hot_reloads_active_pointer():
+    """Engines hot-reload by polling the active version pointer."""
+    operator_user = SEEDED_USERS[Role.OPERATOR]
+    baseline = policy_service.get_or_create_baseline()
+
+    new_doc = baseline.content.model_copy(deep=True)
+    new_doc.version = "v1.3.0"
+    new_doc.thresholds.single_tx_usd = 22_000.0
+
+    pv = policy_service.propose_policy(
+        ProposePolicyRequest(version="v1.3.0", content=new_doc),
+        author_user=operator_user,
+    )
+    policy_service.activate_policy(pv.id, activator_user=operator_user)
+
+    # Simulate another engine instance with older memory hash
+    decision_engine.active_policy_hash = "0xold_outdated_hash"
+    reloaded = policy_service.poll_active_version()
+    assert reloaded is not None
+    assert reloaded.version == "v1.3.0"
+    assert decision_engine.active_policy_hash == pv.content_hash
+    assert decision_engine.config.single_tx_usd_threshold == 22_000.0

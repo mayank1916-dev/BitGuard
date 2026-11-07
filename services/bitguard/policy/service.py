@@ -11,6 +11,7 @@ Invariants:
 - Integrity Check: periodic comparison of engine hash vs database ACTIVE record. Mismatch => alert and fail closed.
 """
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -369,8 +370,37 @@ class PolicyService:
             data_label="REAL",
         )
 
+        # Broadcast Redis pub/sub trigger for distributed engines
+        self._publish_redis_reload_event(policy_ver.id, policy_ver.content_hash)
+
         logger.info("Policy version %s activated successfully (change_type=%s)", policy_ver.version, policy_ver.change_type.value)
         return policy_ver
+
+    def _publish_redis_reload_event(self, version_id: str, content_hash: str) -> None:
+        """Publishes policy reload event to Redis pub/sub channel for distributed engines."""
+        try:
+            import redis
+
+            r = redis.Redis.from_url(settings.redis_url, socket_timeout=1.0)
+            payload = json.dumps({"version_id": version_id, "hash": content_hash})
+            r.publish("bitguard:policy:reload", payload)
+            r.set("bitguard:policy:active_version_id", version_id)
+        except Exception as exc:
+            logger.debug("Redis pub/sub reload broadcast bypassed: %s", exc)
+
+    def poll_active_version(self) -> PolicyVersion | None:
+        """Polls the active version pointer and hot-reloads decision engine if changed."""
+        active = policy_store.get_active()
+        if not active:
+            return None
+
+        if active.content_hash != decision_engine.active_policy_hash:
+            logger.info("Engine detected updated active policy pointer: %s. Hot-reloading.", active.version)
+            decision_engine.reload_policy(active.content, content_hash=active.content_hash)
+            self.last_healthy_version_id = active.id
+            self.last_healthy_version_hash = active.content_hash
+
+        return active
 
     def auto_rollback(
         self,
