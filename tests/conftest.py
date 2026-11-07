@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 
 from services.bitguard.audit import audit_service
+from services.bitguard.backtest.service import backtest_service
 from services.bitguard.breaker.epoch_store import token_epoch_store
 from services.bitguard.breaker.store import distributed_breaker_store
 from services.bitguard.database import set_engine
@@ -22,6 +23,7 @@ def configure_test_redis_and_db():
     distributed_breaker_store.set_redis_client(client)
     token_epoch_store.set_redis_client(client)
     nonce_store.set_redis_client(client)
+    backtest_service.set_redis_client(client)
     audit_service.clear()
 
     engine = sa.create_engine(

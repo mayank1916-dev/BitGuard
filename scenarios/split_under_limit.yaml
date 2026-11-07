@@ -1,0 +1,17 @@
+# BitGuard Scenario: Split Under Limit
+# DATA pattern describing transactions split just under single-tx limit ($50,000)
+id: split_under_limit
+name: "Split Under Limit Outflow"
+description: "High-frequency transfers split into amounts just below the single-tx threshold ($49,000 each vs $50,000 threshold)."
+pattern_type: split_under_limit
+target_wallet: "0xBinanceHotETH1"
+chain: "ethereum"
+asset: "ETH"
+count: 6
+amount_usd_per_event: 49000.0
+interval_seconds: 5.0
+destinations:
+  - "0xAttackerMule01"
+  - "0xAttackerMule02"
+  - "0xAttackerMule03"
+data_label: "SYNTHETIC"

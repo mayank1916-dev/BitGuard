@@ -1,0 +1,15 @@
+# BitGuard Scenario: Rapid Velocity Spike
+# DATA pattern describing rapid burst of large withdrawals exceeding hourly limits
+id: rapid_velocity
+name: "Rapid Velocity Spike"
+description: "Burst of large withdrawals within minutes exceeding hourly aggregate rolling limits."
+pattern_type: rapid_velocity
+target_wallet: "0xBinanceHotETH1"
+chain: "ethereum"
+asset: "ETH"
+count: 5
+amount_usd_per_event: 35000.0
+interval_seconds: 2.0
+destinations:
+  - "0xVelocityDrain01"
+data_label: "SYNTHETIC"

@@ -438,3 +438,33 @@ class IncidentRecord(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+
+class BacktestReportRecord(Base):
+    """Historical and synthetic backtest evaluation reports (Milestone S22 / F8)."""
+
+    __tablename__ = "backtest_reports"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    draft_policy_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    draft_policy_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    baseline_policy_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    baseline_policy_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    total_events: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    real_events_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    synthetic_events_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    allowed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    held_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    denied_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    holds_per_day: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    estimated_false_positives: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    synthetic_loss_prevented_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    synthetic_loss_allowed_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    policy_diff: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
+    summary: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
+    steps: Mapped[list[dict[str, Any]]] = mapped_column(JsonType, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )

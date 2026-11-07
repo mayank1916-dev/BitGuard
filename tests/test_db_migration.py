@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from services.bitguard.db_models import (
     ApprovalRecord,
     AuditEntryRecord,
+    BacktestReportRecord,
     BreakerStateRecord,
     DailyGroupMetricsRecord,
     DecisionRecord,
@@ -48,6 +49,7 @@ def test_alembic_migrations_lifecycle():
             "breaker_deescalations",
             "wallet_groups",
             "daily_group_metrics",
+            "backtest_reports",
         }
         assert expected_tables.issubset(tables), f"Missing tables: {expected_tables - tables}"
 
@@ -153,8 +155,33 @@ def test_alembic_migrations_lifecycle():
                 updated_at=now,
             )
 
-            session.add_all([dec, ht, appr, pv, ae, wa, bs, bdr, wg, dgm])
+            btr = BacktestReportRecord(
+                id="btr-db-001",
+                draft_policy_id="pv-db-001",
+                draft_policy_hash="0xhash123",
+                total_events=10,
+                real_events_count=8,
+                synthetic_events_count=2,
+                allowed_count=8,
+                held_count=2,
+                denied_count=0,
+                holds_per_day=2.0,
+                estimated_false_positives=1,
+                synthetic_loss_prevented_usd=98000.0,
+                synthetic_loss_allowed_usd=0.0,
+                policy_diff={},
+                summary={},
+                steps=[],
+                created_at=now,
+            )
+
+            session.add_all([dec, ht, appr, pv, ae, wa, bs, bdr, wg, dgm, btr])
             session.commit()
+
+            # Query back
+            queried_btr = session.get(BacktestReportRecord, "btr-db-001")
+            assert queried_btr is not None
+            assert queried_btr.draft_policy_id == "pv-db-001"
 
             # Query back to ensure data persistence
             stored_dec = session.query(DecisionRecord).filter_by(id="dec-db-001").first()

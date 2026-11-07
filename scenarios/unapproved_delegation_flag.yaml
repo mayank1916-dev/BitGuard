@@ -1,0 +1,17 @@
+# BitGuard Scenario: Unapproved EIP-7702 Delegation Flag
+# DATA pattern describing EIP-7702 transactions delegating to non-allowlisted contract
+id: unapproved_delegation_flag
+name: "Unapproved EIP-7702 Delegation Flag"
+description: "Transactions carrying EIP-7702 delegation authorization targeting non-allowlisted upgradeable contract."
+pattern_type: unapproved_delegation_flag
+target_wallet: "0xBinanceHotETH1"
+chain: "ethereum"
+asset: "ETH"
+count: 3
+amount_usd_per_event: 120000.0
+interval_seconds: 15.0
+delegate_address: "0x9999999999999999999999999999999999999999"
+delegate_code_hash: "0xbad0bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0"
+destinations:
+  - "0xDelegationExploitSink"
+data_label: "SYNTHETIC"

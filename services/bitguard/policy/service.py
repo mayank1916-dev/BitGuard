@@ -216,12 +216,23 @@ class PolicyService:
             if existing_appr.approver_id == approver_user.id or existing_appr.approver_email == approver_user.email:
                 raise ValueError(f"Approver '{approver_user.email}' has already approved this policy version")
 
-        # Loosening requires an attached backtest report
+        # Loosening requires an attached backtest report matching draft policy hash (TASK S22)
         if policy_ver.change_type in [ChangeClassification.LOOSEN, ChangeClassification.MIXED]:
             if not policy_ver.backtest_report_id:
                 raise ValueError(
                     f"Loosening policy change ({policy_ver.change_type.value}) requires an attached "
                     "backtest_report_id; cannot approve without backtest evidence"
+                )
+            from services.bitguard.backtest.service import backtest_service
+            report = backtest_service.get_report(policy_ver.backtest_report_id)
+            if not report:
+                raise ValueError(
+                    f"Attached backtest report '{policy_ver.backtest_report_id}' was not found"
+                )
+            if report.draft_policy_hash != policy_ver.content_hash:
+                raise ValueError(
+                    f"Attached backtest report draft policy hash ({report.draft_policy_hash}) "
+                    f"does not match proposed policy content hash ({policy_ver.content_hash})"
                 )
 
         # Invariant #5: Cryptographic WebAuthn assertion verification
@@ -293,10 +304,21 @@ class PolicyService:
                     f"approvers; got {len(policy_ver.approvals)}"
                 )
 
-            # Requires attached backtest report
+            # Requires attached backtest report matching draft policy hash (TASK S22)
             if not policy_ver.backtest_report_id:
                 raise ValueError(
                     f"Loosening policy change ({policy_ver.change_type.value}) requires an attached backtest_report_id"
+                )
+            from services.bitguard.backtest.service import backtest_service
+            report = backtest_service.get_report(policy_ver.backtest_report_id)
+            if not report:
+                raise ValueError(
+                    f"Attached backtest report '{policy_ver.backtest_report_id}' was not found"
+                )
+            if report.draft_policy_hash != policy_ver.content_hash:
+                raise ValueError(
+                    f"Attached backtest report draft policy hash ({report.draft_policy_hash}) "
+                    f"does not match policy content hash ({policy_ver.content_hash})"
                 )
 
             # Enforce cool-down delay

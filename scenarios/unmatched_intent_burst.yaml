@@ -1,0 +1,18 @@
+# BitGuard Scenario: Unmatched Intent Burst
+# DATA pattern describing signing requests missing matching custody ledger intent
+id: unmatched_intent_burst
+name: "Unmatched Custody Intent Burst"
+description: "Signing requests missing corresponding custody ledger intent reconciliation IDs."
+pattern_type: unmatched_intent_burst
+target_wallet: "0xBinanceHotETH1"
+chain: "ethereum"
+asset: "ETH"
+count: 4
+amount_usd_per_event: 28000.0
+interval_seconds: 8.0
+intent_id: null
+simulate_intent_mismatch: true
+destinations:
+  - "0xOrphanRecipient1"
+  - "0xOrphanRecipient2"
+data_label: "SYNTHETIC"

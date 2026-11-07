@@ -477,6 +477,61 @@
         "title": "AuthorizationItem",
         "type": "object"
       },
+      "BacktestImportRequest": {
+        "description": "Request payload for POST /v1/backtests importing historical events.",
+        "properties": {
+          "baseline_policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional baseline policy ID to diff against (defaults to active policy)",
+            "title": "Baseline Policy Id"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Raw JSONL or CSV string payload",
+            "title": "Data"
+          },
+          "draft_policy_id": {
+            "description": "Policy version ID to backtest against",
+            "title": "Draft Policy Id",
+            "type": "string"
+          },
+          "format": {
+            "default": "jsonl",
+            "description": "'jsonl' or 'csv'",
+            "title": "Format",
+            "type": "string"
+          },
+          "scenarios": {
+            "description": "List of scenario pattern IDs to inject (e.g. split_under_limit, rapid_velocity)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          }
+        },
+        "required": [
+          "draft_policy_id"
+        ],
+        "title": "BacktestImportRequest",
+        "type": "object"
+      },
       "BacktestMeta": {
         "description": "Metadata describing a historical or synthetic backtest dataset.",
         "properties": {
@@ -514,6 +569,135 @@
           "events_count"
         ],
         "title": "BacktestMeta",
+        "type": "object"
+      },
+      "BacktestReport": {
+        "description": "Comprehensive backtest report stored in backtest_reports table.",
+        "properties": {
+          "allowed_count": {
+            "title": "Allowed Count",
+            "type": "integer"
+          },
+          "baseline_policy_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Baseline policy hash",
+            "title": "Baseline Policy Hash"
+          },
+          "baseline_policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Baseline policy ID diffed against",
+            "title": "Baseline Policy Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "denied_count": {
+            "title": "Denied Count",
+            "type": "integer"
+          },
+          "draft_policy_hash": {
+            "description": "Cryptographic content hash of the draft policy",
+            "title": "Draft Policy Hash",
+            "type": "string"
+          },
+          "draft_policy_id": {
+            "description": "ID of the draft policy under evaluation",
+            "title": "Draft Policy Id",
+            "type": "string"
+          },
+          "estimated_false_positives": {
+            "description": "Count of REAL events that would be held or denied under the draft policy",
+            "title": "Estimated False Positives",
+            "type": "integer"
+          },
+          "held_count": {
+            "title": "Held Count",
+            "type": "integer"
+          },
+          "holds_per_day": {
+            "title": "Holds Per Day",
+            "type": "number"
+          },
+          "id": {
+            "description": "Unique backtest report identifier (e.g. btr-...)",
+            "title": "Id",
+            "type": "string"
+          },
+          "policy_diff": {
+            "additionalProperties": true,
+            "description": "Diff against the active/baseline policy",
+            "title": "Policy Diff",
+            "type": "object"
+          },
+          "real_events_count": {
+            "title": "Real Events Count",
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepEvent"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          },
+          "synthetic_events_count": {
+            "title": "Synthetic Events Count",
+            "type": "integer"
+          },
+          "synthetic_loss_allowed_usd": {
+            "description": "USD volume of synthetic attack loss allowed through",
+            "title": "Synthetic Loss Allowed Usd",
+            "type": "number"
+          },
+          "synthetic_loss_prevented_usd": {
+            "description": "USD volume of synthetic attack loss contained by the policy",
+            "title": "Synthetic Loss Prevented Usd",
+            "type": "number"
+          },
+          "total_events": {
+            "title": "Total Events",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "draft_policy_id",
+          "draft_policy_hash",
+          "total_events",
+          "real_events_count",
+          "synthetic_events_count",
+          "allowed_count",
+          "held_count",
+          "denied_count",
+          "holds_per_day",
+          "estimated_false_positives",
+          "synthetic_loss_prevented_usd",
+          "synthetic_loss_allowed_usd"
+        ],
+        "title": "BacktestReport",
         "type": "object"
       },
       "BacktestRunResponse": {
@@ -997,6 +1181,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Target blockchain identifier",
             "title": "Chain"
           },
@@ -1017,6 +1202,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Decoded transaction payload if available"
           },
           "evaluation_latency_ms": {
@@ -1028,6 +1214,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "title": "Evaluation Latency Ms"
           },
           "is_false_positive": {
@@ -1062,12 +1249,13 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Active limit reservation ID if reserved",
             "title": "Reservation Id"
           },
           "risk_score": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Risk Score",
             "type": "integer"
           },
@@ -1091,6 +1279,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Originating wallet address",
             "title": "Wallet"
           },
@@ -1108,6 +1297,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Hypothetical binding verdict if evaluated under ENFORCE mode (used in SHADOW mode)"
           }
         },
@@ -2949,6 +3139,118 @@
           "action"
         ],
         "title": "RunbookStep",
+        "type": "object"
+      },
+      "ScenarioPattern": {
+        "description": "Data schema describing an attack/anomaly pattern for injection.",
+        "properties": {
+          "amount_usd_per_event": {
+            "default": 10000.0,
+            "title": "Amount Usd Per Event",
+            "type": "number"
+          },
+          "asset": {
+            "default": "ETH",
+            "title": "Asset",
+            "type": "string"
+          },
+          "chain": {
+            "default": "ethereum",
+            "title": "Chain",
+            "type": "string"
+          },
+          "count": {
+            "default": 5,
+            "title": "Count",
+            "type": "integer"
+          },
+          "data_label": {
+            "default": "SYNTHETIC",
+            "title": "Data Label",
+            "type": "string"
+          },
+          "delegate_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Delegate Address"
+          },
+          "delegate_code_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Delegate Code Hash"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "destinations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Destinations",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "intent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intent Id"
+          },
+          "interval_seconds": {
+            "default": 5.0,
+            "title": "Interval Seconds",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pattern_type": {
+            "title": "Pattern Type",
+            "type": "string"
+          },
+          "simulate_intent_mismatch": {
+            "default": false,
+            "title": "Simulate Intent Mismatch",
+            "type": "boolean"
+          },
+          "target_wallet": {
+            "title": "Target Wallet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "pattern_type",
+          "target_wallet"
+        ],
+        "title": "ScenarioPattern",
         "type": "object"
       },
       "SignTransactionParams": {
@@ -5182,6 +5484,47 @@
           "V1 Policy Decision Point",
           "Policy Backtesting & Replay Logs"
         ]
+      },
+      "post": {
+        "description": "Imports historical signing requests (JSONL or CSV), overlays scenario patterns, runs isolated replay, and returns backtest report.",
+        "operationId": "import_and_run_backtest_api_v1_backtests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacktestImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import and execute historical backtest",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Backtesting & Replay Logs"
+        ]
       }
     },
     "/api/v1/backtests/{backtest_id}/events": {
@@ -5271,6 +5614,50 @@
           }
         },
         "summary": "Stream backtest through real engine",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Backtesting & Replay Logs"
+        ]
+      }
+    },
+    "/api/v1/backtests/{id}": {
+      "get": {
+        "description": "Retrieves an existing backtest report by report ID.",
+        "operationId": "get_backtest_report_api_v1_backtests__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get stored backtest report by ID",
         "tags": [
           "V1 Policy Decision Point",
           "Policy Backtesting & Replay Logs"
@@ -11387,6 +11774,47 @@
           "V1 Policy Decision Point",
           "Policy Backtesting & Replay Logs"
         ]
+      },
+      "post": {
+        "description": "Imports historical signing requests (JSONL or CSV), overlays scenario patterns, runs isolated replay, and returns backtest report.",
+        "operationId": "import_and_run_backtest_v1_backtests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacktestImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import and execute historical backtest",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Backtesting & Replay Logs"
+        ]
       }
     },
     "/v1/backtests/{backtest_id}/events": {
@@ -11476,6 +11904,50 @@
           }
         },
         "summary": "Stream backtest through real engine",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Policy Backtesting & Replay Logs"
+        ]
+      }
+    },
+    "/v1/backtests/{id}": {
+      "get": {
+        "description": "Retrieves an existing backtest report by report ID.",
+        "operationId": "get_backtest_report_v1_backtests__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get stored backtest report by ID",
         "tags": [
           "V1 Policy Decision Point",
           "Policy Backtesting & Replay Logs"

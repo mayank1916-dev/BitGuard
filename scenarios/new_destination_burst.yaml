@@ -1,0 +1,18 @@
+# BitGuard Scenario: New Destination Burst
+# DATA pattern describing rapid transfers directed to newly created or unseen addresses
+id: new_destination_burst
+name: "New Destination Address Burst"
+description: "Burst of transfers directed to newly created, zero-history destination addresses."
+pattern_type: new_destination_burst
+target_wallet: "0xBinanceHotETH1"
+chain: "ethereum"
+asset: "ETH"
+count: 4
+amount_usd_per_event: 18000.0
+interval_seconds: 10.0
+destinations:
+  - "0xNewUnseenTargetA1"
+  - "0xNewUnseenTargetA2"
+  - "0xNewUnseenTargetA3"
+  - "0xNewUnseenTargetA4"
+data_label: "SYNTHETIC"

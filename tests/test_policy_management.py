@@ -210,7 +210,29 @@ def test_loosening_policy_requires_quorum_backtest_report_and_cooldown():
     with pytest.raises(ValueError, match="requires an attached backtest_report_id"):
         policy_service.approve_policy(pv.id, approver_user=approver1_user, assertion=assertion1)
 
-    # Attach backtest report
+    # Attach backtest report with matching draft policy hash (TASK S22 Hook)
+    from services.bitguard.backtest.models import BacktestReport
+    from services.bitguard.backtest.service import backtest_service
+
+    btr = BacktestReport(
+        id="rep-s22-backtest-9823",
+        draft_policy_id=pv.id,
+        draft_policy_hash=pv.content_hash,
+        total_events=10,
+        real_events_count=10,
+        synthetic_events_count=0,
+        allowed_count=10,
+        held_count=0,
+        denied_count=0,
+        holds_per_day=0.0,
+        estimated_false_positives=0,
+        synthetic_loss_prevented_usd=0.0,
+        synthetic_loss_allowed_usd=0.0,
+        policy_diff={},
+        summary={},
+        steps=[],
+    )
+    backtest_service.save_report(btr)
     pv.backtest_report_id = "rep-s22-backtest-9823"
     policy_store.save(pv)
 

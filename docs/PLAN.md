@@ -60,7 +60,7 @@
 - [x] S19 Incident runbook automation and escalation (F14)
 - [x] S20 Signed, versioned policy with hot reload and asymmetric changes (D)
 - [x] S21 Hash-chained audit log with external anchoring and SIEM export (F18)
-- [ ] S22 Policy backtesting on real or exported history (F8)
+- [x] S22 Policy backtesting on real or exported history (F8)
 - [x] S23 Testnet and local-fork integration lab with automated scenarios (F19)
 - [ ] S24 High availability, health, dead-man heartbeat and metrics (F17)
 - [ ] S25 Load test and honest latency measurement

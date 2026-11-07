@@ -38,28 +38,28 @@ class ScopeBuilder:
     """Canonical key naming for distributed sliding window scopes."""
 
     @staticmethod
-    def wallet_scope(wallet: str, window_seconds: int = 3600) -> str:
-        return f"limit:scope:wallet:{wallet.lower()}:{window_seconds}"
+    def wallet_scope(wallet: str, window_seconds: int = 3600, prefix: str = "") -> str:
+        return f"{prefix}limit:scope:wallet:{wallet.lower()}:{window_seconds}"
 
     @staticmethod
-    def asset_scope(asset: str, window_seconds: int = 3600) -> str:
-        return f"limit:scope:asset:{asset.upper()}:{window_seconds}"
+    def asset_scope(asset: str, window_seconds: int = 3600, prefix: str = "") -> str:
+        return f"{prefix}limit:scope:asset:{asset.upper()}:{window_seconds}"
 
     @staticmethod
-    def chain_scope(chain: str, window_seconds: int = 3600) -> str:
-        return f"limit:scope:chain:{chain.lower()}:{window_seconds}"
+    def chain_scope(chain: str, window_seconds: int = 3600, prefix: str = "") -> str:
+        return f"{prefix}limit:scope:chain:{chain.lower()}:{window_seconds}"
 
     @staticmethod
-    def global_scope(window_seconds: int = 3600) -> str:
-        return f"limit:scope:global:{window_seconds}"
+    def global_scope(window_seconds: int = 3600, prefix: str = "") -> str:
+        return f"{prefix}limit:scope:global:{window_seconds}"
 
     @classmethod
-    def all_scopes(cls, wallet: str, asset: str, chain: str, window_seconds: int = 3600) -> list[str]:
+    def all_scopes(cls, wallet: str, asset: str, chain: str, window_seconds: int = 3600, prefix: str = "") -> list[str]:
         return [
-            cls.wallet_scope(wallet, window_seconds),
-            cls.asset_scope(asset, window_seconds),
-            cls.chain_scope(chain, window_seconds),
-            cls.global_scope(window_seconds),
+            cls.wallet_scope(wallet, window_seconds, prefix=prefix),
+            cls.asset_scope(asset, window_seconds, prefix=prefix),
+            cls.chain_scope(chain, window_seconds, prefix=prefix),
+            cls.global_scope(window_seconds, prefix=prefix),
         ]
 
 
@@ -201,7 +201,8 @@ class LocalFallbackStore:
 class LimitStore:
     """Atomic distributed limit store combining Redis Lua scripts and local fail-closed fallbacks."""
 
-    def __init__(self, redis_client: redis.Redis | None = None) -> None:
+    def __init__(self, redis_client: redis.Redis | None = None, key_prefix: str = "") -> None:
+        self.key_prefix = key_prefix
         self._redis = redis_client or redis.Redis.from_url(
             settings.redis_url,
             decode_responses=True,
@@ -212,6 +213,25 @@ class LimitStore:
         self._release_script: Script | None = None
         self._get_usage_script: Script | None = None
         self._register_scripts()
+
+    def _prefix_scope(self, scope_key: str) -> str:
+        """Applies store namespace prefix if configured and not already present."""
+        if self.key_prefix and not scope_key.startswith(self.key_prefix):
+            return f"{self.key_prefix}{scope_key}"
+        return scope_key
+
+    def clear_namespace(self) -> int:
+        """Deletes all keys belonging to this store's key_prefix namespace."""
+        if not self.key_prefix:
+            return 0
+        try:
+            pattern = f"{self.key_prefix}*"
+            keys = list(self._redis.scan_iter(match=pattern, count=200))
+            if keys:
+                return int(self._redis.delete(*keys))
+        except Exception as exc:
+            logger.warning("limit_store_clear_namespace_failed prefix=%s: %s", self.key_prefix, exc)
+        return 0
 
     def _register_scripts(self) -> None:
         """Loads and pre-compiles Lua scripts on Redis connection."""
@@ -254,6 +274,8 @@ class LimitStore:
         else:
             raw_cap_str = str(int(cap))
 
+        prefixed_keys = [self._prefix_scope(k) for k in scope_keys]
+
         try:
             if self._reserve_script is None:
                 self._register_scripts()
@@ -261,7 +283,7 @@ class LimitStore:
                 raise redis.exceptions.ConnectionError("Script not loaded")
 
             result = self._reserve_script(
-                keys=scope_keys,
+                keys=prefixed_keys,
                 args=[amount, window_seconds, raw_cap_str, res_id, current_now, current_ttl],
             )
             ok_flag, remaining, granted_res_id = result
@@ -296,7 +318,7 @@ class LimitStore:
                 )
             # Conservative local fallback
             return self._local_fallback.reserve(
-                scope_keys=scope_keys,
+                scope_keys=prefixed_keys,
                 amount=amount,
                 window_seconds=window_seconds,
                 cap=cap,
@@ -353,16 +375,17 @@ class LimitStore:
     ) -> tuple[int, int, int]:
         """Returns (committed_volume, reserved_volume, total_volume) for a scope."""
         current_now = now if now is not None else int(time.time())
+        prefixed_scope = self._prefix_scope(scope_key)
         try:
             if self._get_usage_script is None:
                 self._register_scripts()
             if self._get_usage_script is None:
                 return (0, 0, 0)
 
-            res = self._get_usage_script(keys=[scope_key], args=[window_seconds, current_now])
+            res = self._get_usage_script(keys=[prefixed_scope], args=[window_seconds, current_now])
             return (int(res[0]), int(res[1]), int(res[2]))
         except Exception as exc:
-            logger.warning("limit_store_get_usage_failed scope=%s: %s", scope_key, exc)
+            logger.warning("limit_store_get_usage_failed scope=%s: %s", prefixed_scope, exc)
             return (0, 0, 0)
 
     def get_remaining(

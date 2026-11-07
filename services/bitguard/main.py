@@ -38,6 +38,14 @@ from services.bitguard.auth.models import (
     WebAuthnRegisterVerifyRequest,
     WebAuthnRegisterVerifyResponse,
 )
+from services.bitguard.backtest.models import (
+    BacktestImportRequest,
+    BacktestMeta,
+    BacktestReport,
+    BacktestRunResponse,
+    ScenarioPattern,
+    StepEvent,
+)
 from services.bitguard.breaker.models import (
     BreakerStatusResponse,
     DeescalateApprovalResult,
@@ -255,6 +263,12 @@ def create_app() -> FastAPI:
             ActivatePolicyRequest,
             RollbackPolicyRequest,
             PolicyIntegrityResponse,
+            BacktestImportRequest,
+            BacktestMeta,
+            BacktestReport,
+            BacktestRunResponse,
+            ScenarioPattern,
+            StepEvent,
         ]
         for model_cls in canonical_models:
             model_schema = model_cls.model_json_schema(ref_template="#/components/schemas/{model}")

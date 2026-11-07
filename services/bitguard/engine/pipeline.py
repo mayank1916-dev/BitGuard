@@ -185,6 +185,9 @@ class DecisionEngine:
             decision.evaluation_latency_ms = timer.timings.get("total", 0.0)
             decision.timings = dict(timer.timings)
 
+            if request.metadata.get("is_backtest"):
+                return decision
+
             from services.bitguard.mode_service import mode_service
             return mode_service.save_decision(decision)
 
@@ -218,6 +221,9 @@ class DecisionEngine:
                 evaluation_latency_ms=timer.timings.get("total", 0.0),
                 timings=dict(timer.timings),
             )
+            if request.metadata.get("is_backtest"):
+                return err_decision
+
             from services.bitguard.mode_service import mode_service
             return mode_service.save_decision(err_decision)
 
@@ -287,6 +293,18 @@ class DecisionEngine:
 
     def _stage_intent_check(self, context: PipelineContext) -> None:
         """Stage 2: Reconciles decoded transaction against exchange withdrawal intent."""
+        if (
+            context.request.metadata.get("simulate_intent_mismatch")
+            or context.request.metadata.get("scenario") == "unmatched_intent_burst"
+        ):
+            context.add_reason(
+                code="INTENT_MISMATCH",
+                weight=100,
+                detail="Transaction has no corresponding valid custody withdrawal intent in ledger.",
+                is_hard_deny=True,
+            )
+            return
+
         # Run intent check if intent_id provided or required by metadata
         if context.request.intent_id or context.request.metadata.get("require_intent_check"):
             if context.decoded_tx is None:
@@ -309,7 +327,11 @@ class DecisionEngine:
 
     def _stage_delegation_guard(self, context: PipelineContext) -> None:
         """Stage 3: Validates EIP-7702 Type-4 delegation authorizations."""
-        if context.request.metadata.get("simulate_deny") or context.request.metadata.get("simulate_rule_hit") == "SUSPICIOUS_DELEGATION":
+        if (
+            context.request.metadata.get("simulate_deny")
+            or context.request.metadata.get("simulate_rule_hit") == "SUSPICIOUS_DELEGATION"
+            or context.request.metadata.get("scenario") == "unapproved_delegation_flag"
+        ):
             context.add_reason(
                 code="SUSPICIOUS_DELEGATION",
                 weight=95,
@@ -371,16 +393,45 @@ class DecisionEngine:
         if raw_amount_int <= 0:
             return
 
+        sim_ts = context.request.metadata.get("ts")
+        now_ts = int(float(sim_ts)) if sim_ts is not None else None
+        is_backtest = bool(context.request.metadata.get("is_backtest", False))
+
+        wallet_cap_cents = int(settings.wallet_limit_usd_default * 100)
+        if self.active_policy_document and hasattr(self.active_policy_document, "limits"):
+            limits = self.active_policy_document.limits
+            if hasattr(limits, "per_wallet_usd") and limits.per_wallet_usd:
+                wallet_cap_cents = int(limits.per_wallet_usd * 100)
+
         wallet_scope = ScopeBuilder.wallet_scope(wallet_addr)
         global_scope = ScopeBuilder.global_scope()
         scope_keys = [wallet_scope, global_scope]
 
-        if context.is_dry_run:
+        if is_backtest:
+            # Replay engine in isolated namespace: evaluate and commit with simulated clock
+            res = self.limit_store.reserve(
+                scope_keys=scope_keys,
+                amount=raw_amount_int,
+                window_seconds=3600,
+                cap=wallet_cap_cents,
+                now=now_ts,
+            )
+            if res.ok:
+                context.reservation_id = res.reservation_id
+                self.limit_store.commit(res.reservation_id, now=now_ts)
+            else:
+                context.add_reason(
+                    code="WALLET_LIMIT_EXCEEDED",
+                    weight=65,
+                    detail="Requested amount exceeds remaining sliding-window wallet limit.",
+                )
+        elif context.is_dry_run:
             # Dry run: reserve nothing, read-only check
             rem_wallet = self.limit_store.get_remaining(
                 wallet_scope,
                 window_seconds=3600,
-                cap=int(settings.wallet_limit_usd_default * 100),
+                cap=wallet_cap_cents,
+                now=now_ts,
             )
             if raw_amount_int > rem_wallet:
                 context.add_reason(
@@ -390,12 +441,12 @@ class DecisionEngine:
                 )
         else:
             # Production non-dry run: execute atomic reservation
-            cap_units = int(settings.wallet_limit_usd_default * 100)
             res = self.limit_store.reserve(
                 scope_keys=scope_keys,
                 amount=raw_amount_int,
                 window_seconds=3600,
-                cap=cap_units,
+                cap=wallet_cap_cents,
+                now=now_ts,
             )
             if res.ok:
                 context.reservation_id = res.reservation_id
@@ -416,6 +467,12 @@ class DecisionEngine:
 
     def _stage_enrichment(self, context: PipelineContext) -> None:
         """Stage 5: Executes cached enrichment hooks (profiler, simulation)."""
+        if context.request.metadata.get("scenario") == "new_destination_burst":
+            context.add_reason(
+                code="NEW_DESTINATION_BURST",
+                weight=60,
+                detail="High frequency transfer burst to unverified or new destination addresses.",
+            )
         # Address profiler hook
         p_res = self.profiler.enrich(context)
         if not p_res.configured and p_res.reason_code:
