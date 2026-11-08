@@ -42,6 +42,12 @@ class TokenManager:
 
         b_state = breaker_store.get_state()
         if b_state == BreakerStateEnum.LOCKDOWN:
+            try:
+                from services.bitguard.metrics import record_token_refusal
+
+                record_token_refusal("breaker_lockdown")
+            except Exception:
+                pass
             raise TokenIssuanceBlockedError(
                 "Approval token issuance rejected: circuit breaker is in LOCKDOWN mode"
             )
@@ -55,7 +61,7 @@ class TokenManager:
             except Exception:
                 active_epoch = 1
 
-        return issue_token(
+        token = issue_token(
             decoded_tx=decoded_tx,
             wallet=wallet,
             chain=chain,
@@ -65,6 +71,15 @@ class TokenManager:
             now=now,
             epoch=active_epoch,
         )
+        try:
+            from services.bitguard.metrics import record_token_issue
+
+            active_key = self.key_set.get_active_key()
+            record_token_issue(active_key.kid)
+        except Exception:
+            pass
+
+        return token
 
     def verify(self, token: str, now: int | None = None) -> TokenVerificationResult:
         """Verifies an approval token using the configured key set."""

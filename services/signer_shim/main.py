@@ -32,6 +32,7 @@ from services.bitguard.tokens import (
 )
 from services.signer_shim.acl import verify_internal_caller
 from services.signer_shim.config import settings
+from services.signer_shim.heartbeat import HeartbeatMessage, heartbeat_tracker
 from services.signer_shim.models import RefusalResponse, SignRequest, SignResponse
 from services.signer_shim.nonce_store import nonce_store
 from services.signer_shim.signer import testnet_signer
@@ -84,7 +85,28 @@ def healthz() -> dict[str, str]:
         "service": "signer_shim",
         "environment": settings.environment,
         "disposable_address": testnet_signer.address,
+        "heartbeat_healthy": str(heartbeat_tracker.is_healthy()),
+        "heartbeat_age_seconds": f"{heartbeat_tracker.get_heartbeat_age():.1f}",
     }
+
+
+@app.post("/heartbeat", tags=["Health"])
+async def receive_heartbeat(msg: HeartbeatMessage) -> JSONResponse:
+    """Receives and verifies a signed periodic heartbeat from BitGuard."""
+    ok, detail = heartbeat_tracker.record_heartbeat(msg)
+    if not ok:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": "rejected", "detail": detail},
+        )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": "accepted",
+            "instance_id": msg.instance_id,
+            "age_seconds": heartbeat_tracker.get_heartbeat_age(),
+        },
+    )
 
 
 @app.post(
@@ -105,6 +127,28 @@ def healthz() -> dict[str, str]:
 )
 async def sign_transaction(payload: SignRequest) -> Any:
     """Primary signing enforcement entrypoint."""
+    # -----------------------------------------------------------------
+    # Step 0: Enforce Dead-Man Heartbeat Freshness (Milestone S24 / F17)
+    # -----------------------------------------------------------------
+    if not heartbeat_tracker.is_healthy():
+        age = heartbeat_tracker.get_heartbeat_age()
+        logger.error(
+            "signing_refusal: reason=DEADMAN_HEARTBEAT_EXPIRED age=%.1fs threshold=%.1fs",
+            age,
+            heartbeat_tracker.timeout_seconds,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=RefusalResponse(
+                status="REFUSED",
+                reason_code="DEADMAN_HEARTBEAT_EXPIRED",
+                detail=(
+                    f"Dead-man heartbeat expired ({age:.1f}s since last heartbeat, threshold "
+                    f"{heartbeat_tracker.timeout_seconds:.1f}s). All token signing refused."
+                ),
+            ).model_dump(),
+        )
+
     # -----------------------------------------------------------------
     # Step 1: Verify token signature against configured public key set
     # -----------------------------------------------------------------

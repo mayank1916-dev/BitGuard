@@ -115,5 +115,15 @@ class BitGuardSettings(BaseSettings):
     policy_signing_ed25519_privkey: str = ""  # Hex-encoded Ed25519 seed or privkey for release authority
     policy_signing_ed25519_pubkey: str = ""  # Hex-encoded Ed25519 pubkey for verifying activation
 
+    # Self-protection and High Availability (Milestone S24 / F17)
+    instance_id: str = "bitguard-1"
+    heartbeat_interval_seconds: float = 5.0
+    heartbeat_sender_enabled: bool = True
+    config_integrity_check_interval_seconds: int = 60
+    rate_limit_enabled: bool = True
+    rate_limit_admin_per_minute: int = 10
+    rate_limit_standard_per_minute: int = 120
+    break_glass_max_duration_seconds: int = 14400  # 4 hours max
+
 
 settings = BitGuardSettings()

@@ -1,18 +1,21 @@
-"""WebSocket event stream broadcaster with queue-based backpressure (Milestone S13).
+"""WebSocket event stream broadcaster with queue-based backpressure and Redis Pub/Sub fan-out (Milestone S13 & S24).
 
 Invariants:
 - Invariant #8: Explicit Data Provenance. All stream events include data_label (REAL, SYNTHETIC, REPORTED).
 - Backpressure: Drops slow clients rather than blocking the signing gateway.
+- Multi-replica fan-out: Broadcasts events across all BitGuard instances via Redis Pub/Sub.
 - Complete isolation: Killing the stream never affects decision engine or signing.
 """
 
 import asyncio
+import json
 import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from services.bitguard.config import settings
 from services.bitguard.models import Decision
 
 logger = logging.getLogger("bitguard.stream.broadcaster")
@@ -30,14 +33,37 @@ class StreamClient:
 
 
 class StreamBroadcaster:
-    """Manages active WebSocket subscribers, queues, and non-blocking broadcasts."""
+    """Manages active WebSocket subscribers, queues, and non-blocking broadcasts with Redis pub/sub fan-out."""
 
-    def __init__(self, max_queue_size: int = 100) -> None:
+    def __init__(self, max_queue_size: int = 100, instance_id: str | None = None) -> None:
         self.max_queue_size = max_queue_size
+        self.instance_id: str = str(instance_id or getattr(settings, 'instance_id', 'bitguard-1'))
         self._clients: dict[str, StreamClient] = {}
         self._lock = asyncio.Lock()
         self._chain_outflows: dict[str, float] = {}
         self._ticker_task: asyncio.Task[None] | None = None
+        self._pubsub_task: asyncio.Task[None] | None = None
+        self._sync_redis: Any | None = None
+
+    def set_sync_redis(self, client: Any) -> None:
+        """Injects custom sync Redis client for testing."""
+        self._sync_redis = client
+
+    def _get_sync_redis(self) -> Any:
+        """Lazily retrieves synchronous Redis client for publishing."""
+        if self._sync_redis is None:
+            try:
+                import redis
+                self._sync_redis = redis.Redis.from_url(
+                    settings.redis_url,
+                    socket_connect_timeout=1.0,
+                    socket_timeout=1.0,
+                    decode_responses=True,
+                )
+            except Exception as exc:
+                logger.debug("sync_redis_init_error: %s", exc)
+                return None
+        return self._sync_redis
 
     def record_chain_outflow(self, chain: str, amount_usd: float) -> None:
         """Records an approved outflow for per-chain volume aggregation."""
@@ -67,19 +93,8 @@ class StreamBroadcaster:
             client.is_alive = False
             logger.info("stream_client_unregistered: id=%s active=%d", client_id, len(self._clients))
 
-    def publish_event(self, event_type: str, payload: dict[str, Any], data_label: str = "REAL") -> None:
-        """Publishes an event to all connected clients.
-
-        Enforces backpressure: if a client queue is full, the client is dropped immediately
-        to prevent blocking the gateway or event producer.
-        """
-        event = {
-            "type": event_type,
-            "payload": payload,
-            "data_label": data_label,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-
+    def _deliver_to_local_clients(self, event: dict[str, Any]) -> None:
+        """Delivers event to locally connected clients with backpressure drop."""
         dropped_clients: list[str] = []
         for cid, client in list(self._clients.items()):
             if not client.is_alive:
@@ -95,7 +110,6 @@ class StreamBroadcaster:
                 )
                 client.is_alive = False
                 dropped_clients.append(cid)
-                # Attempt to close the slow socket asynchronously without blocking
                 try:
                     asyncio.create_task(client.websocket.close(code=1008, reason="Backpressure: slow client dropped"))
                 except Exception:
@@ -103,6 +117,35 @@ class StreamBroadcaster:
 
         for cid in dropped_clients:
             self.unregister_client(cid)
+
+    def _publish_to_redis(self, event: dict[str, Any]) -> None:
+        """Publishes event to Redis channel for multi-replica fan-out."""
+        try:
+            r = self._get_sync_redis()
+            if r is not None:
+                envelope = json.dumps({"origin": self.instance_id, "event": event})
+                r.publish("bitguard:stream:events", envelope)
+        except Exception as exc:
+            logger.debug("redis_pubsub_publish_bypassed: %s", exc)
+
+    def publish_event(self, event_type: str, payload: dict[str, Any], data_label: str = "REAL") -> None:
+        """Publishes an event to all connected clients and fans out to other replicas.
+
+        Enforces backpressure: if a client queue is full, the client is dropped immediately
+        to prevent blocking the gateway or event producer.
+        """
+        event = {
+            "type": event_type,
+            "payload": payload,
+            "data_label": data_label,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+        # Deliver to locally connected clients
+        self._deliver_to_local_clients(event)
+
+        # Fan out across replicas via Redis Pub/Sub
+        self._publish_to_redis(event)
 
     # Convenience alias
     broadcast = publish_event
@@ -161,18 +204,51 @@ class StreamBroadcaster:
         except asyncio.CancelledError:
             pass
 
+    async def _redis_pubsub_loop(self) -> None:
+        """Background loop listening for stream events from other replicas via Redis Pub/Sub."""
+        try:
+            import redis.asyncio as aioredis
+            r = aioredis.from_url(settings.redis_url, decode_responses=True)
+            pubsub = r.pubsub()
+            await pubsub.subscribe("bitguard:stream:events")
+            logger.info("Subscribed to Redis Pub/Sub channel 'bitguard:stream:events'")
+            while True:
+                try:
+                    msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    if msg and msg.get("type") == "message":
+                        raw_data = msg.get("data")
+                        if raw_data and isinstance(raw_data, str):
+                            parsed = json.loads(raw_data)
+                            origin = parsed.get("origin")
+                            event = parsed.get("event")
+                            # Ignore self-published events since they were already delivered locally
+                            if origin != self.instance_id and event:
+                                self._deliver_to_local_clients(event)
+                except Exception as exc:
+                    logger.debug("pubsub_message_processing_error: %s", exc)
+                await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.debug("redis_pubsub_listener_init_error: %s", exc)
+
     def start_ticker(self) -> None:
-        """Starts the periodic 5-second outflow aggregation ticker."""
+        """Starts the periodic outflow ticker and Redis Pub/Sub subscriber."""
         if self._ticker_task is None or self._ticker_task.done():
             self._ticker_task = asyncio.create_task(self._outflow_ticker_loop())
             logger.info("Started 5-second per-chain outflow aggregation ticker")
+        if self._pubsub_task is None or self._pubsub_task.done():
+            self._pubsub_task = asyncio.create_task(self._redis_pubsub_loop())
 
     def stop_ticker(self) -> None:
-        """Stops the outflow ticker loop."""
+        """Stops the outflow ticker loop and pubsub listener."""
         if self._ticker_task and not self._ticker_task.done():
             self._ticker_task.cancel()
             self._ticker_task = None
             logger.info("Stopped outflow aggregation ticker")
+        if self._pubsub_task and not self._pubsub_task.done():
+            self._pubsub_task.cancel()
+            self._pubsub_task = None
 
 
 # Global singleton instance

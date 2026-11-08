@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
+from starlette.responses import Response
 
 from backend.app.main import create_app as create_legacy_api_app
 from services.bitguard.approvals.models import (
@@ -46,6 +47,7 @@ from services.bitguard.backtest.models import (
     ScenarioPattern,
     StepEvent,
 )
+from services.bitguard.break_glass import BreakGlassApproval, BreakGlassManifest
 from services.bitguard.breaker.models import (
     BreakerStatusResponse,
     DeescalateApprovalResult,
@@ -63,6 +65,7 @@ from services.bitguard.gateway.models import (
     SignTransactionResult,
 )
 from services.bitguard.gateway.router import router as gateway_router
+from services.bitguard.heartbeat import heartbeat_sender
 from services.bitguard.incidents.models import (
     AcknowledgeIncidentRequest,
     ApproveIncidentStepRequest,
@@ -75,7 +78,9 @@ from services.bitguard.incidents.models import (
     TimelineEvent,
     TriggerRunbookRequest,
 )
+from services.bitguard.integrity import config_integrity_checker
 from services.bitguard.logging import setup_json_logging
+from services.bitguard.metrics import get_metrics_response
 from services.bitguard.models import (
     Approval,
     AuditEntry,
@@ -112,6 +117,7 @@ from services.bitguard.policy.models import (
     TimeLockPolicy,
     WalletGroupPolicy,
 )
+from services.bitguard.rate_limiter import RateLimitingMiddleware
 from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.timelock.store import TimelockItem
 from services.bitguard.v1.router import CancelTimelockRequest
@@ -137,7 +143,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     stream_broadcaster.start_ticker()
     hold_expiry_worker.start()
+    heartbeat_sender.start()
+    config_integrity_checker.start()
     yield
+    config_integrity_checker.stop()
+    heartbeat_sender.stop()
     hold_expiry_worker.stop()
     stream_broadcaster.stop_ticker()
     logger.info("BitGuard Firewall service shutting down")
@@ -160,6 +170,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.add_middleware(RateLimitingMiddleware)
+
     @app.get("/healthz", tags=["Health"])
     def healthz() -> dict[str, str]:
         """Kubernetes / Docker health check probe."""
@@ -168,6 +180,11 @@ def create_app() -> FastAPI:
             "service": "bitguard",
             "environment": settings.environment,
         }
+
+    @app.get("/metrics", tags=["Observability"])
+    def metrics_endpoint() -> Response:
+        """Prometheus operational metrics endpoint."""
+        return get_metrics_response()
 
     # Include V1 canonical API routes
     app.include_router(v1_router, prefix="/v1")
@@ -189,6 +206,8 @@ def create_app() -> FastAPI:
         schemas = openapi_schema.setdefault("components", {}).setdefault("schemas", {})
         canonical_models: list[type[BaseModel]] = [
             Approval,
+            BreakGlassApproval,
+            BreakGlassManifest,
             ApproveHoldRequest,
             ApproveHoldResponse,
             AuditEntry,

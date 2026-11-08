@@ -185,6 +185,14 @@ class DecisionEngine:
             decision.evaluation_latency_ms = timer.timings.get("total", 0.0)
             decision.timings = dict(timer.timings)
 
+            for stage_name, duration_ms in decision.timings.items():
+                if stage_name != "total":
+                    try:
+                        from services.bitguard.metrics import record_stage_duration
+                        record_stage_duration(stage_name, duration_ms / 1000.0)
+                    except Exception:
+                        pass
+
             if request.metadata.get("is_backtest"):
                 return decision
 
@@ -553,7 +561,24 @@ class DecisionEngine:
             for r in context.reasons
         )
 
-        if has_hard_deny or b_state == BreakerStateEnum.LOCKDOWN:
+        from services.bitguard.break_glass import break_glass_store
+        to_addr = ""
+        if context.decoded_tx:
+            to_addr = context.decoded_tx.to_address or ""
+            if not to_addr and context.decoded_tx.calls:
+                to_addr = context.decoded_tx.calls[0].to or ""
+        if not to_addr and hasattr(context.request, "destination"):
+            dest = getattr(context.request, "destination", None)
+            to_addr = str(dest) if dest else ""
+
+        if to_addr and break_glass_store.is_destination_allowed(to_addr):
+            context.add_reason(
+                code="BREAK_GLASS_OVERRIDE",
+                weight=0,
+                detail=f"Emergency break-glass degraded mode active: destination {to_addr} permitted by two-approver quorum.",
+            )
+            tentative_verdict = Verdict.ALLOW
+        elif has_hard_deny or b_state == BreakerStateEnum.LOCKDOWN:
             tentative_verdict = Verdict.DENY
         elif b_state == BreakerStateEnum.HOLD or context.risk_score >= self.config.hold_risk_threshold or has_hold_reason:
             tentative_verdict = Verdict.HOLD
@@ -640,6 +665,14 @@ class DecisionEngine:
                     breaker_triggers.record_velocity(amount_usd, context.request.wallet or "")
             except Exception:
                 pass
+
+        try:
+            from services.bitguard.metrics import record_decision, record_unmatched_intent
+            record_decision(final_verdict.value, decision.chain or "unknown")
+            if any("INTENT" in r.code for r in decision.reasons):
+                record_unmatched_intent(decision.chain or "unknown")
+        except Exception:
+            pass
 
         return decision
 

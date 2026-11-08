@@ -195,6 +195,9 @@ def get_current_user(
     request: Request,
     authorization: str | None = Header(default=None),
     x_user_role: str | None = Header(default=None, alias="X-User-Role"),
+    x_dev_role: str | None = Header(default=None, alias="X-Dev-Role"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    x_dev_user: str | None = Header(default=None, alias="X-Dev-User"),
     x_anonymous: str | None = Header(default=None, alias="X-Anonymous"),
 ) -> UserResponse:
     """Resolves active user from Bearer JWT, dev role header, or dev fallback."""
@@ -227,12 +230,23 @@ def get_current_user(
             detail="Invalid Authorization header; expected 'Bearer <token>'",
         )
 
-    # 3. Direct X-User-Role header for dev convenience
-    if x_user_role:
+    # 3. Direct X-User-Role / X-Dev-Role header for dev convenience
+    effective_role = x_user_role or x_dev_role
+    effective_user_id = x_user_id or x_dev_user
+    if effective_role:
         for r in Role:
-            if r.value.lower() == x_user_role.lower():
-                return SEEDED_USERS[r]
-        raise HTTPException(status_code=401, detail=f"Unknown role in X-User-Role: '{x_user_role}'")
+            if r.value.lower() == effective_role.lower():
+                base_user = SEEDED_USERS[r]
+                if effective_user_id:
+                    return UserResponse(
+                        id=effective_user_id,
+                        email=f"{effective_user_id}@bitguard.local",
+                        name=f"{effective_user_id} ({base_user.role.value})",
+                        role=base_user.role,
+                        permissions=base_user.permissions,
+                    )
+                return base_user
+        raise HTTPException(status_code=401, detail=f"Unknown role in X-User-Role: '{effective_role}'")
 
     # 4. Dev environment fallback when no credentials supplied
     if settings.environment.lower() != "production" and settings.dev_auth_bypass:
@@ -241,24 +255,30 @@ def get_current_user(
     raise HTTPException(status_code=401, detail="Authentication credentials required")
 
 
-def require_role(*allowed_roles: Role) -> Callable[..., UserResponse]:
+def require_role(*allowed_roles: Any) -> Callable[..., UserResponse]:
     """Reusable dependency verifying the active user holds an allowed role."""
+    flat_roles: list[Role] = []
+    for item in allowed_roles:
+        if isinstance(item, (list, tuple, set)):
+            flat_roles.extend(item)
+        else:
+            flat_roles.append(item)
 
     def role_checker(
         request: Request,
         user: UserResponse = Depends(get_current_user),
     ) -> UserResponse:
-        if user.role not in allowed_roles:
+        if user.role not in flat_roles:
             log_access_denied(
                 user=user.email,
                 route=request.url.path,
                 method=request.method,
                 role=user.role.value,
-                required_roles=[r.value for r in allowed_roles],
+                required_roles=[r.value for r in flat_roles],
             )
             raise HTTPException(
                 status_code=403,
-                detail=f"Access denied: role '{user.role.value}' lacks required role {[r.value for r in allowed_roles]}",
+                detail=f"Access denied: role '{user.role.value}' lacks required role {[r.value for r in flat_roles]}",
             )
         return user
 

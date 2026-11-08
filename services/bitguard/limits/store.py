@@ -295,6 +295,11 @@ class LimitStore:
                     reservation_id=str(granted_res_id),
                     source="REDIS",
                 )
+            try:
+                from services.bitguard.metrics import record_reservation_failure
+                record_reservation_failure(asset="USD", chain="evm")
+            except Exception:
+                pass
             return ReservationResult(
                 ok=False,
                 remaining=int(remaining),

@@ -48,6 +48,7 @@ from services.bitguard.rbac import (
 )
 from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.timelock.store import TimelockItem, timelock_store
+from services.bitguard.v1.break_glass_router import router as break_glass_router
 from services.bitguard.watcher.router import router as watcher_router
 
 router = APIRouter(tags=["V1 Policy Decision Point"])
@@ -59,6 +60,7 @@ router.include_router(backtest_router)
 router.include_router(auth_router)
 router.include_router(incidents_router)
 router.include_router(policy_router)
+router.include_router(break_glass_router)
 
 
 # --- Core Policy Evaluation & Signing Endpoints ---

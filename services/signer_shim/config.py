@@ -31,6 +31,9 @@ class SignerShimSettings(BaseSettings):
     # Internal network ACL shared secret (mTLS simulation in lab)
     internal_auth_token: str = "bitguard-shim-internal-lab-token-2026"
 
+    # Dead-man heartbeat timeout threshold in seconds (fail-closed if expired)
+    heartbeat_timeout_seconds: float = 20.0
+
     # Disposable testnet private key (strictly isolated to signer shim)
     # Default is Anvil Account #0 standard disposable dev key
     testnet_private_key: str = (

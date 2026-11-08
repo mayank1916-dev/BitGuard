@@ -276,6 +276,12 @@ class DistributedBreakerStore(BreakerStore):
             except Exception as exc:
                 logger.warning("breaker_websocket_broadcast_failed: %s", exc)
 
+            try:
+                from services.bitguard.metrics import update_breaker_state_metric
+                update_breaker_state_metric(target_state.value)
+            except Exception:
+                pass
+
             return BreakerState(
                 state=target_state,
                 reason=reason,
