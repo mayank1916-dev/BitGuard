@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-03T21:51:54.065377+00:00",
+  "timestamp": "2026-11-09T18:37:50.702533+00:00",
   "runner_version": "1.0.0",
   "chain_id": 31337,
   "chain_name": "anvil-local",
@@ -8,7 +8,7 @@
   "passed": 11,
   "failed": 0,
   "pass_rate_pct": 100.0,
-  "total_duration_ms": 14362.82,
+  "total_duration_ms": 360.36,
   "target_performance_claim": "target p99 under 15 ms, measured",
   "containment_claim": "BitGuard reduces and contains unauthorized transaction signing. Production-ready architecture; pilot after audit and shadow-mode validation.",
   "safety_checks": {
@@ -22,7 +22,7 @@
       "id": "scenario_01_normal_withdrawal",
       "name": "Normal Authorized Withdrawal",
       "status": "PASS",
-      "duration_ms": 2364.84,
+      "duration_ms": 23.43,
       "expected_outcome": "ALLOW",
       "actual_outcome": "ALLOW",
       "assertions_checked": 4,
@@ -32,8 +32,17 @@
         "result": {
           "signature": "0xbdd8e4cc7ca62ef9ba5ddc3ce6791272fefc9fe8fdd347e5a0cef38cec0ef2910d4743df39777203f43b26ee1ce09313d89260ef726e6e4041d6eeb356089aa51c",
           "tx_hash": "0xa3a7589090ad48e1473216afc0ecf63d974118edf39a7a13164ad6a54ec31c6b",
-          "decision_id": "req-b8dc79d02b45",
-          "status": "SIGNED"
+          "decision_id": "req-8dbabfd2dd72",
+          "status": "SIGNED",
+          "timings": {
+            "decode": 0.199,
+            "intent_check": 0.033,
+            "delegation": 0.002,
+            "limits": 1.355,
+            "enrichment": 0.022,
+            "decide": 0.839,
+            "total": 2.471
+          }
         },
         "intent_consumed": true
       },
@@ -73,14 +82,14 @@
       "id": "scenario_02_over_limit_hold_then_quorum_release",
       "name": "Over-Limit Quarantine and Quorum Release",
       "status": "PASS",
-      "duration_ms": 88.95,
+      "duration_ms": 57.36,
       "expected_outcome": "HOLD_THEN_APPROVED",
       "actual_outcome": "HOLD_THEN_APPROVED",
       "assertions_checked": 5,
       "assertions_passed": 5,
       "time_to_contain_ms": null,
       "details": {
-        "hold_id": "ht-req-477ab9163585",
+        "hold_id": "ht-req-833e0cfe77c4",
         "final_status": "RELEASED"
       },
       "error_message": null,
@@ -116,8 +125,8 @@
         {
           "name": "stored_ticket_status_approved",
           "passed": true,
-          "expected": "APPROVED",
-          "actual": "APPROVED",
+          "expected": "RELEASED",
+          "actual": "RELEASED",
           "message": null
         }
       ]
@@ -126,7 +135,7 @@
       "id": "scenario_03_hold_expires_to_deny",
       "name": "Quarantine Expiration to Deny",
       "status": "PASS",
-      "duration_ms": 17.81,
+      "duration_ms": 33.23,
       "expected_outcome": "HOLD_EXPIRES_DENY",
       "actual_outcome": "HOLD_EXPIRES_DENY",
       "assertions_checked": 2,
@@ -160,7 +169,7 @@
       "id": "scenario_04_delegation_attempt_denied",
       "name": "Unapproved EIP-7702 Delegation Denied",
       "status": "PASS",
-      "duration_ms": 53.05,
+      "duration_ms": 22.58,
       "expected_outcome": "DENY",
       "actual_outcome": "DENY",
       "assertions_checked": 2,
@@ -171,7 +180,7 @@
           "code": -32003,
           "message": "Signing request DENIED by policy firewall",
           "data": {
-            "decision_id": "req-791a6e047a2f",
+            "decision_id": "req-d3f73cc2c3d0",
             "reasons": [
               {
                 "code": "DELEGATION_OWNED_ADDRESS",
@@ -210,25 +219,25 @@
       "id": "scenario_05_watcher_detects_unapproved_delegation_and_breaker_trips",
       "name": "Delegation Watcher Detection and Circuit Breaker Trip",
       "status": "PASS",
-      "duration_ms": 18.94,
+      "duration_ms": 21.54,
       "expected_outcome": "BREAKER_TRIPPED",
       "actual_outcome": "BREAKER_TRIPPED",
       "assertions_checked": 3,
       "assertions_passed": 3,
-      "time_to_contain_ms": 8.31,
+      "time_to_contain_ms": 16.78,
       "details": {
         "alerts": [
           {
-            "id": "alert-delegation-wa-dbbf9b20a48f-102",
+            "id": "alert-delegation-wa-c623d38be212-102",
             "alert_code": "UNAUTHORIZED_DELEGATION",
             "severity": "CRITICAL",
             "address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
             "chain": "ethereum",
             "block_number": 102,
             "block_timestamp": 1730001224.0,
-            "detection_timestamp": 1793742702.238148,
+            "detection_timestamp": 1794249470.483628,
             "latency_blocks": 0,
-            "latency_seconds": 63741478.238,
+            "latency_seconds": 64248246.484,
             "details": {
               "delegate": "0x9999999999999999999999999999999999999999",
               "delegate_code_hash": "0xc1d5b4ce3e2a6227293fccce2904121c8647bbe16c1216340b851bf12d12560e",
@@ -240,7 +249,7 @@
           }
         ],
         "new_breaker_state": "HOLD",
-        "time_to_contain_ms": 8.306100033223629
+        "time_to_contain_ms": 16.784700099378824
       },
       "error_message": null,
       "assertion_checks": [
@@ -264,7 +273,7 @@
           "name": "time_to_contain_within_sla",
           "passed": true,
           "expected": "<= 5000.0ms",
-          "actual": "8.31ms",
+          "actual": "16.78ms",
           "message": null
         }
       ]
@@ -273,7 +282,7 @@
       "id": "scenario_06_split_under_limit_triggers_velocity_or_baseline_reason",
       "name": "Velocity and Cumulative Limit Breach",
       "status": "PASS",
-      "duration_ms": 7040.92,
+      "duration_ms": 89.92,
       "expected_outcome": "VELOCITY_HOLD",
       "actual_outcome": "VELOCITY_HOLD",
       "assertions_checked": 3,
@@ -285,8 +294,8 @@
           "code": -32004,
           "message": "Transaction placed on quarantine HOLD",
           "data": {
-            "hold_id": "ht-req-abaea3287eb8",
-            "decision_id": "req-abaea3287eb8",
+            "hold_id": "ht-req-c0bb623f353e",
+            "decision_id": "req-c0bb623f353e",
             "reasons": [
               {
                 "code": "WALLET_LIMIT_EXCEEDED",
@@ -341,7 +350,7 @@
       "id": "scenario_07_redis_outage_fails_closed",
       "name": "State Store Outage Fail-Closed Behavior",
       "status": "PASS",
-      "duration_ms": 17.59,
+      "duration_ms": 10.28,
       "expected_outcome": "FAIL_CLOSED",
       "actual_outcome": "FAIL_CLOSED",
       "assertions_checked": 2,
@@ -352,7 +361,7 @@
           "code": -32003,
           "message": "Signing request DENIED by policy firewall",
           "data": {
-            "decision_id": "req-ae6a722d9b11",
+            "decision_id": "req-130fd25ad2d4",
             "reasons": [
               {
                 "code": "ENGINE_ERROR",
@@ -388,7 +397,7 @@
       "id": "scenario_08_direct_signer_call_refused",
       "name": "Direct Signer Shim Invocation Refused",
       "status": "PASS",
-      "duration_ms": 12.45,
+      "duration_ms": 11.64,
       "expected_outcome": "REFUSED",
       "actual_outcome": "REFUSED",
       "assertions_checked": 2,
@@ -420,7 +429,7 @@
       "id": "scenario_09_token_replay_refused",
       "name": "Approval Token Replay Refusal",
       "status": "PASS",
-      "duration_ms": 30.37,
+      "duration_ms": 18.01,
       "expected_outcome": "REFUSED",
       "actual_outcome": "REFUSED",
       "assertions_checked": 3,
@@ -432,7 +441,7 @@
         "second_detail": {
           "status": "REFUSED",
           "reason_code": "NONCE_ALREADY_CONSUMED",
-          "detail": "Approval token nonce 'c43e01f7478a0334ece098f8da2ab9fb' has already been consumed (replay attack rejected)"
+          "detail": "Approval token nonce '0b7a960b873cf9901d4469119426f310' has already been consumed (replay attack rejected)"
         }
       },
       "error_message": null,
@@ -464,7 +473,7 @@
       "id": "scenario_10_unmatched_intent_denied",
       "name": "Unmatched Ledger Intent Denied",
       "status": "PASS",
-      "duration_ms": 2306.24,
+      "duration_ms": 19.99,
       "expected_outcome": "DENY",
       "actual_outcome": "DENY",
       "assertions_checked": 2,
@@ -475,7 +484,7 @@
           "code": -32003,
           "message": "Signing request DENIED by policy firewall",
           "data": {
-            "decision_id": "req-20a63abc516b",
+            "decision_id": "req-2f5f0b2eb917",
             "reasons": [
               {
                 "code": "INTENT_MISSING",
@@ -511,7 +520,7 @@
       "id": "scenario_11_lockdown_then_two_person_unlock",
       "name": "Circuit Breaker Lockdown and Dual-Control Unlock",
       "status": "PASS",
-      "duration_ms": 2410.99,
+      "duration_ms": 52.01,
       "expected_outcome": "LOCKDOWN_UNLOCKED",
       "actual_outcome": "LOCKDOWN_UNLOCKED",
       "assertions_checked": 9,

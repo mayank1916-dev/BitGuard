@@ -1,0 +1,458 @@
+[
+  {
+    "test_name": "FastPath_c50",
+    "concurrency": 50,
+    "duration_seconds": 10.09,
+    "total_requests": 1951,
+    "successful_requests": 1951,
+    "failed_requests": 0,
+    "error_rate_pct": 0.0,
+    "throughput_rps": 193.36,
+    "latency_p50_ms": 232.244,
+    "latency_p90_ms": 252.085,
+    "latency_p95_ms": 321.104,
+    "latency_p99_ms": 425.981,
+    "latency_min_ms": 89.682,
+    "latency_max_ms": 440.761,
+    "latency_mean_ms": 237.092,
+    "fast_path_target_met": false,
+    "stage_breakdown": {
+      "decode": {
+        "p50": 0.159,
+        "p90": 0.233,
+        "p95": 0.324,
+        "p99": 0.683,
+        "mean": 0.183
+      },
+      "intent_check": {
+        "p50": 0.002,
+        "p90": 0.002,
+        "p95": 0.002,
+        "p99": 0.004,
+        "mean": 0.002
+      },
+      "delegation": {
+        "p50": 0.001,
+        "p90": 0.001,
+        "p95": 0.002,
+        "p99": 0.002,
+        "mean": 0.001
+      },
+      "limits": {
+        "p50": 0.375,
+        "p90": 0.535,
+        "p95": 0.687,
+        "p99": 1.065,
+        "mean": 0.417
+      },
+      "enrichment": {
+        "p50": 0.018,
+        "p90": 0.025,
+        "p95": 0.028,
+        "p99": 0.048,
+        "mean": 0.02
+      },
+      "decide": {
+        "p50": 0.504,
+        "p90": 0.729,
+        "p95": 0.892,
+        "p99": 1.24,
+        "mean": 0.569
+      },
+      "total": {
+        "p50": 1.08,
+        "p90": 1.625,
+        "p95": 1.91,
+        "p99": 2.398,
+        "mean": 1.207
+      }
+    },
+    "hardware_info": {
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13450HX (10 cores, 16 threads)",
+      "ram": "16 GB DDR5",
+      "os": "Microsoft Windows 11 Home",
+      "python": "3.14.6"
+    },
+    "timestamp": "2026-11-09T18:30:45.580731+00:00"
+  },
+  {
+    "test_name": "FastPath_c200",
+    "concurrency": 200,
+    "duration_seconds": 10.59,
+    "total_requests": 2049,
+    "successful_requests": 2049,
+    "failed_requests": 0,
+    "error_rate_pct": 0.0,
+    "throughput_rps": 193.42,
+    "latency_p50_ms": 949.123,
+    "latency_p90_ms": 1032.832,
+    "latency_p95_ms": 1060.191,
+    "latency_p99_ms": 1083.078,
+    "latency_min_ms": 525.069,
+    "latency_max_ms": 1102.643,
+    "latency_mean_ms": 920.902,
+    "fast_path_target_met": false,
+    "stage_breakdown": {
+      "decode": {
+        "p50": 0.16,
+        "p90": 0.221,
+        "p95": 0.329,
+        "p99": 0.898,
+        "mean": 0.189
+      },
+      "intent_check": {
+        "p50": 0.002,
+        "p90": 0.002,
+        "p95": 0.003,
+        "p99": 0.004,
+        "mean": 0.002
+      },
+      "delegation": {
+        "p50": 0.001,
+        "p90": 0.001,
+        "p95": 0.002,
+        "p99": 0.003,
+        "mean": 0.001
+      },
+      "limits": {
+        "p50": 0.381,
+        "p90": 0.527,
+        "p95": 0.724,
+        "p99": 1.27,
+        "mean": 0.427
+      },
+      "enrichment": {
+        "p50": 0.018,
+        "p90": 0.025,
+        "p95": 0.03,
+        "p99": 0.051,
+        "mean": 0.02
+      },
+      "decide": {
+        "p50": 0.507,
+        "p90": 0.729,
+        "p95": 0.875,
+        "p99": 1.313,
+        "mean": 0.565
+      },
+      "total": {
+        "p50": 1.09,
+        "p90": 1.612,
+        "p95": 2.011,
+        "p99": 2.814,
+        "mean": 1.22
+      }
+    },
+    "hardware_info": {
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13450HX (10 cores, 16 threads)",
+      "ram": "16 GB DDR5",
+      "os": "Microsoft Windows 11 Home",
+      "python": "3.14.6"
+    },
+    "timestamp": "2026-11-09T18:30:56.175753+00:00"
+  },
+  {
+    "test_name": "FastPath_c500",
+    "concurrency": 500,
+    "duration_seconds": 11.56,
+    "total_requests": 2210,
+    "successful_requests": 2210,
+    "failed_requests": 0,
+    "error_rate_pct": 0.0,
+    "throughput_rps": 191.19,
+    "latency_p50_ms": 2426.847,
+    "latency_p90_ms": 2718.196,
+    "latency_p95_ms": 2743.636,
+    "latency_p99_ms": 2794.862,
+    "latency_min_ms": 1035.337,
+    "latency_max_ms": 2892.161,
+    "latency_mean_ms": 2316.32,
+    "fast_path_target_met": false,
+    "stage_breakdown": {
+      "decode": {
+        "p50": 0.159,
+        "p90": 0.218,
+        "p95": 0.292,
+        "p99": 0.835,
+        "mean": 0.186
+      },
+      "intent_check": {
+        "p50": 0.001,
+        "p90": 0.002,
+        "p95": 0.002,
+        "p99": 0.004,
+        "mean": 0.002
+      },
+      "delegation": {
+        "p50": 0.001,
+        "p90": 0.001,
+        "p95": 0.002,
+        "p99": 0.002,
+        "mean": 0.001
+      },
+      "limits": {
+        "p50": 0.376,
+        "p90": 0.511,
+        "p95": 0.667,
+        "p99": 1.158,
+        "mean": 0.417
+      },
+      "enrichment": {
+        "p50": 0.018,
+        "p90": 0.025,
+        "p95": 0.029,
+        "p99": 0.049,
+        "mean": 0.02
+      },
+      "decide": {
+        "p50": 0.503,
+        "p90": 0.709,
+        "p95": 0.809,
+        "p99": 1.111,
+        "mean": 0.552
+      },
+      "total": {
+        "p50": 1.086,
+        "p90": 1.548,
+        "p95": 1.874,
+        "p99": 2.633,
+        "mean": 1.194
+      }
+    },
+    "hardware_info": {
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13450HX (10 cores, 16 threads)",
+      "ram": "16 GB DDR5",
+      "os": "Microsoft Windows 11 Home",
+      "python": "3.14.6"
+    },
+    "timestamp": "2026-11-09T18:31:07.736476+00:00"
+  },
+  {
+    "test_name": "SigningPath_c50",
+    "concurrency": 50,
+    "duration_seconds": 10.22,
+    "total_requests": 650,
+    "successful_requests": 650,
+    "failed_requests": 0,
+    "error_rate_pct": 0.0,
+    "throughput_rps": 63.63,
+    "latency_p50_ms": 735.668,
+    "latency_p90_ms": 850.172,
+    "latency_p95_ms": 919.713,
+    "latency_p99_ms": 937.265,
+    "latency_min_ms": 662.571,
+    "latency_max_ms": 941.437,
+    "latency_mean_ms": 750.936,
+    "fast_path_target_met": true,
+    "stage_breakdown": {
+      "decode": {
+        "p50": 0.169,
+        "p90": 0.217,
+        "p95": 0.277,
+        "p99": 0.417,
+        "mean": 0.183
+      },
+      "intent_check": {
+        "p50": 0.002,
+        "p90": 0.002,
+        "p95": 0.003,
+        "p99": 0.004,
+        "mean": 0.002
+      },
+      "delegation": {
+        "p50": 0.001,
+        "p90": 0.002,
+        "p95": 0.002,
+        "p99": 0.003,
+        "mean": 0.001
+      },
+      "limits": {
+        "p50": 1.411,
+        "p90": 1.814,
+        "p95": 1.934,
+        "p99": 2.385,
+        "mean": 1.402
+      },
+      "enrichment": {
+        "p50": 0.018,
+        "p90": 0.022,
+        "p95": 0.025,
+        "p99": 0.04,
+        "mean": 0.019
+      },
+      "decide": {
+        "p50": 0.598,
+        "p90": 0.77,
+        "p95": 0.864,
+        "p99": 1.324,
+        "mean": 0.645
+      },
+      "total": {
+        "p50": 2.251,
+        "p90": 2.808,
+        "p95": 2.986,
+        "p99": 3.64,
+        "mean": 2.271
+      }
+    },
+    "hardware_info": {
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13450HX (10 cores, 16 threads)",
+      "ram": "16 GB DDR5",
+      "os": "Microsoft Windows 11 Home",
+      "python": "3.14.6"
+    },
+    "timestamp": "2026-11-09T18:31:17.952890+00:00"
+  },
+  {
+    "test_name": "SigningPath_c200",
+    "concurrency": 200,
+    "duration_seconds": 10.13,
+    "total_requests": 605,
+    "successful_requests": 605,
+    "failed_requests": 0,
+    "error_rate_pct": 0.0,
+    "throughput_rps": 59.74,
+    "latency_p50_ms": 3284.447,
+    "latency_p90_ms": 3386.326,
+    "latency_p95_ms": 3406.215,
+    "latency_p99_ms": 3423.714,
+    "latency_min_ms": 100.118,
+    "latency_max_ms": 3427.866,
+    "latency_mean_ms": 3214.051,
+    "fast_path_target_met": true,
+    "stage_breakdown": {
+      "decode": {
+        "p50": 0.171,
+        "p90": 0.232,
+        "p95": 0.285,
+        "p99": 0.4,
+        "mean": 0.188
+      },
+      "intent_check": {
+        "p50": 0.002,
+        "p90": 0.003,
+        "p95": 0.003,
+        "p99": 0.004,
+        "mean": 0.002
+      },
+      "delegation": {
+        "p50": 0.001,
+        "p90": 0.002,
+        "p95": 0.002,
+        "p99": 0.003,
+        "mean": 0.001
+      },
+      "limits": {
+        "p50": 2.339,
+        "p90": 2.971,
+        "p95": 3.261,
+        "p99": 4.084,
+        "mean": 2.402
+      },
+      "enrichment": {
+        "p50": 0.019,
+        "p90": 0.023,
+        "p95": 0.027,
+        "p99": 0.043,
+        "mean": 0.02
+      },
+      "decide": {
+        "p50": 0.633,
+        "p90": 0.827,
+        "p95": 0.985,
+        "p99": 1.34,
+        "mean": 0.675
+      },
+      "total": {
+        "p50": 3.215,
+        "p90": 3.973,
+        "p95": 4.342,
+        "p99": 5.166,
+        "mean": 3.307
+      }
+    },
+    "hardware_info": {
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13450HX (10 cores, 16 threads)",
+      "ram": "16 GB DDR5",
+      "os": "Microsoft Windows 11 Home",
+      "python": "3.14.6"
+    },
+    "timestamp": "2026-11-09T18:31:28.081240+00:00"
+  },
+  {
+    "test_name": "SigningPath_c500",
+    "concurrency": 500,
+    "duration_seconds": 18.8,
+    "total_requests": 1000,
+    "successful_requests": 1000,
+    "failed_requests": 0,
+    "error_rate_pct": 0.0,
+    "throughput_rps": 53.2,
+    "latency_p50_ms": 9011.127,
+    "latency_p90_ms": 9561.912,
+    "latency_p95_ms": 9606.119,
+    "latency_p99_ms": 9635.901,
+    "latency_min_ms": 8620.848,
+    "latency_max_ms": 9645.803,
+    "latency_mean_ms": 9137.572,
+    "fast_path_target_met": true,
+    "stage_breakdown": {
+      "decode": {
+        "p50": 0.176,
+        "p90": 0.256,
+        "p95": 0.325,
+        "p99": 0.463,
+        "mean": 0.196
+      },
+      "intent_check": {
+        "p50": 0.002,
+        "p90": 0.003,
+        "p95": 0.003,
+        "p99": 0.005,
+        "mean": 0.002
+      },
+      "delegation": {
+        "p50": 0.001,
+        "p90": 0.002,
+        "p95": 0.002,
+        "p99": 0.004,
+        "mean": 0.001
+      },
+      "limits": {
+        "p50": 3.656,
+        "p90": 5.18,
+        "p95": 5.84,
+        "p99": 7.221,
+        "mean": 3.873
+      },
+      "enrichment": {
+        "p50": 0.02,
+        "p90": 0.029,
+        "p95": 0.035,
+        "p99": 0.051,
+        "mean": 0.022
+      },
+      "decide": {
+        "p50": 0.707,
+        "p90": 1.03,
+        "p95": 1.255,
+        "p99": 1.615,
+        "mean": 0.767
+      },
+      "total": {
+        "p50": 4.647,
+        "p90": 6.35,
+        "p95": 7.246,
+        "p99": 8.661,
+        "mean": 4.883
+      }
+    },
+    "hardware_info": {
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13450HX (10 cores, 16 threads)",
+      "ram": "16 GB DDR5",
+      "os": "Microsoft Windows 11 Home",
+      "python": "3.14.6"
+    },
+    "timestamp": "2026-11-09T18:31:46.878993+00:00"
+  }
+]

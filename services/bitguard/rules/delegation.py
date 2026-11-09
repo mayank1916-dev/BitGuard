@@ -1,5 +1,6 @@
 """Delegation guard policy enforcement for EIP-7702 Type-4 authorizations (Milestone S09)."""
 
+import functools
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -39,6 +40,7 @@ def has_delegatecall_opcode(bytecode: bytes) -> bool:
     return False
 
 
+@functools.lru_cache(maxsize=4096)
 def compute_code_hash(code_hex: str) -> str:
     """Computes Keccak-256 hash of raw contract bytecode."""
     clean = code_hex.strip()

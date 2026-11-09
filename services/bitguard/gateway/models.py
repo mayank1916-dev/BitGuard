@@ -63,3 +63,4 @@ class SignTransactionResult(BaseModel):
     tx_hash: str | None = Field(default=None, description="Computed transaction keccak256 hash")
     decision_id: str = Field(description="BitGuard decision request ID for auditing")
     status: str = Field(default="SIGNED", description="Signing execution status")
+    timings: dict[str, float] = Field(default_factory=dict, description="Pipeline stage latency timings in milliseconds")

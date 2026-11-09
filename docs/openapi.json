@@ -3554,6 +3554,14 @@
             "title": "Status",
             "type": "string"
           },
+          "timings": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Pipeline stage latency timings in milliseconds",
+            "title": "Timings",
+            "type": "object"
+          },
           "tx_hash": {
             "anyOf": [
               {

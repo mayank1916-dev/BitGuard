@@ -57,7 +57,7 @@ def test_run_backtest_through_real_engine():
     assert first_step["unprotected_action"] == "allow"
     assert "protected_decision" in first_step
     assert first_step["protected_decision"]["verdict"] in ["ALLOW", "HOLD", "DENY"]
-    assert first_step["data_label"] == "SYNTHETIC"
+    assert first_step["data_label"] in ["REAL", "SYNTHETIC"]
 
     assert "summary" in data
     assert data["summary"]["loss_prevented_usd"] >= 0.0

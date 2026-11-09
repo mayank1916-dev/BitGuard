@@ -191,6 +191,7 @@ class GatewayHandler:
                     tx_hash=shim_res.get("tx_hash"),
                     decision_id=decision.request_id,
                     status="SIGNED",
+                    timings=decision.timings,
                 )
                 return JsonRpcResponse(
                     jsonrpc="2.0",

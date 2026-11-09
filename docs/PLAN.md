@@ -63,7 +63,7 @@
 - [x] S22 Policy backtesting on real or exported history (F8)
 - [x] S23 Testnet and local-fork integration lab with automated scenarios (F19)
 - [x] S24 High availability, health, dead-man heartbeat and metrics (F17)
-- [ ] S25 Load test and honest latency measurement
+- [x] S25 Load test and honest latency measurement
 - [ ] S26 Shadow-mode pilot on recorded traffic and evidence report
 - [ ] S27 Contract and address risk profiler with local sanctions lists (C)
 - [ ] S28 Pre-sign transaction simulation (F5)

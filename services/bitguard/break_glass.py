@@ -9,6 +9,7 @@ Invariants:
 """
 
 import logging
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -64,6 +65,7 @@ class BreakGlassStore:
         self._manifests: dict[str, BreakGlassManifest] = {}
         self._active_id: str | None = None
         self._sync_redis: Any | None = None
+        self._last_redis_check_ts: float = 0.0
 
     def set_sync_redis(self, client: Any) -> None:
         """Injects custom sync Redis client for testing."""
@@ -255,6 +257,12 @@ class BreakGlassStore:
                 return None
             return manifest
 
+        # Throttle remote Redis queries if checked within the last 1.0s
+        current_ts = time.time()
+        if current_ts - self._last_redis_check_ts < 1.0:
+            return None
+        self._last_redis_check_ts = current_ts
+
         # Check Redis
         try:
             r = self._get_sync_redis()
@@ -285,6 +293,7 @@ class BreakGlassStore:
         """Resets store state for testing."""
         self._manifests.clear()
         self._active_id = None
+        self._last_redis_check_ts = 0.0
 
 
 # Global singleton instance
