@@ -77,6 +77,17 @@ class HttpRpcClient(RpcClient):
             raise RpcError(f"Expected hex string result from eth_getTransactionCount, got {type(result)}")
         return int(result, 16)
 
+    def get_balance(self, address: str, block: str = "latest") -> int:
+        """Calls eth_getBalance."""
+        result = self._call("eth_getBalance", [address, block])
+        if not isinstance(result, str):
+            raise RpcError(f"Expected hex string result from eth_getBalance, got {type(result)}")
+        return int(result, 16)
+
+    def call(self, method: str, params: list[Any]) -> Any:
+        """Executes generic JSON-RPC call."""
+        return self._call(method, params)
+
 
 class MockRpcClient(RpcClient):
     """In-memory mock RPC client for isolated unit testing and lab simulations."""
@@ -86,9 +97,19 @@ class MockRpcClient(RpcClient):
         self._contracts: dict[str, dict[str, Any]] = {}
         self._blocks: dict[int, dict[str, Any]] = {}
         self._nonces: dict[str, int] = {}
+        self._balances: dict[str, int] = {}
+        self._call_handlers: dict[str, Any] = {}
         self._latest_block: int = 100
         self._should_fail: bool = False
         self._fail_message: str = "Simulated RPC failure"
+
+    def set_balance(self, address: str, balance_wei: int) -> None:
+        """Configures mock native balance for an address."""
+        self._balances[address.lower()] = balance_wei
+
+    def set_call_handler(self, method: str, handler: Any) -> None:
+        """Registers a custom handler for JSON-RPC methods."""
+        self._call_handlers[method] = handler
 
     def set_contract(
         self,
@@ -186,10 +207,33 @@ class MockRpcClient(RpcClient):
             raise RpcError(self._fail_message)
         return self._nonces.get(address.lower(), 0)
 
+    def get_balance(self, address: str, block: str = "latest") -> int:
+        if self._should_fail:
+            raise RpcError(self._fail_message)
+        return self._balances.get(address.lower(), 10**18)  # Default 1 ETH
+
+    def call(self, method: str, params: list[Any]) -> Any:
+        if self._should_fail:
+            raise RpcError(self._fail_message)
+        if method in self._call_handlers:
+            return self._call_handlers[method](params)
+        if method == "eth_call":
+            return "0x"
+        if method == "eth_getBalance":
+            addr = str(params[0]) if params else ""
+            return hex(self.get_balance(addr))
+        if method in ("anvil_dumpState", "evm_snapshot"):
+            return "0x1"
+        if method in ("anvil_loadState", "evm_revert"):
+            return True
+        return "0x"
+
     def reset(self) -> None:
         """Clears all mock contracts and resets failure state."""
         self._contracts.clear()
         self._blocks.clear()
         self._nonces.clear()
+        self._balances.clear()
+        self._call_handlers.clear()
         self._latest_block = 100
         self._should_fail = False

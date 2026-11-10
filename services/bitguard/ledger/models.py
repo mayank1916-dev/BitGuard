@@ -28,3 +28,8 @@ class WithdrawalIntent(BaseModel):
     destination: str = Field(description="Destination address / recipient")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     consumed_at: datetime | None = None
+
+
+# Alias for backward/cross compatibility
+LedgerIntent = WithdrawalIntent
+

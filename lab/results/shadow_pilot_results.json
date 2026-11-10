@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-10T09:17:07.327664+00:00",
+  "timestamp": "2026-11-10T10:34:09.960031+00:00",
   "data_provenance": "SYNTHETIC",
   "pilot_summary": {
     "total_events": 536,
@@ -57,7 +57,7 @@
         "details": {
           "current_days": 14,
           "required_days": 14,
-          "shadow_started_at": "2026-10-27T09:16:54.248481+00:00"
+          "shadow_started_at": "2026-10-27T10:34:02.567510+00:00"
         }
       },
       "false_positive_rate": {
@@ -84,6 +84,6 @@
     "loosening_version": "v1.2.0-loosen",
     "loosening_activation": "QUORUM_COOLDOWN_BACKTEST",
     "approvers_count": 2,
-    "backtest_report_id": "btr-loosen-20261110144705"
+    "backtest_report_id": "btr-loosen-20261110160407"
   }
 }

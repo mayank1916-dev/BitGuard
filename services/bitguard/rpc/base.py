@@ -45,3 +45,13 @@ class RpcClient(ABC):
     def get_transaction_count(self, address: str, block: str = "latest") -> int:
         """Retrieves the transaction count (nonce) of the specified address."""
         ...
+
+    @abstractmethod
+    def get_balance(self, address: str, block: str = "latest") -> int:
+        """Retrieves native wei balance for the specified address."""
+        ...
+
+    @abstractmethod
+    def call(self, method: str, params: list[object]) -> object:
+        """Executes a generic JSON-RPC call."""
+        ...

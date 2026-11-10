@@ -76,7 +76,13 @@ class DecisionEngine:
             self.profiler = CachedProfilerEnricher()
         else:
             self.profiler = DefaultProfilerEnricher()
-        self.simulation = simulation or DefaultSimulationEnricher()
+        if simulation is not None:
+            self.simulation = simulation
+        elif getattr(settings, "simulation_enabled", False):
+            from services.bitguard.simulation.enricher import CachedSimulationEnricher
+            self.simulation = CachedSimulationEnricher()
+        else:
+            self.simulation = DefaultSimulationEnricher()
         self.delegation_policy = DelegationPolicy()
         self.active_policy_document: Any | None = None
         self.active_policy_hash: str = ""
@@ -84,6 +90,10 @@ class DecisionEngine:
     def set_profiler(self, profiler: ProfilerEnricher) -> None:
         """Configures or replaces the address profiler enricher."""
         self.profiler = profiler
+
+    def set_simulation(self, simulation: SimulationEnricher) -> None:
+        """Configures or replaces the simulation enricher."""
+        self.simulation = simulation
 
     def reload_policy(self, policy_doc: Any, content_hash: str = "") -> None:
         """Hot-reloads signed policy into active decision engine memory."""
@@ -532,7 +542,12 @@ class DecisionEngine:
                 )
 
         # Simulation hook
-        s_res = self.simulation.simulate(context)
+        simulation_to_use = self.simulation
+        if context.request.metadata.get("enable_simulation") and isinstance(simulation_to_use, DefaultSimulationEnricher):
+            from services.bitguard.simulation.enricher import CachedSimulationEnricher
+            simulation_to_use = CachedSimulationEnricher()
+
+        s_res = simulation_to_use.simulate(context)
         if context.request.metadata.get("simulate_enrichment_timeout") or s_res.timed_out:
             context.add_reason(
                 code="ELEVATED_RISK_TIMEOUT",
@@ -584,7 +599,13 @@ class DecisionEngine:
         tentative_verdict: Verdict
         has_hard_deny = context.hard_deny or any(r.weight >= 90 for r in context.reasons)
         has_hold_reason = any(
-            r.code in ["SINGLE_TX_LIMIT_EXCEEDED", "BREAKER_HOLD", "WALLET_LIMIT_EXCEEDED", "VELOCITY_SPIKE"]
+            r.code in [
+                "SINGLE_TX_LIMIT_EXCEEDED",
+                "BREAKER_HOLD",
+                "WALLET_LIMIT_EXCEEDED",
+                "VELOCITY_SPIKE",
+                "SIM_BALANCE_MISMATCH",
+            ]
             for r in context.reasons
         )
 

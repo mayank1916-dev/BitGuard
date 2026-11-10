@@ -53,6 +53,9 @@ class BitGuardSettings(BaseSettings):
     profiler_enabled: bool = False
     profiler_lists_dir: str = "lists"
     profiler_cache_ttl_seconds: int = 3600
+    # Pre-sign Simulation (S28 / F5)
+    simulation_enabled: bool = False
+    simulation_timeout_ms: float = 300.0
     local_fallback_wallet_cap: int = 5_000
 
     # Shadow mode and promotion defaults (F7)
