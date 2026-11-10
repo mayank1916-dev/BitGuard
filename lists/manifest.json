@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-11-10T12:00:00Z",
+  "files": [
+    {
+      "filename": "sanctions.json",
+      "sha256": "4b4c6232fc1a4e826e8504e762d701be10a191d8c3bb2761b8ebf280956b2478",
+      "count": 2,
+      "updated_at": "2026-11-10T12:00:00Z"
+    },
+    {
+      "filename": "blocklist.json",
+      "sha256": "05cbdf4087a56231b7795cf6b72a776195bd9e7d677e4edbe5863386ca9a4977",
+      "count": 2,
+      "updated_at": "2026-11-10T12:00:00Z"
+    },
+    {
+      "filename": "known_bad_hashes.json",
+      "sha256": "4b27de39f64452940a305736e3ec71248e3dde47da73bb3538ea3c63bdddf4c5",
+      "count": 2,
+      "updated_at": "2026-11-10T12:00:00Z"
+    }
+  ]
+}

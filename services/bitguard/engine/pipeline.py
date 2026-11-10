@@ -69,11 +69,21 @@ class DecisionEngine:
         self.ledger_connector = ledger or mock_ledger_connector
         self.rpc_client: RpcClient = rpc or HttpRpcClient(rpc_url=settings.anvil_url)
         self.breaker_store = breaker or breaker_store
-        self.profiler = profiler or DefaultProfilerEnricher()
+        if profiler is not None:
+            self.profiler = profiler
+        elif settings.profiler_enabled:
+            from services.bitguard.profiler.enricher import CachedProfilerEnricher
+            self.profiler = CachedProfilerEnricher()
+        else:
+            self.profiler = DefaultProfilerEnricher()
         self.simulation = simulation or DefaultSimulationEnricher()
         self.delegation_policy = DelegationPolicy()
         self.active_policy_document: Any | None = None
         self.active_policy_hash: str = ""
+
+    def set_profiler(self, profiler: ProfilerEnricher) -> None:
+        """Configures or replaces the address profiler enricher."""
+        self.profiler = profiler
 
     def reload_policy(self, policy_doc: Any, content_hash: str = "") -> None:
         """Hot-reloads signed policy into active decision engine memory."""
@@ -131,6 +141,7 @@ class DecisionEngine:
             active_mode=active_mode,
             wallet_group=wallet_group_id,
             timer=timer,
+            metadata={"policy": self.active_policy_document},
         )
 
         try:
@@ -482,7 +493,12 @@ class DecisionEngine:
                 detail="High frequency transfer burst to unverified or new destination addresses.",
             )
         # Address profiler hook
-        p_res = self.profiler.enrich(context)
+        profiler_to_use = self.profiler
+        if context.request.metadata.get("enable_profiler") and isinstance(profiler_to_use, DefaultProfilerEnricher):
+            from services.bitguard.profiler.enricher import CachedProfilerEnricher
+            profiler_to_use = CachedProfilerEnricher()
+
+        p_res = profiler_to_use.enrich(context)
         if not p_res.configured and p_res.reason_code:
             context.reasons.append(
                 DecisionReason(
@@ -497,12 +513,23 @@ class DecisionEngine:
                 weight=30,
                 detail="Address profiler hook timed out; elevated risk applied (never treat as safe).",
             )
-        elif p_res.risk_weight > 0:
-            context.add_reason(
-                code=p_res.reason_code or "PROFILER_ANOMALY",
-                weight=p_res.risk_weight,
-                detail=p_res.detail or "Address profiler flagged risk.",
-            )
+        else:
+            reasons_data = p_res.data.get("reasons") if p_res.data else None
+            is_hard_deny = bool(p_res.data.get("is_hard_deny", False)) if p_res.data else False
+            if reasons_data:
+                for r in reasons_data:
+                    context.add_reason(
+                        code=r["code"],
+                        weight=int(r["weight"]),
+                        detail=r["detail"],
+                        is_hard_deny=is_hard_deny if r["code"] == "LIST_MATCH" or int(r["weight"]) >= 90 else False,
+                    )
+            elif p_res.risk_weight > 0:
+                context.add_reason(
+                    code=p_res.reason_code or "PROFILER_ANOMALY",
+                    weight=p_res.risk_weight,
+                    detail=p_res.detail or "Address profiler flagged risk.",
+                )
 
         # Simulation hook
         s_res = self.simulation.simulate(context)

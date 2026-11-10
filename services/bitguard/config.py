@@ -48,6 +48,11 @@ class BitGuardSettings(BaseSettings):
     limit_sliding_window_seconds: int = 3600
     local_caps_enabled: bool = True
     local_fallback_cap: int = 10_000  # Conservative local cap (smallest integer units)
+
+    # Risk Profiler (S27)
+    profiler_enabled: bool = False
+    profiler_lists_dir: str = "lists"
+    profiler_cache_ttl_seconds: int = 3600
     local_fallback_wallet_cap: int = 5_000
 
     # Shadow mode and promotion defaults (F7)

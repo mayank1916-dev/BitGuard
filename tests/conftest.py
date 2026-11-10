@@ -33,6 +33,9 @@ def configure_test_redis_and_db():
     backtest_service.set_redis_client(client)
     stream_broadcaster.set_sync_redis(client)
     rate_limiter.set_sync_redis(client)
+    from services.bitguard.profiler.worker import profile_worker
+    profile_worker.set_redis_client(client)
+    profile_worker.clear_cache()
     from services.bitguard.break_glass import break_glass_store
     from services.signer_shim.heartbeat import heartbeat_tracker
     break_glass_store.set_sync_redis(client)
@@ -58,3 +61,5 @@ def configure_test_redis_and_db():
     distributed_breaker_store.reset()
     audit_service.clear()
     approver_registry.reset_replays()
+    from services.bitguard.profiler.worker import profile_worker
+    profile_worker.clear_cache()
