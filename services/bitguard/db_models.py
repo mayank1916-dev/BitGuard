@@ -65,7 +65,7 @@ class HoldTicketRecord(Base):
     __tablename__ = "hold_tickets"
     __table_args__ = (
         CheckConstraint(
-            "state IN ('PENDING', 'APPROVED', 'DENIED', 'EXPIRED', 'CANCELLED', 'RELEASED')",
+            "state IN ('PENDING', 'PENDING_RELEASE', 'APPROVED', 'DENIED', 'EXPIRED', 'CANCELLED', 'RELEASED')",
             name="ck_hold_tickets_valid_state",
         ),
     )

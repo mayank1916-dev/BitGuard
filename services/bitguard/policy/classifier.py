@@ -147,6 +147,11 @@ def classify_change(old: PolicyDocument, new: PolicyDocument) -> ChangeClassific
             has_tighten = True
 
     # 8. Compare time-lock policy
+    if new.time_lock.timelock_minutes < old.time_lock.timelock_minutes:
+        has_loosen = True
+    elif new.time_lock.timelock_minutes > old.time_lock.timelock_minutes:
+        has_tighten = True
+
     if new.time_lock.min_amount_usd > old.time_lock.min_amount_usd:
         has_loosen = True
     elif new.time_lock.min_amount_usd < old.time_lock.min_amount_usd:
@@ -156,6 +161,20 @@ def classify_change(old: PolicyDocument, new: PolicyDocument) -> ChangeClassific
         has_loosen = True
     elif new.time_lock.delay_seconds > old.time_lock.delay_seconds:
         has_tighten = True
+
+    all_tl_assets = set(old.time_lock.timelock_threshold.keys()) | set(new.time_lock.timelock_threshold.keys())
+    for a in all_tl_assets:
+        old_th = old.time_lock.timelock_threshold.get(a)
+        new_th = new.time_lock.timelock_threshold.get(a)
+        if old_th is not None and new_th is not None:
+            if new_th > old_th:
+                has_loosen = True
+            elif new_th < old_th:
+                has_tighten = True
+        elif old_th is not None and new_th is None:
+            has_loosen = True
+        elif old_th is None and new_th is not None:
+            has_tighten = True
 
     # 9. Compare risk weights
     all_rules = set(old.risk_weights.keys()) | set(new.risk_weights.keys())

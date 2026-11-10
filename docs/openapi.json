@@ -2168,6 +2168,23 @@
             "title": "Id",
             "type": "string"
           },
+          "intent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intent Id"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
           "raw_tx": {
             "anyOf": [
               {
@@ -3976,7 +3993,7 @@
         "type": "object"
       },
       "TimeLockPolicy": {
-        "description": "Configuration for delayed high-value transfer time-locks.",
+        "description": "Configuration for delayed high-value transfer time-locks (Milestone S30 / F12).",
         "properties": {
           "cancellable_by_roles": {
             "items": {
@@ -3985,8 +4002,16 @@
             "title": "Cancellable By Roles",
             "type": "array"
           },
+          "delay_multipliers": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Delay multiplier by circuit breaker state (ELEVATED x2, HOLD x4)",
+            "title": "Delay Multipliers",
+            "type": "object"
+          },
           "delay_seconds": {
-            "default": 3600,
+            "default": 1800,
             "title": "Delay Seconds",
             "type": "integer"
           },
@@ -3994,6 +4019,20 @@
             "default": 100000.0,
             "title": "Min Amount Usd",
             "type": "number"
+          },
+          "timelock_minutes": {
+            "default": 30,
+            "description": "Base time-lock delay in minutes (default 30 min; lab 1 min)",
+            "title": "Timelock Minutes",
+            "type": "integer"
+          },
+          "timelock_threshold": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Per-asset threshold at or above which transfers become TIMELOCKED",
+            "title": "Timelock Threshold",
+            "type": "object"
           }
         },
         "title": "TimeLockPolicy",

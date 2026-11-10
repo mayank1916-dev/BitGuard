@@ -19,13 +19,21 @@ TERMINAL_STATES: frozenset[str] = frozenset({
 
 VALID_TRANSITIONS: dict[str, frozenset[str]] = {
     HoldState.PENDING.value: frozenset({
+        HoldState.PENDING_RELEASE.value,
         HoldState.APPROVED.value,
         HoldState.DENIED.value,
         HoldState.EXPIRED.value,
         HoldState.CANCELLED.value,
         HoldState.RELEASED.value,
     }),
+    HoldState.PENDING_RELEASE.value: frozenset({
+        HoldState.RELEASED.value,
+        HoldState.CANCELLED.value,
+        HoldState.DENIED.value,
+        HoldState.EXPIRED.value,
+    }),
     HoldState.APPROVED.value: frozenset({
+        HoldState.PENDING_RELEASE.value,
         HoldState.RELEASED.value,
         HoldState.CANCELLED.value,
     }),

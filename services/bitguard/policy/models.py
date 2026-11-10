@@ -42,12 +42,24 @@ class WalletGroupPolicy(BaseModel):
 
 
 class TimeLockPolicy(BaseModel):
-    """Configuration for delayed high-value transfer time-locks."""
+    """Configuration for delayed high-value transfer time-locks (Milestone S30 / F12)."""
 
+    timelock_threshold: dict[str, float] = Field(
+        default_factory=lambda: {"ETH": 50.0, "BTC": 2.0, "USDC": 100_000.0, "USD": 100_000.0},
+        description="Per-asset threshold at or above which transfers become TIMELOCKED",
+    )
+    timelock_minutes: int = Field(
+        default=30,
+        description="Base time-lock delay in minutes (default 30 min; lab 1 min)",
+    )
+    delay_multipliers: dict[str, float] = Field(
+        default_factory=lambda: {"NORMAL": 1.0, "ELEVATED": 2.0, "HOLD": 4.0},
+        description="Delay multiplier by circuit breaker state (ELEVATED x2, HOLD x4)",
+    )
     min_amount_usd: float = 100_000.0
-    delay_seconds: int = 3600
+    delay_seconds: int = 1800
     cancellable_by_roles: list[Role] = Field(
-        default_factory=lambda: [Role.SECOPS, Role.ADMIN]
+        default_factory=lambda: [Role.OPERATOR, Role.SECOPS, Role.APPROVER, Role.ADMIN]
     )
 
 

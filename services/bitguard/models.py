@@ -162,9 +162,10 @@ class Approval(BaseModel):
 
 
 class HoldState(StrEnum):
-    """Quarantine hold ticket lifecycle states (Milestone S14)."""
+    """Quarantine hold ticket lifecycle states (Milestone S14 / S30)."""
 
     PENDING = "PENDING"
+    PENDING_RELEASE = "PENDING_RELEASE"
     APPROVED = "APPROVED"
     DENIED = "DENIED"
     EXPIRED = "EXPIRED"
@@ -187,6 +188,8 @@ class HoldTicket(BaseModel):
     requester_id: str | None = None
     requester_identity: str | None = None
     reservation_id: str | None = None
+    intent_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
     risk_score: int = 0
     reasons: list[DecisionReason] = Field(default_factory=list)
     state: str = "PENDING"  # PENDING, APPROVED, DENIED, EXPIRED, CANCELLED, RELEASED

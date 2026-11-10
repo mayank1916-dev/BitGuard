@@ -379,6 +379,16 @@ class QuorumApprovalService:
             reason=reason,
         )
 
+        try:
+            from services.bitguard.timelock.store import timelock_store
+            tl_item = timelock_store.get(f"tl-{ticket.request_id}")
+            if tl_item:
+                tl_item.status = "CANCELLED"
+                tl_item.cancel_reason = reason
+                tl_item.cancelled_by = cancelled_by_user.id
+        except Exception:
+            pass
+
         return CancelHoldResponse(
             status="CANCELLED",
             state="CANCELLED",

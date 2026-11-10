@@ -68,7 +68,7 @@
 - [x] S27 Contract and address risk profiler with local sanctions lists (C)
 - [x] S28 Pre-sign transaction simulation (F5)
 - [x] S29 Balance caps, top-up proposals and sweep (F11)
-- [ ] S30 Time-locked large withdrawals (F12)
+- [x] S30 Time-locked large withdrawals (F12)
 - [ ] S31 Price sanity and unit-based limits (F13)
 - [ ] S32 Behavioural baselines per wallet (F15)
 - [ ] S33 Caller identity and build attestation (F16)

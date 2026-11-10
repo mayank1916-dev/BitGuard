@@ -88,6 +88,7 @@ PERMISSION_MATRIX: dict[Role, set[Permission]] = {
     Role.APPROVER: set(BASE_READ_PERMISSIONS)
     | {
         Permission.APPROVE_HOLD,
+        Permission.POLICY_TIGHTEN,
     },
     Role.ADMIN: {
         # Admin has all permissions

@@ -620,6 +620,7 @@ class DecisionEngine:
                 "COLD_STORAGE_TRANSFER",
                 "EXPOSURE_CAP_EXCEEDED",
                 "EXPOSURE_TOP_UP_REQUIRED",
+                "TIMELOCK_DELAY",
             ]
             for r in context.reasons
         )
@@ -647,6 +648,80 @@ class DecisionEngine:
             tentative_verdict = Verdict.HOLD
         else:
             tentative_verdict = Verdict.ALLOW
+
+        # Time-lock evaluation (Milestone S30 / F12):
+        # Withdrawals at or above threshold that otherwise pass become TIMELOCKED
+        if tentative_verdict == Verdict.ALLOW:
+            timelock_policy = None
+            if self.active_policy_document and hasattr(self.active_policy_document, "time_lock"):
+                timelock_policy = self.active_policy_document.time_lock
+            elif "policy" in context.metadata and hasattr(context.metadata["policy"], "time_lock"):
+                timelock_policy = context.metadata["policy"].time_lock
+
+            if timelock_policy:
+                is_timelocked = False
+                matched_threshold = None
+                matched_amount = 0.0
+                matched_unit = "USD"
+
+                # Check asset-specific threshold
+                if context.decoded_tx and timelock_policy.timelock_threshold:
+                    asset = (context.decoded_tx.asset or "ETH").upper()
+                    if asset in timelock_policy.timelock_threshold:
+                        decimals = 18
+                        if asset in ("USDC", "USDT"):
+                            decimals = 6
+                        elif asset == "BTC":
+                            decimals = 8
+
+                        try:
+                            raw_val = float(context.decoded_tx.amount)
+                            asset_amount = raw_val / (10**decimals)
+                        except (ValueError, TypeError):
+                            asset_amount = 0.0
+
+                        th_asset = timelock_policy.timelock_threshold[asset]
+                        if asset_amount >= th_asset and asset_amount > 0:
+                            is_timelocked = True
+                            matched_threshold = th_asset
+                            matched_amount = asset_amount
+                            matched_unit = asset
+
+                # Check USD threshold
+                if not is_timelocked:
+                    usd_threshold = None
+                    if timelock_policy.timelock_threshold and "USD" in timelock_policy.timelock_threshold:
+                        usd_threshold = timelock_policy.timelock_threshold["USD"]
+                    elif timelock_policy.min_amount_usd is not None:
+                        usd_threshold = timelock_policy.min_amount_usd
+
+                    amount_usd = float(context.request.metadata.get("amount_usd", 0.0))
+                    if usd_threshold is not None and amount_usd >= usd_threshold and amount_usd > 0:
+                        is_timelocked = True
+                        matched_threshold = usd_threshold
+                        matched_amount = amount_usd
+                        matched_unit = "USD"
+
+                if is_timelocked and matched_threshold is not None:
+                    multiplier = timelock_policy.delay_multipliers.get(b_state.value, 1.0)
+                    delay_seconds = int(timelock_policy.timelock_minutes * 60 * multiplier)
+                    from datetime import timedelta
+                    release_not_before = start_time + timedelta(seconds=delay_seconds)
+
+                    context.add_reason(
+                        code="TIMELOCK_DELAY",
+                        weight=60,
+                        detail=(
+                            f"Transfer amount {matched_amount:,.2f} {matched_unit} meets or exceeds time-lock threshold "
+                            f"{matched_threshold:,.2f} {matched_unit}; delayed by {timelock_policy.timelock_minutes}m (x{multiplier:.1f} breaker mult) "
+                            f"until {release_not_before.isoformat()}."
+                        ),
+                    )
+                    tentative_verdict = Verdict.HOLD
+                    context.request.metadata["is_timelocked"] = True
+                    context.request.metadata["release_not_before"] = release_not_before.isoformat()
+                    context.request.metadata["timelock_multiplier"] = multiplier
+                    context.request.metadata["timelock_delay_seconds"] = delay_seconds
 
         # Release reservation if verdict is not ALLOW
         if context.reservation_id and tentative_verdict != Verdict.ALLOW:
