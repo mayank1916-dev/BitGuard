@@ -267,11 +267,18 @@ def create_test_webauthn_assertion(
     tx_digest: str,
     origin: str = "https://console.bitguard.exchange",
     rp_id: str = "console.bitguard.exchange",
-    sign_count: int = 1,
+    sign_count: int | None = None,
     wrong_challenge: str | None = None,
     user_present: bool = True,
 ) -> WebAuthnAssertion:
     """Helper generating a cryptographically valid WebAuthn assertion for tests."""
+    if sign_count is None:
+        derived_count = 1
+        for aid, priv in approver_registry.dev_private_keys.items():
+            if priv == private_key:
+                derived_count = approver_registry.get_last_sign_count(aid) + 1
+                break
+        sign_count = derived_count
     # 1. Challenge
     challenge_val = wrong_challenge if wrong_challenge is not None else tx_digest
 

@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-11-10T09:17:07.327664+00:00",
+  "data_provenance": "SYNTHETIC",
+  "pilot_summary": {
+    "total_events": 536,
+    "time_span_days": 13.96,
+    "events_per_day_avg": 38.4,
+    "total_volume_usd": 3881758.64,
+    "would_have_allowed_count": 519,
+    "would_have_allowed_value_usd": 2745293.59,
+    "would_have_blocked_count": 17,
+    "would_have_blocked_value_usd": 1136465.05,
+    "holds_per_day": 1.22,
+    "invariant_denials": 0
+  },
+  "ground_truth_analysis": {
+    "benign_events_count": 523,
+    "anomaly_events_count": 13,
+    "false_positives_count": 7,
+    "false_positives_value_usd": 473827.66,
+    "false_positive_rate": 0.01306,
+    "false_positive_rate_pct": 1.306,
+    "target_max_false_positive_rate": 0.001,
+    "true_positives_count": 10,
+    "true_positives_value_usd": 662637.39
+  },
+  "top_reason_codes": [
+    {
+      "code": "SINGLE_TX_LIMIT_EXCEEDED",
+      "count": 14
+    },
+    {
+      "code": "PROFILER_NOT_CONFIGURED",
+      "count": 14
+    },
+    {
+      "code": "SIMULATION_NOT_CONFIGURED",
+      "count": 14
+    },
+    {
+      "code": "WALLET_LIMIT_EXCEEDED",
+      "count": 4
+    },
+    {
+      "code": "DELEGATION_OWNED_ADDRESS",
+      "count": 3
+    }
+  ],
+  "promotion_checklist": {
+    "wallet_group": "default",
+    "current_mode": "SHADOW",
+    "can_promote": false,
+    "summary": "Promotion gates failing: false-positive rate (0.0127 > 0.001).",
+    "checks": {
+      "minimum_days_in_shadow": {
+        "passed": true,
+        "details": {
+          "current_days": 14,
+          "required_days": 14,
+          "shadow_started_at": "2026-10-27T09:16:54.248481+00:00"
+        }
+      },
+      "false_positive_rate": {
+        "passed": false,
+        "details": {
+          "current_rate": 0.012681,
+          "target_max_rate": 0.001,
+          "total_false_positives": 7,
+          "total_evaluations": 552
+        }
+      },
+      "zero_unexplained_decode_failures": {
+        "passed": true,
+        "details": {
+          "unexplained_failures": 0,
+          "allowed_failures": 0
+        }
+      }
+    }
+  },
+  "asymmetric_policy_evolution": {
+    "tightening_version": "v1.1.0-tighten",
+    "tightening_activation": "INSTANT_1_PERSON",
+    "loosening_version": "v1.2.0-loosen",
+    "loosening_activation": "QUORUM_COOLDOWN_BACKTEST",
+    "approvers_count": 2,
+    "backtest_report_id": "btr-loosen-20261110144705"
+  }
+}

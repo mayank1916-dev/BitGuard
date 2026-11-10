@@ -595,6 +595,20 @@ class DecisionEngine:
 
         # Apply mode semantics (Milestone S04) as the last step
         amount_usd = float(context.request.metadata.get("amount_usd", 0.0))
+        meta_ts = context.request.metadata.get("ts")
+        date_str = (
+            datetime.fromtimestamp(float(meta_ts), UTC).strftime("%Y-%m-%d")
+            if meta_ts is not None
+            else None
+        )
+        dec_time = (
+            datetime.fromtimestamp(float(meta_ts), UTC)
+            if meta_ts is not None
+            else start_time
+        )
+        meta_label = context.request.metadata.get("data_label")
+        data_label_val = DataLabel.REAL if str(meta_label).upper() == "REAL" else DataLabel.SYNTHETIC
+
         final_verdict: Verdict
         would_have_verdict: Verdict | None = None
 
@@ -611,19 +625,24 @@ class DecisionEngine:
                 would_have_verdict = tentative_verdict
                 final_verdict = Verdict.ALLOW  # Pass-through for policy verdicts
                 from services.bitguard.mode_service import mode_service
-                mode_service.record_metric(context.wallet_group, is_would_block=True, value_usd=amount_usd)
+                mode_service.record_metric(
+                    context.wallet_group,
+                    is_would_block=True,
+                    value_usd=amount_usd,
+                    date_str=date_str,
+                )
             else:
                 final_verdict = Verdict.ALLOW
                 would_have_verdict = None
                 from services.bitguard.mode_service import mode_service
-                mode_service.record_metric(context.wallet_group, is_allowed=True)
+                mode_service.record_metric(context.wallet_group, is_allowed=True, date_str=date_str)
 
         elif context.active_mode == OperationMode.ENFORCE:
             final_verdict = tentative_verdict
             would_have_verdict = None
             if final_verdict == Verdict.ALLOW:
                 from services.bitguard.mode_service import mode_service
-                mode_service.record_metric(context.wallet_group, is_allowed=True)
+                mode_service.record_metric(context.wallet_group, is_allowed=True, date_str=date_str)
 
         else:
             # SIMULATION mode: dry-run, returns what BitGuard would do
@@ -642,11 +661,11 @@ class DecisionEngine:
             reasons=context.reasons,
             mode=context.active_mode,
             policy_version=self.config.policy_version,
-            data_label=DataLabel.SYNTHETIC,
+            data_label=data_label_val,
             wallet_group=context.wallet_group,
             wallet=context.decoded_tx.from_address if context.decoded_tx else context.request.wallet,
             chain=context.decoded_tx.chain if context.decoded_tx else context.request.chain,
-            created_at=start_time,
+            created_at=dec_time,
             evaluation_latency_ms=0.0,
             timings={},
             reservation_id=context.reservation_id,
