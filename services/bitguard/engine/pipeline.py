@@ -419,6 +419,18 @@ class DecisionEngine:
                 detail="Outflow velocity spike detected for wallet.",
             )
 
+        # Distinct request type check (Milestone S29 / F11): Cold transfers are ALWAYS HOLD regardless of size
+        if (
+            getattr(context.request, "request_type", None) == "COLD_TRANSFER"
+            or context.request.metadata.get("request_type") == "COLD_TRANSFER"
+            or context.request.metadata.get("is_cold_transfer")
+        ):
+            context.add_reason(
+                code="COLD_STORAGE_TRANSFER",
+                weight=75,
+                detail="Cold transfer is a distinct request type requiring quarantine hold and hardware quorum.",
+            )
+
         if raw_amount_int <= 0:
             return
 
@@ -605,6 +617,9 @@ class DecisionEngine:
                 "WALLET_LIMIT_EXCEEDED",
                 "VELOCITY_SPIKE",
                 "SIM_BALANCE_MISMATCH",
+                "COLD_STORAGE_TRANSFER",
+                "EXPOSURE_CAP_EXCEEDED",
+                "EXPOSURE_TOP_UP_REQUIRED",
             ]
             for r in context.reasons
         )

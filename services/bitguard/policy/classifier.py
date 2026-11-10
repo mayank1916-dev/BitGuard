@@ -167,6 +167,28 @@ def classify_change(old: PolicyDocument, new: PolicyDocument) -> ChangeClassific
         elif new_w > old_w:
             has_tighten = True
 
+    # 10. Compare wallet exposure balance thresholds (Milestone S29 / F11)
+    all_exp_wallets = set(old.wallet_exposure.keys()) | set(new.wallet_exposure.keys())
+    for w in all_exp_wallets:
+        old_exp = old.wallet_exposure.get(w)
+        new_exp = new.wallet_exposure.get(w)
+        if old_exp and new_exp:
+            # Raising max_hot_balance allows more funds in hot wallet => LOOSEN. Lowering => TIGHTEN.
+            if new_exp.max_hot_balance > old_exp.max_hot_balance:
+                has_loosen = True
+            elif new_exp.max_hot_balance < old_exp.max_hot_balance:
+                has_tighten = True
+
+            # Raising top_up_threshold triggers earlier top-ups => LOOSEN. Lowering => TIGHTEN.
+            if new_exp.top_up_threshold > old_exp.top_up_threshold:
+                has_loosen = True
+            elif new_exp.top_up_threshold < old_exp.top_up_threshold:
+                has_tighten = True
+        elif old_exp and not new_exp:
+            has_loosen = True
+        elif not old_exp and new_exp:
+            has_tighten = True
+
     if has_loosen and has_tighten:
         return ChangeClassification.MIXED
     if has_loosen:

@@ -1877,6 +1877,161 @@
         "title": "EscalateRequest",
         "type": "object"
       },
+      "ExposureAlert": {
+        "description": "Divergence or cap breach alert emitted by the exposure service.",
+        "properties": {
+          "alert_code": {
+            "description": "Alert classification code (BALANCE_DIVERGENCE, EXPOSURE_CAP_EXCEEDED, etc.)",
+            "title": "Alert Code",
+            "type": "string"
+          },
+          "chain": {
+            "default": "ethereum",
+            "description": "Target blockchain identifier",
+            "title": "Chain",
+            "type": "string"
+          },
+          "committed_volume": {
+            "default": 0.0,
+            "description": "Committed limit store volume",
+            "title": "Committed Volume",
+            "type": "number"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL",
+            "description": "Explicit data provenance"
+          },
+          "detail": {
+            "description": "Human-readable forensic detail",
+            "title": "Detail",
+            "type": "string"
+          },
+          "divergence": {
+            "default": 0.0,
+            "description": "Measured divergence amount",
+            "title": "Divergence",
+            "type": "number"
+          },
+          "id": {
+            "description": "Unique alert identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "on_chain_balance": {
+            "description": "Observed on-chain balance",
+            "title": "On Chain Balance",
+            "type": "number"
+          },
+          "severity": {
+            "default": "HIGH",
+            "description": "Alert severity: INFO, HIGH, CRITICAL",
+            "title": "Severity",
+            "type": "string"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Configured limit/cap threshold breached",
+            "title": "Threshold"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "wallet": {
+            "description": "Monitored hot wallet address",
+            "title": "Wallet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "alert_code",
+          "wallet",
+          "on_chain_balance",
+          "detail"
+        ],
+        "title": "ExposureAlert",
+        "type": "object"
+      },
+      "ExposureStatus": {
+        "description": "Operational status of a hot wallet's on-chain exposure.",
+        "enum": [
+          "NORMAL",
+          "TOP_UP_NEEDED",
+          "CAP_EXCEEDED",
+          "DIVERGENCE_ALERT"
+        ],
+        "title": "ExposureStatus",
+        "type": "string"
+      },
+      "ExposureSummaryResponse": {
+        "description": "Consolidated exposure report exposed by GET /v1/exposure.",
+        "properties": {
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL",
+            "description": "Explicit data provenance (REAL or REPORTED)"
+          },
+          "divergence_alerts": {
+            "description": "Recent balance divergence alerts",
+            "items": {
+              "$ref": "#/components/schemas/ExposureAlert"
+            },
+            "title": "Divergence Alerts",
+            "type": "array"
+          },
+          "proposals_pending": {
+            "default": 0,
+            "description": "Count of active quarantine sweep or top-up proposals",
+            "title": "Proposals Pending",
+            "type": "integer"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total_exposure_at_risk": {
+            "description": "Aggregate value of hot wallet balances exposed on-chain",
+            "title": "Total Exposure At Risk",
+            "type": "number"
+          },
+          "total_headroom": {
+            "description": "Aggregate headroom remaining before caps are breached",
+            "title": "Total Headroom",
+            "type": "number"
+          },
+          "wallets": {
+            "description": "Per-wallet exposure metrics",
+            "items": {
+              "$ref": "#/components/schemas/WalletExposureItem"
+            },
+            "title": "Wallets",
+            "type": "array"
+          },
+          "wallets_monitored": {
+            "description": "Count of actively tracked hot wallets",
+            "title": "Wallets Monitored",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_exposure_at_risk",
+          "total_headroom",
+          "wallets_monitored"
+        ],
+        "title": "ExposureSummaryResponse",
+        "type": "object"
+      },
       "FalsePositiveRequest": {
         "description": "Request payload to flag a blocked transaction as a false positive.",
         "properties": {
@@ -2961,6 +3116,13 @@
             "title": "Version",
             "type": "string"
           },
+          "wallet_exposure": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WalletExposurePolicy"
+            },
+            "title": "Wallet Exposure",
+            "type": "object"
+          },
           "wallet_groups": {
             "additionalProperties": {
               "$ref": "#/components/schemas/WalletGroupPolicy"
@@ -3634,6 +3796,12 @@
             "title": "Raw Tx",
             "type": "string"
           },
+          "request_type": {
+            "default": "STANDARD",
+            "description": "Request classification: STANDARD, COLD_TRANSFER, SWEEP, TOP_UP",
+            "title": "Request Type",
+            "type": "string"
+          },
           "wallet": {
             "default": "",
             "description": "Originating wallet address (optional if extracted from raw tx)",
@@ -4112,6 +4280,103 @@
         ],
         "title": "Verdict",
         "type": "string"
+      },
+      "WalletExposureItem": {
+        "description": "Per-wallet balance, cap, headroom, and exposure status (Milestone S29 / F11).",
+        "properties": {
+          "balance": {
+            "description": "Current on-chain balance (labeled REAL or REPORTED)",
+            "title": "Balance",
+            "type": "number"
+          },
+          "cap": {
+            "description": "Maximum hot wallet balance threshold (max_hot_balance)",
+            "title": "Cap",
+            "type": "number"
+          },
+          "chain": {
+            "default": "ethereum",
+            "description": "Target blockchain identifier",
+            "title": "Chain",
+            "type": "string"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL",
+            "description": "Explicit data provenance (REAL or REPORTED)"
+          },
+          "exposure_at_risk": {
+            "description": "Total funds currently at risk in this hot wallet",
+            "title": "Exposure At Risk",
+            "type": "number"
+          },
+          "headroom": {
+            "description": "Remaining balance capacity before the max cap is reached",
+            "title": "Headroom",
+            "type": "number"
+          },
+          "last_polled_at": {
+            "format": "date-time",
+            "title": "Last Polled At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExposureStatus",
+            "default": "NORMAL",
+            "description": "Current operational exposure status"
+          },
+          "target_balance": {
+            "description": "Target equilibrium balance after rebalancing",
+            "title": "Target Balance",
+            "type": "number"
+          },
+          "top_up_threshold": {
+            "description": "Low-balance threshold triggering cold-to-hot top-up",
+            "title": "Top Up Threshold",
+            "type": "number"
+          },
+          "wallet": {
+            "description": "Monitored hot wallet address",
+            "title": "Wallet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wallet",
+          "balance",
+          "cap",
+          "target_balance",
+          "top_up_threshold",
+          "headroom",
+          "exposure_at_risk"
+        ],
+        "title": "WalletExposureItem",
+        "type": "object"
+      },
+      "WalletExposurePolicy": {
+        "description": "Exposure reduction balance limits per wallet (Milestone S29 / F11).",
+        "properties": {
+          "max_hot_balance": {
+            "default": 100000.0,
+            "description": "Upper threshold above which sweep to cold is triggered",
+            "title": "Max Hot Balance",
+            "type": "number"
+          },
+          "target_hot_balance": {
+            "default": 50000.0,
+            "description": "Target equilibrium balance after sweep or top-up",
+            "title": "Target Hot Balance",
+            "type": "number"
+          },
+          "top_up_threshold": {
+            "default": 20000.0,
+            "description": "Lower threshold below which top-up from cold is triggered",
+            "title": "Top Up Threshold",
+            "type": "number"
+          }
+        },
+        "title": "WalletExposurePolicy",
+        "type": "object"
       },
       "WalletGroupConfig": {
         "description": "Policy configuration for an individual hot wallet group.",
@@ -8271,6 +8536,148 @@
         "summary": "Evaluate transaction signing request (dry run)",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/api/v1/exposure": {
+      "get": {
+        "description": "Returns per-wallet on-chain balances, balance caps, headroom, and aggregate exposure at risk. Every numeric metric is explicitly labelled REAL or REPORTED per Invariant #8.",
+        "operationId": "get_exposure_api_v1_exposure_get",
+        "parameters": [
+          {
+            "description": "Explicit data provenance label (REAL or REPORTED)",
+            "in": "query",
+            "name": "data_label",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DataLabel",
+              "default": "REAL",
+              "description": "Explicit data provenance label (REAL or REPORTED)"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExposureSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get hot wallet exposure, caps, headroom, and exposure at risk",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Exposure Reduction (F11)"
         ]
       }
     },
@@ -17881,6 +18288,148 @@
         "summary": "Evaluate transaction signing request (dry run)",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/exposure": {
+      "get": {
+        "description": "Returns per-wallet on-chain balances, balance caps, headroom, and aggregate exposure at risk. Every numeric metric is explicitly labelled REAL or REPORTED per Invariant #8.",
+        "operationId": "get_exposure_v1_exposure_get",
+        "parameters": [
+          {
+            "description": "Explicit data provenance label (REAL or REPORTED)",
+            "in": "query",
+            "name": "data_label",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DataLabel",
+              "default": "REAL",
+              "description": "Explicit data provenance label (REAL or REPORTED)"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExposureSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get hot wallet exposure, caps, headroom, and exposure at risk",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Exposure Reduction (F11)"
         ]
       }
     },

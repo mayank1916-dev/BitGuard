@@ -96,6 +96,10 @@ class SigningRequest(BaseModel):
         default=None,
         description="Optional mode override; defaults to the wallet group configured mode",
     )
+    request_type: str = Field(
+        default="STANDARD",
+        description="Request classification: STANDARD, COLD_TRANSFER, SWEEP, TOP_UP",
+    )
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

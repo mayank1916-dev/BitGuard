@@ -70,6 +70,23 @@ class ThresholdsPolicy(BaseModel):
     hold_score: int = Field(default=50, ge=0, le=100)
 
 
+class WalletExposurePolicy(BaseModel):
+    """Exposure reduction balance limits per wallet (Milestone S29 / F11)."""
+
+    max_hot_balance: float = Field(
+        default=100_000.0,
+        description="Upper threshold above which sweep to cold is triggered",
+    )
+    target_hot_balance: float = Field(
+        default=50_000.0,
+        description="Target equilibrium balance after sweep or top-up",
+    )
+    top_up_threshold: float = Field(
+        default=20_000.0,
+        description="Lower threshold below which top-up from cold is triggered",
+    )
+
+
 class PolicyDocument(BaseModel):
     """Complete, self-contained declarative policy manifest document."""
 
@@ -78,6 +95,7 @@ class PolicyDocument(BaseModel):
     limits: LimitsPolicy = Field(default_factory=LimitsPolicy)
     thresholds: ThresholdsPolicy = Field(default_factory=ThresholdsPolicy)
     wallet_groups: dict[str, WalletGroupPolicy] = Field(default_factory=dict)
+    wallet_exposure: dict[str, WalletExposurePolicy] = Field(default_factory=dict)
     delegate_allowlist: list[str] = Field(default_factory=list)  # allowed bytecode hashes
     owned_addresses: list[str] = Field(default_factory=list)  # internal monitored hot addresses
     time_lock: TimeLockPolicy = Field(default_factory=TimeLockPolicy)

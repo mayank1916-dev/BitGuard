@@ -1,25 +1,25 @@
 ================================================================================
 BitGuard Integration Lab (Milestone S23 / F19) - Execution Report
 ================================================================================
-Timestamp: 2026-11-10T10:33:39.876046+00:00 | Chain ID: 31337 (anvil-local)
+Timestamp: 2026-11-10T10:53:51.803475+00:00 | Chain ID: 31337 (anvil-local)
 Safety Gate: PASSED (Non-mainnet verified, disposable test keys only)
 Data Provenance: SYNTHETIC (Integration Benchmark)
 Claim: BitGuard reduces and contains unauthorized transaction signing. Production-ready architecture; pilot after audit and shadow-mode validation.
 Latency Benchmark: target p99 under 15 ms, measured
 --------------------------------------------------------------------------------
 Scenarios Executed: 11 | Passed: 11 | Failed: 0 | Pass Rate: 100.0%
-Total Duration: 352.00 ms
+Total Duration: 318.64 ms
 --------------------------------------------------------------------------------
 Scenario Breakdown:
-[PASS] scenario_01_normal_withdrawal: Normal Authorized Withdrawal (29.00ms) -> ALLOW
-[PASS] scenario_02_over_limit_hold_then_quorum_release: Over-Limit Quarantine and Quorum Release (44.89ms) -> HOLD_THEN_APPROVED
-[PASS] scenario_03_hold_expires_to_deny: Quarantine Expiration to Deny (10.46ms) -> HOLD_EXPIRES_DENY
-[PASS] scenario_04_delegation_attempt_denied: Unapproved EIP-7702 Delegation Denied (25.32ms) -> DENY
-[PASS] scenario_05_watcher_detects_unapproved_delegation_and_breaker_trips: Delegation Watcher Detection and Circuit Breaker Trip (18.41ms | Time-to-contain: 12.77ms) -> BREAKER_TRIPPED
-[PASS] scenario_06_split_under_limit_triggers_velocity_or_baseline_reason: Velocity and Cumulative Limit Breach (80.10ms) -> VELOCITY_HOLD
-[PASS] scenario_07_redis_outage_fails_closed: State Store Outage Fail-Closed Behavior (10.95ms) -> FAIL_CLOSED
-[PASS] scenario_08_direct_signer_call_refused: Direct Signer Shim Invocation Refused (6.77ms) -> REFUSED
-[PASS] scenario_09_token_replay_refused: Approval Token Replay Refusal (14.53ms) -> REFUSED
-[PASS] scenario_10_unmatched_intent_denied: Unmatched Ledger Intent Denied (8.97ms) -> DENY
-[PASS] scenario_11_lockdown_then_two_person_unlock: Circuit Breaker Lockdown and Dual-Control Unlock (102.25ms) -> LOCKDOWN_UNLOCKED
+[PASS] scenario_01_normal_withdrawal: Normal Authorized Withdrawal (25.43ms) -> ALLOW
+[PASS] scenario_02_over_limit_hold_then_quorum_release: Over-Limit Quarantine and Quorum Release (45.26ms) -> HOLD_THEN_APPROVED
+[PASS] scenario_03_hold_expires_to_deny: Quarantine Expiration to Deny (11.65ms) -> HOLD_EXPIRES_DENY
+[PASS] scenario_04_delegation_attempt_denied: Unapproved EIP-7702 Delegation Denied (27.02ms) -> DENY
+[PASS] scenario_05_watcher_detects_unapproved_delegation_and_breaker_trips: Delegation Watcher Detection and Circuit Breaker Trip (26.04ms | Time-to-contain: 20.86ms) -> BREAKER_TRIPPED
+[PASS] scenario_06_split_under_limit_triggers_velocity_or_baseline_reason: Velocity and Cumulative Limit Breach (65.43ms) -> VELOCITY_HOLD
+[PASS] scenario_07_redis_outage_fails_closed: State Store Outage Fail-Closed Behavior (24.34ms) -> FAIL_CLOSED
+[PASS] scenario_08_direct_signer_call_refused: Direct Signer Shim Invocation Refused (7.81ms) -> REFUSED
+[PASS] scenario_09_token_replay_refused: Approval Token Replay Refusal (14.12ms) -> REFUSED
+[PASS] scenario_10_unmatched_intent_denied: Unmatched Ledger Intent Denied (8.73ms) -> DENY
+[PASS] scenario_11_lockdown_then_two_person_unlock: Circuit Breaker Lockdown and Dual-Control Unlock (62.46ms) -> LOCKDOWN_UNLOCKED
 ================================================================================
