@@ -121,6 +121,56 @@ class PricingPolicy(BaseModel):
     enabled: bool = True
 
 
+class BaselinePolicy(BaseModel):
+    """Configuration for per-wallet behavioral baselines and anomaly thresholds (Milestone S32 / F15)."""
+
+    enabled: bool = True
+    min_history_days: int = Field(
+        default=7,
+        description="Minimum days of transaction history required before evaluating baselines (cold-start window)",
+    )
+    low_history_weight: int = Field(
+        default=0,
+        description="Risk weight added when wallet has < min_history_days of history",
+    )
+    volume_multiplier_threshold: float = Field(
+        default=3.0,
+        description="Multiplier Nx over historical p50 hourly volume triggering BASELINE_VOLUME_HIGH",
+    )
+    volume_high_weight: int = Field(
+        default=35,
+        description="Risk weight for BASELINE_VOLUME_HIGH",
+    )
+    new_destination_burst_threshold: int = Field(
+        default=5,
+        description="Count of distinct new destinations in 24h triggering BASELINE_NEW_DESTINATION_BURST",
+    )
+    new_destination_burst_weight: int = Field(
+        default=30,
+        description="Risk weight for BASELINE_NEW_DESTINATION_BURST",
+    )
+    size_outlier_percentile: float = Field(
+        default=99.0,
+        description="Percentile threshold above which transaction size triggers BASELINE_SIZE_OUTLIER",
+    )
+    size_outlier_weight: int = Field(
+        default=25,
+        description="Risk weight for BASELINE_SIZE_OUTLIER",
+    )
+    off_hours: list[int] = Field(
+        default_factory=lambda: [1, 2, 3, 4, 5],
+        description="Hours of day (0-23 UTC) designated as off-hours",
+    )
+    off_hours_threshold_usd: float = Field(
+        default=1000.0,
+        description="Minimum USD transfer amount during off-hours triggering BASELINE_OFF_HOURS",
+    )
+    off_hours_weight: int = Field(
+        default=20,
+        description="Risk weight for BASELINE_OFF_HOURS",
+    )
+
+
 class PolicyDocument(BaseModel):
     """Complete, self-contained declarative policy manifest document."""
 
@@ -134,6 +184,7 @@ class PolicyDocument(BaseModel):
     owned_addresses: list[str] = Field(default_factory=list)  # internal monitored hot addresses
     time_lock: TimeLockPolicy = Field(default_factory=TimeLockPolicy)
     pricing: PricingPolicy = Field(default_factory=PricingPolicy)
+    baselines: BaselinePolicy = Field(default_factory=BaselinePolicy)
     risk_weights: dict[str, int] = Field(default_factory=dict)  # rule code -> risk weight (0-100)
 
 

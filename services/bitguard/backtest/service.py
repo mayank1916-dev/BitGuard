@@ -375,6 +375,17 @@ class BacktestService:
 
         return requests
 
+    def backfill_baselines(
+        self,
+        raw_data: str,
+        file_format: str = "jsonl",
+    ) -> int:
+        """Parses historical events from JSONL/CSV and backfills wallet behavioral baselines (Milestone S32 / F15)."""
+        requests = self.parse_historical_events(raw_data, file_format)
+        from services.bitguard.baselines.store import baseline_store
+
+        return baseline_store.backfill_from_events(requests)
+
     # -----------------------------------------------------------------
     # Policy Diff Computation
     # -----------------------------------------------------------------

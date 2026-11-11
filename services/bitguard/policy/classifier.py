@@ -241,6 +241,65 @@ def classify_change(old: PolicyDocument, new: PolicyDocument) -> ChangeClassific
             elif old.pricing.unpriced_action == "HOLD" and new.pricing.unpriced_action == "DENY":
                 has_tighten = True
 
+    # 12. Compare behavioral baselines policy (Milestone S32 / F15)
+    if hasattr(old, "baselines") and hasattr(new, "baselines"):
+        if old.baselines.enabled and not new.baselines.enabled:
+            has_loosen = True
+        elif not old.baselines.enabled and new.baselines.enabled:
+            has_tighten = True
+
+        if new.baselines.min_history_days > old.baselines.min_history_days:
+            has_loosen = True
+        elif new.baselines.min_history_days < old.baselines.min_history_days:
+            has_tighten = True
+
+        if new.baselines.low_history_weight < old.baselines.low_history_weight:
+            has_loosen = True
+        elif new.baselines.low_history_weight > old.baselines.low_history_weight:
+            has_tighten = True
+
+        if new.baselines.volume_multiplier_threshold > old.baselines.volume_multiplier_threshold:
+            has_loosen = True
+        elif new.baselines.volume_multiplier_threshold < old.baselines.volume_multiplier_threshold:
+            has_tighten = True
+
+        if new.baselines.volume_high_weight < old.baselines.volume_high_weight:
+            has_loosen = True
+        elif new.baselines.volume_high_weight > old.baselines.volume_high_weight:
+            has_tighten = True
+
+        if new.baselines.new_destination_burst_threshold > old.baselines.new_destination_burst_threshold:
+            has_loosen = True
+        elif new.baselines.new_destination_burst_threshold < old.baselines.new_destination_burst_threshold:
+            has_tighten = True
+
+        if new.baselines.new_destination_burst_weight < old.baselines.new_destination_burst_weight:
+            has_loosen = True
+        elif new.baselines.new_destination_burst_weight > old.baselines.new_destination_burst_weight:
+            has_tighten = True
+
+        if new.baselines.size_outlier_weight < old.baselines.size_outlier_weight:
+            has_loosen = True
+        elif new.baselines.size_outlier_weight > old.baselines.size_outlier_weight:
+            has_tighten = True
+
+        if new.baselines.off_hours_threshold_usd > old.baselines.off_hours_threshold_usd:
+            has_loosen = True
+        elif new.baselines.off_hours_threshold_usd < old.baselines.off_hours_threshold_usd:
+            has_tighten = True
+
+        if new.baselines.off_hours_weight < old.baselines.off_hours_weight:
+            has_loosen = True
+        elif new.baselines.off_hours_weight > old.baselines.off_hours_weight:
+            has_tighten = True
+
+        old_oh = set(old.baselines.off_hours)
+        new_oh = set(new.baselines.off_hours)
+        if len(new_oh) < len(old_oh) or (old_oh - new_oh):
+            has_loosen = True
+        if len(new_oh) > len(old_oh) or (new_oh - old_oh):
+            has_tighten = True
+
     if has_loosen and has_tighten:
         return ChangeClassification.MIXED
     if has_loosen:

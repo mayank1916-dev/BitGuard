@@ -6,6 +6,7 @@ Pipeline Order:
 """
 
 import logging
+import time
 import traceback
 from datetime import UTC, datetime
 from typing import Any
@@ -229,6 +230,32 @@ class DecisionEngine:
             if request.metadata.get("is_backtest"):
                 return decision
 
+            if decision.verdict == Verdict.ALLOW and not is_dry_run:
+                try:
+                    w_rec = request.wallet or (context.decoded_tx.from_address if context.decoded_tx else "")
+                    amt_rec = float(request.metadata.get("amount_usd", 0.0))
+                    dest_rec = ""
+                    if context.decoded_tx:
+                        dest_rec = context.decoded_tx.to_address or (
+                            context.decoded_tx.calls[0].to if context.decoded_tx.calls else ""
+                        )
+                    if not dest_rec and hasattr(request, "destination"):
+                        dest_rec = str(getattr(request, "destination", "") or "")
+                    if not dest_rec:
+                        dest_rec = str(request.metadata.get("destination") or request.metadata.get("to") or "")
+                    if w_rec and amt_rec > 0:
+                        from services.bitguard.baselines.store import baseline_store
+
+                        baseline_store.record_transaction(
+                            wallet=w_rec,
+                            amount_usd=amt_rec,
+                            destination=dest_rec,
+                            timestamp=start_time.timestamp(),
+                            data_label=decision.data_label,
+                        )
+                except Exception as b_exc:
+                    logger.debug("Failed recording baseline transaction: %s", b_exc)
+
             from services.bitguard.mode_service import mode_service
             return mode_service.save_decision(decision)
 
@@ -302,7 +329,11 @@ class DecisionEngine:
 
         try:
             context.decoded_tx = evm_decoder.decode(raw_tx)
-            if context.decoded_tx and context.decoded_tx.from_address:
+            if (
+                context.decoded_tx
+                and context.decoded_tx.from_address
+                and context.decoded_tx.from_address != "0x0000000000000000000000000000000000000000"
+            ):
                 context.request.wallet = context.decoded_tx.from_address
         except DecodeError as exc:
             # Handle legacy test fixtures with simulated metadata where raw_tx was a stub string
@@ -750,6 +781,48 @@ class DecisionEngine:
                 weight=s_res.risk_weight,
                 detail=s_res.detail or "Simulation flagged unexpected state change.",
             )
+
+        # Behavioral Baselines evaluation (Milestone S32 / F15)
+        # Baselines contribute risk weight only and can never alone cause DENY.
+        b_wallet = context.request.wallet or (context.decoded_tx.from_address if context.decoded_tx else "")
+        b_amount_usd = float(context.request.metadata.get("amount_usd", 0.0))
+        b_destination = ""
+        if context.decoded_tx:
+            b_destination = context.decoded_tx.to_address or (
+                context.decoded_tx.calls[0].to if context.decoded_tx.calls else ""
+            )
+        if not b_destination and hasattr(context.request, "destination"):
+            b_destination = str(getattr(context.request, "destination", "") or "")
+        if not b_destination:
+            b_destination = str(context.request.metadata.get("destination") or context.request.metadata.get("to") or "")
+
+        ts_val = context.request.metadata.get("ts")
+        b_ts = float(ts_val) if ts_val is not None else time.time()
+
+        b_policy = None
+        if self.active_policy_document and hasattr(self.active_policy_document, "baselines"):
+            b_policy = self.active_policy_document.baselines
+        elif "policy" in context.metadata and hasattr(context.metadata["policy"], "baselines"):
+            b_policy = context.metadata["policy"].baselines
+
+        if b_wallet:
+            from services.bitguard.baselines.service import baseline_service
+
+            b_res = baseline_service.evaluate_transaction(
+                wallet=b_wallet,
+                amount_usd=b_amount_usd,
+                destination=b_destination,
+                timestamp=b_ts,
+                policy=b_policy,
+                policy_document=self.active_policy_document,
+            )
+            for r in b_res.reasons:
+                context.add_reason(
+                    code=r.code,
+                    weight=r.weight,
+                    detail=r.detail,
+                    is_hard_deny=False,
+                )
 
     def _stage_decide(self, context: PipelineContext, start_time: datetime) -> Decision:
         """Stage 6: Computes final verdict, respects circuit breaker, and resolves mode."""

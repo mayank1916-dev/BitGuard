@@ -70,7 +70,7 @@
 - [x] S29 Balance caps, top-up proposals and sweep (F11)
 - [x] S30 Time-locked large withdrawals (F12)
 - [x] S31 Price sanity and unit-based limits (F13)
-- [ ] S32 Behavioural baselines per wallet (F15)
+- [x] S32 Behavioural baselines per wallet (F15)
 - [ ] S33 Caller identity and build attestation (F16)
 - [ ] S34 Additional chain adapters (BTC PSBT, Tron, XRP, Solana)
 - [ ] S35 Reporting and compliance exports (F20)

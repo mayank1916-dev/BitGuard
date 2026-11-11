@@ -782,6 +782,86 @@
         "title": "BacktestRunResponse",
         "type": "object"
       },
+      "BaselinePolicy": {
+        "description": "Configuration for per-wallet behavioral baselines and anomaly thresholds (Milestone S32 / F15).",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "low_history_weight": {
+            "default": 0,
+            "description": "Risk weight added when wallet has < min_history_days of history",
+            "title": "Low History Weight",
+            "type": "integer"
+          },
+          "min_history_days": {
+            "default": 7,
+            "description": "Minimum days of transaction history required before evaluating baselines (cold-start window)",
+            "title": "Min History Days",
+            "type": "integer"
+          },
+          "new_destination_burst_threshold": {
+            "default": 5,
+            "description": "Count of distinct new destinations in 24h triggering BASELINE_NEW_DESTINATION_BURST",
+            "title": "New Destination Burst Threshold",
+            "type": "integer"
+          },
+          "new_destination_burst_weight": {
+            "default": 30,
+            "description": "Risk weight for BASELINE_NEW_DESTINATION_BURST",
+            "title": "New Destination Burst Weight",
+            "type": "integer"
+          },
+          "off_hours": {
+            "description": "Hours of day (0-23 UTC) designated as off-hours",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Off Hours",
+            "type": "array"
+          },
+          "off_hours_threshold_usd": {
+            "default": 1000.0,
+            "description": "Minimum USD transfer amount during off-hours triggering BASELINE_OFF_HOURS",
+            "title": "Off Hours Threshold Usd",
+            "type": "number"
+          },
+          "off_hours_weight": {
+            "default": 20,
+            "description": "Risk weight for BASELINE_OFF_HOURS",
+            "title": "Off Hours Weight",
+            "type": "integer"
+          },
+          "size_outlier_percentile": {
+            "default": 99.0,
+            "description": "Percentile threshold above which transaction size triggers BASELINE_SIZE_OUTLIER",
+            "title": "Size Outlier Percentile",
+            "type": "number"
+          },
+          "size_outlier_weight": {
+            "default": 25,
+            "description": "Risk weight for BASELINE_SIZE_OUTLIER",
+            "title": "Size Outlier Weight",
+            "type": "integer"
+          },
+          "volume_high_weight": {
+            "default": 35,
+            "description": "Risk weight for BASELINE_VOLUME_HIGH",
+            "title": "Volume High Weight",
+            "type": "integer"
+          },
+          "volume_multiplier_threshold": {
+            "default": 3.0,
+            "description": "Multiplier Nx over historical p50 hourly volume triggering BASELINE_VOLUME_HIGH",
+            "title": "Volume Multiplier Threshold",
+            "type": "number"
+          }
+        },
+        "title": "BaselinePolicy",
+        "type": "object"
+      },
       "BreakGlassApproval": {
         "description": "Cryptographically or WebAuthn verified approval record.",
         "properties": {
@@ -3126,6 +3206,9 @@
       "PolicyDocument": {
         "description": "Complete, self-contained declarative policy manifest document.",
         "properties": {
+          "baselines": {
+            "$ref": "#/components/schemas/BaselinePolicy"
+          },
           "delegate_allowlist": {
             "items": {
               "type": "string"
