@@ -178,6 +178,12 @@ class GatewayHandler:
                     except Exception as exc:
                         logger.warning("failed_committing_limit_reservation: %s", exc)
 
+                if decision.unit_reservation_id:
+                    try:
+                        limit_store.commit(decision.unit_reservation_id)
+                    except Exception as exc:
+                        logger.warning("failed_committing_unit_reservation: %s", exc)
+
                 # Record decision and signing in audit trail
                 audit_service.append_entry(
                     event_type="TRANSACTION_SIGNED",
@@ -218,6 +224,7 @@ class GatewayHandler:
                     requester_id=workload_identity.san,
                     requester_identity=workload_identity.san,
                     reservation_id=reservation_id,
+                    unit_reservation_id=decision.unit_reservation_id,
                     risk_score=decision.risk_score,
                     reasons=decision.reasons,
                     state="PENDING",
@@ -261,6 +268,8 @@ class GatewayHandler:
             # ---------------------------------------------------------
             if reservation_id:
                 limit_store.release(reservation_id)
+            if decision.unit_reservation_id:
+                limit_store.release(decision.unit_reservation_id)
 
             return JsonRpcResponse(
                 jsonrpc="2.0",

@@ -46,6 +46,10 @@ class ScopeBuilder:
         return f"{prefix}limit:scope:asset:{asset.upper()}:{window_seconds}"
 
     @staticmethod
+    def asset_unit_scope(asset: str, window_seconds: int = 3600, prefix: str = "") -> str:
+        return f"{prefix}limit:scope:asset_unit:{asset.upper()}:{window_seconds}"
+
+    @staticmethod
     def chain_scope(chain: str, window_seconds: int = 3600, prefix: str = "") -> str:
         return f"{prefix}limit:scope:chain:{chain.lower()}:{window_seconds}"
 

@@ -70,9 +70,11 @@ from services.bitguard.models import (
     OperationMode,
     Role,
 )
+from services.bitguard.rate_limiter import rate_limiter
 from services.bitguard.rbac import ALL_TEST_USERS, SEEDED_USERS, create_access_token
 from services.bitguard.rpc.client import MockRpcClient
 from services.bitguard.rules.delegation import DelegationPolicy
+from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.tokens import KeySet, issue_token, token_manager
 from services.bitguard.watcher.provider_pool import provider_pool
 from services.bitguard.watcher.store import watched_address_store
@@ -171,6 +173,10 @@ class LabScenarioExecutor:
         nonce_store.set_redis_client(fake_redis)
         distributed_breaker_store.set_redis_client(fake_redis)
         token_epoch_store.set_redis_client(fake_redis)
+        stream_broadcaster.set_sync_redis(fake_redis)
+        rate_limiter.set_sync_redis(fake_redis)
+        from services.bitguard.break_glass import break_glass_store
+        break_glass_store.set_sync_redis(fake_redis)
         init_public_key_set()
 
         # Sync public key set for shim
@@ -190,6 +196,8 @@ class LabScenarioExecutor:
         watched_address_store.clear()
         distributed_breaker_store.reset()
         breaker_store.reset()
+        from services.signer_shim.heartbeat import heartbeat_tracker
+        heartbeat_tracker.last_heartbeat_time = time.time()
 
     def load_scenarios(self, directory: Path | None = None) -> list[ScenarioDefinition]:
         """Loads all scenario YAML files in lexicographical order."""

@@ -246,6 +246,12 @@ class QuorumApprovalService:
             except Exception as exc:
                 logger.warning("failed_committing_limit_reservation: %s", exc)
 
+        if ticket.unit_reservation_id:
+            try:
+                limit_store.commit(ticket.unit_reservation_id)
+            except Exception as exc:
+                logger.warning("failed_committing_unit_limit_reservation: %s", exc)
+
         # Mark ticket RELEASED with single-use guarantee (SELECT ... FOR UPDATE)
         try:
             hold_store.atomic_release(ticket.id, actor="system", signed_result=shim_res)
@@ -311,6 +317,12 @@ class QuorumApprovalService:
             except Exception as exc:
                 logger.warning("failed_releasing_limit_reservation: %s", exc)
 
+        if ticket.unit_reservation_id:
+            try:
+                limit_store.release(ticket.unit_reservation_id)
+            except Exception as exc:
+                logger.warning("failed_releasing_unit_limit_reservation: %s", exc)
+
         hold_store.update_status(ticket.id, "DENIED")
         ticket.status = "DENIED"
 
@@ -371,6 +383,12 @@ class QuorumApprovalService:
                 limit_store.release(ticket.reservation_id)
             except Exception as exc:
                 logger.warning("failed_releasing_limit_reservation_on_cancel: %s", exc)
+
+        if ticket.unit_reservation_id:
+            try:
+                limit_store.release(ticket.unit_reservation_id)
+            except Exception as exc:
+                logger.warning("failed_releasing_unit_reservation_on_cancel: %s", exc)
 
         hold_store.transition_state(
             ticket_id=ticket.id,

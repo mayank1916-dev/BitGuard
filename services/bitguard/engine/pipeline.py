@@ -39,6 +39,12 @@ from services.bitguard.models import (
     SigningRequest,
     Verdict,
 )
+from services.bitguard.pricing.service import (
+    PriceService,
+)
+from services.bitguard.pricing.service import (
+    price_service as default_price_service,
+)
 from services.bitguard.rpc.base import RpcClient
 from services.bitguard.rpc.client import HttpRpcClient
 from services.bitguard.rules.delegation import (
@@ -61,6 +67,7 @@ class DecisionEngine:
         breaker: BreakerStore | None = None,
         profiler: ProfilerEnricher | None = None,
         simulation: SimulationEnricher | None = None,
+        price_service_inst: PriceService | None = None,
     ) -> None:
         self.config = config or DecisionEngineConfig(
             single_tx_usd_threshold=settings.single_tx_usd_default,
@@ -69,6 +76,7 @@ class DecisionEngine:
         self.ledger_connector = ledger or mock_ledger_connector
         self.rpc_client: RpcClient = rpc or HttpRpcClient(rpc_url=settings.anvil_url)
         self.breaker_store = breaker or breaker_store
+        self.price_service = price_service_inst or default_price_service
         if profiler is not None:
             self.profiler = profiler
         elif settings.profiler_enabled:
@@ -94,6 +102,10 @@ class DecisionEngine:
     def set_simulation(self, simulation: SimulationEnricher) -> None:
         """Configures or replaces the simulation enricher."""
         self.simulation = simulation
+
+    def set_price_service(self, ps: PriceService) -> None:
+        """Configures or replaces the token price sanity service."""
+        self.price_service = ps
 
     def reload_policy(self, policy_doc: Any, content_hash: str = "") -> None:
         """Hot-reloads signed policy into active decision engine memory."""
@@ -382,9 +394,95 @@ class DecisionEngine:
                 )
 
     def _stage_limits(self, context: PipelineContext) -> None:
-        """Stage 4: Evaluates sliding-window velocity limits and single tx thresholds."""
-        amount_usd = float(context.request.metadata.get("amount_usd", 0.0))
+        """Stage 4: Evaluates sliding-window velocity limits, native unit limits, and single tx thresholds."""
         wallet_addr = context.request.wallet
+        asset = "USD"
+        if context.decoded_tx:
+            asset = (context.decoded_tx.asset or "ETH").upper()
+        elif "asset" in context.request.metadata:
+            asset = str(context.request.metadata["asset"]).upper()
+
+        decimals = 18
+        if asset in ("USDC", "USDT"):
+            decimals = 6
+        elif asset == "BTC":
+            decimals = 8
+
+        native_units = 0.0
+        if context.decoded_tx:
+            try:
+                amt_str = (
+                    context.decoded_tx.calls[0].amount
+                    if (context.decoded_tx.calls and context.decoded_tx.calls[0].amount)
+                    else context.decoded_tx.amount
+                )
+                raw_amt = float(amt_str)
+                native_units = raw_amt / (10**decimals)
+            except (ValueError, TypeError):
+                native_units = 0.0
+
+        # Multi-source price sanity (Milestone S31 / F13)
+        pricing_policy = None
+        if self.active_policy_document and hasattr(self.active_policy_document, "pricing"):
+            pricing_policy = self.active_policy_document.pricing
+        elif "policy" in context.metadata and hasattr(context.metadata["policy"], "pricing"):
+            pricing_policy = context.metadata["policy"].pricing
+
+        is_pricing_enabled = pricing_policy.enabled if pricing_policy else True
+        amount_usd = float(context.request.metadata.get("amount_usd", 0.0))
+
+        if is_pricing_enabled and context.decoded_tx and asset != "USD":
+            sim_dt = None
+            sim_ts_val = context.request.metadata.get("ts")
+            if sim_ts_val is not None:
+                sim_dt = datetime.fromtimestamp(float(sim_ts_val), tz=UTC)
+
+            price_res = self.price_service.resolve_price(asset, now=sim_dt, policy=pricing_policy)
+
+            if price_res.is_unpriced:
+                unpriced_act = (pricing_policy.unpriced_action if pricing_policy else "HOLD").upper()
+                if unpriced_act == "DENY":
+                    context.add_reason(
+                        code="UNPRICED_TOKEN",
+                        weight=100,
+                        detail=(
+                            f"Token '{asset}' is unpriced ({price_res.unpriced_reason}); "
+                            f"policy mandates DENY (never zero)."
+                        ),
+                        is_hard_deny=True,
+                    )
+                else:
+                    context.add_reason(
+                        code="UNPRICED_TOKEN",
+                        weight=65,
+                        detail=(
+                            f"Token '{asset}' is unpriced ({price_res.unpriced_reason}); "
+                            f"quarantined to HOLD (never zero)."
+                        ),
+                    )
+            else:
+                if price_res.is_deviated:
+                    dev_weight = 50
+                    if self.active_policy_document and hasattr(self.active_policy_document, "risk_weights"):
+                        dev_weight = self.active_policy_document.risk_weights.get("PRICE_DEVIATION", 50)
+
+                    context.add_reason(
+                        code="PRICE_DEVIATION",
+                        weight=dev_weight,
+                        detail=(
+                            f"Price sources deviate by {price_res.deviation_pct:.2f}% "
+                            f"(threshold {pricing_policy.max_price_deviation_pct if pricing_policy else 5.0}%); "
+                            f"evaluated using higher price ${price_res.effective_price_usd:,.2f}."
+                        ),
+                    )
+
+                effective_price = price_res.effective_price_usd or 0.0
+                calculated_usd = native_units * effective_price
+                if calculated_usd > 0:
+                    amount_usd = max(amount_usd, calculated_usd)
+                    context.request.metadata["amount_usd"] = amount_usd
+                    context.request.metadata["price_used_usd"] = effective_price
+                    context.request.metadata["price_deviation_pct"] = price_res.deviation_pct
 
         # Determine raw amount integer (in cents for USD-denominated limit caps)
         raw_amount_int = 0
@@ -397,7 +495,7 @@ class DecisionEngine:
                     if (context.decoded_tx.calls and context.decoded_tx.calls[0].amount)
                     else context.decoded_tx.amount
                 )
-                raw_amount_int = int(amt_str)
+                raw_amount_int = int(float(amt_str))
             except (ValueError, TypeError):
                 raw_amount_int = 0
 
@@ -431,12 +529,84 @@ class DecisionEngine:
                 detail="Cold transfer is a distinct request type requiring quarantine hold and hardware quorum.",
             )
 
-        if raw_amount_int <= 0:
-            return
+        # Native-unit caps per asset in addition to USD caps (Milestone S31 / F13)
+        limits_policy = None
+        if self.active_policy_document and hasattr(self.active_policy_document, "limits"):
+            limits_policy = self.active_policy_document.limits
+        elif "policy" in context.metadata and hasattr(context.metadata["policy"], "limits"):
+            limits_policy = context.metadata["policy"].limits
 
         sim_ts = context.request.metadata.get("ts")
         now_ts = int(float(sim_ts)) if sim_ts is not None else None
         is_backtest = bool(context.request.metadata.get("is_backtest", False))
+
+        if limits_policy and hasattr(limits_policy, "asset_unit_limits") and limits_policy.asset_unit_limits:
+            unit_limits = limits_policy.asset_unit_limits
+            if asset in unit_limits and native_units > 0:
+                unit_cap = unit_limits[asset]
+                unit_scope = ScopeBuilder.asset_unit_scope(asset)
+                scale = 1_000_000  # micro-units precision
+                unit_amount_int = int(native_units * scale)
+                unit_cap_int = int(unit_cap * scale)
+
+                if is_backtest:
+                    unit_res = self.limit_store.reserve(
+                        scope_keys=[unit_scope],
+                        amount=unit_amount_int,
+                        window_seconds=3600,
+                        cap=unit_cap_int,
+                        now=now_ts,
+                    )
+                    if unit_res.ok:
+                        context.unit_reservation_id = unit_res.reservation_id
+                        self.limit_store.commit(unit_res.reservation_id, now=now_ts)
+                    else:
+                        context.add_reason(
+                            code="UNIT_LIMIT_EXCEEDED",
+                            weight=65,
+                            detail=(
+                                f"Requested {native_units:,.4f} {asset} exceeds native-unit sliding-window limit "
+                                f"of {unit_cap:,.4f} {asset}."
+                            ),
+                        )
+                elif context.is_dry_run:
+                    rem_units = self.limit_store.get_remaining(
+                        unit_scope,
+                        window_seconds=3600,
+                        cap=unit_cap_int,
+                        now=now_ts,
+                    )
+                    if unit_amount_int > rem_units:
+                        context.add_reason(
+                            code="UNIT_LIMIT_EXCEEDED",
+                            weight=65,
+                            detail=(
+                                f"Requested {native_units:,.4f} {asset} exceeds remaining native-unit limit "
+                                f"of {rem_units / scale:,.4f} {asset}."
+                            ),
+                        )
+                else:
+                    unit_res = self.limit_store.reserve(
+                        scope_keys=[unit_scope],
+                        amount=unit_amount_int,
+                        window_seconds=3600,
+                        cap=unit_cap_int,
+                        now=now_ts,
+                    )
+                    if unit_res.ok:
+                        context.unit_reservation_id = unit_res.reservation_id
+                    else:
+                        context.add_reason(
+                            code="UNIT_LIMIT_EXCEEDED",
+                            weight=65,
+                            detail=(
+                                f"Requested {native_units:,.4f} {asset} exceeds native-unit limit "
+                                f"of {unit_cap:,.4f} {asset}."
+                            ),
+                        )
+
+        if raw_amount_int <= 0:
+            return
 
         wallet_cap_cents = int(settings.wallet_limit_usd_default * 100)
         if self.active_policy_document and hasattr(self.active_policy_document, "limits"):
@@ -621,6 +791,8 @@ class DecisionEngine:
                 "EXPOSURE_CAP_EXCEEDED",
                 "EXPOSURE_TOP_UP_REQUIRED",
                 "TIMELOCK_DELAY",
+                "UNPRICED_TOKEN",
+                "UNIT_LIMIT_EXCEEDED",
             ]
             for r in context.reasons
         )
@@ -731,6 +903,13 @@ class DecisionEngine:
                 logger.warning("failed_releasing_reservation_on_non_allow: %s", exc)
             context.reservation_id = None
 
+        if context.unit_reservation_id and tentative_verdict != Verdict.ALLOW:
+            try:
+                self.limit_store.release(context.unit_reservation_id)
+            except Exception as exc:
+                logger.warning("failed_releasing_unit_reservation_on_non_allow: %s", exc)
+            context.unit_reservation_id = None
+
         # Apply mode semantics (Milestone S04) as the last step
         amount_usd = float(context.request.metadata.get("amount_usd", 0.0))
         meta_ts = context.request.metadata.get("ts")
@@ -807,6 +986,7 @@ class DecisionEngine:
             evaluation_latency_ms=0.0,
             timings={},
             reservation_id=context.reservation_id,
+            unit_reservation_id=context.unit_reservation_id,
             decoded_tx=context.decoded_tx,
         )
 

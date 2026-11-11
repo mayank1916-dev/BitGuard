@@ -62,6 +62,7 @@ class PipelineContext:
     timer: StageTimer = field(default_factory=StageTimer)
     decoded_tx: DecodedTx | None = None
     reservation_id: str | None = None
+    unit_reservation_id: str | None = None
     reasons: list[DecisionReason] = field(default_factory=list)
     risk_score: int = 0
     hard_deny: bool = False

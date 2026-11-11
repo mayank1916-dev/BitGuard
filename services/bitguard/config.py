@@ -58,6 +58,13 @@ class BitGuardSettings(BaseSettings):
     simulation_timeout_ms: float = 300.0
     local_fallback_wallet_cap: int = 5_000
 
+    # Pricing Sanity (S31 / F13)
+    price_api_url: str = ""
+    price_api_key: str = ""
+    price_provider_name: str = "mock_aggregate"
+    price_max_age_seconds: int = 300
+    price_max_deviation_pct: float = 5.0
+
     # Shadow mode and promotion defaults (F7)
     shadow_min_days: int = 14
     shadow_max_false_positive_rate: float = 0.001

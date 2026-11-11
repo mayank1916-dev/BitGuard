@@ -72,6 +72,10 @@ class LimitsPolicy(BaseModel):
     wallet_daily_usd: dict[str, float] = Field(default_factory=dict)
     asset_daily_limits: dict[str, float] = Field(default_factory=dict)
     chain_daily_limits: dict[str, float] = Field(default_factory=dict)
+    asset_unit_limits: dict[str, float] = Field(
+        default_factory=dict,
+        description="Native-unit caps per asset (e.g. {'ETH': 100.0, 'WBTC': 5.0}) enforced by limit store",
+    )
 
 
 class ThresholdsPolicy(BaseModel):
@@ -99,6 +103,24 @@ class WalletExposurePolicy(BaseModel):
     )
 
 
+class PricingPolicy(BaseModel):
+    """Configuration for pricing sanity, oracle deviation and unpriced token rules (Milestone S31 / F13)."""
+
+    max_price_deviation_pct: float = Field(
+        default=5.0,
+        description="Max allowed price deviation % between sources before flagging PRICE_DEVIATION and using higher price",
+    )
+    max_price_age_seconds: int = Field(
+        default=300,
+        description="Max allowable price staleness in seconds",
+    )
+    unpriced_action: str = Field(
+        default="HOLD",
+        description="Action when token is unpriced, stale or missing: HOLD or DENY",
+    )
+    enabled: bool = True
+
+
 class PolicyDocument(BaseModel):
     """Complete, self-contained declarative policy manifest document."""
 
@@ -111,6 +133,7 @@ class PolicyDocument(BaseModel):
     delegate_allowlist: list[str] = Field(default_factory=list)  # allowed bytecode hashes
     owned_addresses: list[str] = Field(default_factory=list)  # internal monitored hot addresses
     time_lock: TimeLockPolicy = Field(default_factory=TimeLockPolicy)
+    pricing: PricingPolicy = Field(default_factory=PricingPolicy)
     risk_weights: dict[str, int] = Field(default_factory=dict)  # rule code -> risk weight (0-100)
 
 

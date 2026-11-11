@@ -1438,6 +1438,19 @@
             "title": "Timings",
             "type": "object"
           },
+          "unit_reservation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Active native unit limit reservation ID if reserved",
+            "title": "Unit Reservation Id"
+          },
           "verdict": {
             "$ref": "#/components/schemas/Verdict"
           },
@@ -2303,6 +2316,18 @@
             "title": "Tx Digest",
             "type": "string"
           },
+          "unit_reservation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Unit Reservation Id"
+          },
           "wallet": {
             "anyOf": [
               {
@@ -2868,6 +2893,14 @@
             "title": "Asset Daily Limits",
             "type": "object"
           },
+          "asset_unit_limits": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Native-unit caps per asset (e.g. {'ETH': 100.0, 'WBTC': 5.0}) enforced by limit store",
+            "title": "Asset Unit Limits",
+            "type": "object"
+          },
           "chain_daily_limits": {
             "additionalProperties": {
               "type": "number"
@@ -3115,6 +3148,9 @@
             "title": "Owned Addresses",
             "type": "array"
           },
+          "pricing": {
+            "$ref": "#/components/schemas/PricingPolicy"
+          },
           "risk_weights": {
             "additionalProperties": {
               "type": "integer"
@@ -3260,6 +3296,36 @@
           "rules"
         ],
         "title": "PolicyVersion",
+        "type": "object"
+      },
+      "PricingPolicy": {
+        "description": "Configuration for pricing sanity, oracle deviation and unpriced token rules (Milestone S31 / F13).",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_price_age_seconds": {
+            "default": 300,
+            "description": "Max allowable price staleness in seconds",
+            "title": "Max Price Age Seconds",
+            "type": "integer"
+          },
+          "max_price_deviation_pct": {
+            "default": 5.0,
+            "description": "Max allowed price deviation % between sources before flagging PRICE_DEVIATION and using higher price",
+            "title": "Max Price Deviation Pct",
+            "type": "number"
+          },
+          "unpriced_action": {
+            "default": "HOLD",
+            "description": "Action when token is unpriced, stale or missing: HOLD or DENY",
+            "title": "Unpriced Action",
+            "type": "string"
+          }
+        },
+        "title": "PricingPolicy",
         "type": "object"
       },
       "PromotionCheckItem": {

@@ -143,6 +143,7 @@ class Decision(BaseModel):
         description="Stage execution latencies in milliseconds",
     )
     reservation_id: str | None = Field(default=None, description="Active limit reservation ID if reserved")
+    unit_reservation_id: str | None = Field(default=None, description="Active native unit limit reservation ID if reserved")
     decoded_tx: DecodedTx | None = Field(default=None, description="Decoded transaction payload if available")
     wallet: str | None = Field(default=None, description="Originating wallet address")
     chain: str | None = Field(default=None, description="Target blockchain identifier")
@@ -188,6 +189,7 @@ class HoldTicket(BaseModel):
     requester_id: str | None = None
     requester_identity: str | None = None
     reservation_id: str | None = None
+    unit_reservation_id: str | None = None
     intent_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     risk_score: int = 0

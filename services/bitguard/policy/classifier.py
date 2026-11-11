@@ -82,6 +82,21 @@ def classify_change(old: PolicyDocument, new: PolicyDocument) -> ChangeClassific
         elif new_val < old_val:
             has_tighten = True
 
+    # 3b. Compare asset native unit limits (Milestone S31 / F13)
+    all_unit_assets = set(old.limits.asset_unit_limits.keys()) | set(new.limits.asset_unit_limits.keys())
+    for a in all_unit_assets:
+        old_unit = old.limits.asset_unit_limits.get(a)
+        new_unit = new.limits.asset_unit_limits.get(a)
+        if old_unit is not None and new_unit is not None:
+            if new_unit > old_unit:
+                has_loosen = True
+            elif new_unit < old_unit:
+                has_tighten = True
+        elif old_unit is not None and new_unit is None:
+            has_loosen = True
+        elif old_unit is None and new_unit is not None:
+            has_tighten = True
+
     # 4. Compare hold thresholds
     # Raising single_tx_usd hold threshold means fewer transactions held -> LOOSEN
     if new.thresholds.single_tx_usd > old.thresholds.single_tx_usd:
@@ -207,6 +222,24 @@ def classify_change(old: PolicyDocument, new: PolicyDocument) -> ChangeClassific
             has_loosen = True
         elif not old_exp and new_exp:
             has_tighten = True
+
+    # 11. Compare pricing sanity policy (Milestone S31 / F13)
+    if hasattr(old, "pricing") and hasattr(new, "pricing"):
+        if new.pricing.max_price_deviation_pct > old.pricing.max_price_deviation_pct:
+            has_loosen = True
+        elif new.pricing.max_price_deviation_pct < old.pricing.max_price_deviation_pct:
+            has_tighten = True
+
+        if new.pricing.max_price_age_seconds > old.pricing.max_price_age_seconds:
+            has_loosen = True
+        elif new.pricing.max_price_age_seconds < old.pricing.max_price_age_seconds:
+            has_tighten = True
+
+        if old.pricing.unpriced_action != new.pricing.unpriced_action:
+            if old.pricing.unpriced_action == "DENY" and new.pricing.unpriced_action == "HOLD":
+                has_loosen = True
+            elif old.pricing.unpriced_action == "HOLD" and new.pricing.unpriced_action == "DENY":
+                has_tighten = True
 
     if has_loosen and has_tighten:
         return ChangeClassification.MIXED
