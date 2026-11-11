@@ -25,6 +25,7 @@ from services.bitguard.breaker.epoch_store import token_epoch_store
 from services.bitguard.breaker.key_hook import key_policy_hook
 from services.bitguard.decoders.base import DecodeError
 from services.bitguard.decoders.evm import evm_decoder
+from services.bitguard.decoders.psbt import psbt_decoder
 from services.bitguard.tokens import (
     KeySet,
     token_manager,
@@ -265,8 +266,17 @@ async def sign_transaction(payload: SignRequest) -> Any:
             ).model_dump(),
         )
 
+    is_btc = (
+        claims.chain.lower() in ["bitcoin", "btc", "bitcoin_regtest", "bitcoin_testnet"]
+        or raw_tx.lower().startswith("70736274ff")
+        or raw_tx.startswith("cHNidP8")
+    )
+
     try:
-        decoded_tx = evm_decoder.decode(raw_tx)
+        if is_btc:
+            decoded_tx = psbt_decoder.decode(raw_tx, chain=claims.chain)
+        else:
+            decoded_tx = evm_decoder.decode(raw_tx)
     except DecodeError as exc:
         logger.warning("signing_refusal: reason=RAW_TX_DECODE_FAILED detail=%s", exc)
         return JSONResponse(
@@ -302,8 +312,10 @@ async def sign_transaction(payload: SignRequest) -> Any:
     # Validate decoded transaction chain matches token chain
     decoded_chain = decoded_tx.chain.lower()
     token_chain = claims.chain.lower()
-    is_chain_match = (decoded_chain == token_chain) or (
-        decoded_chain in ["ethereum", "eip155:1"] and token_chain in ["ethereum", "eip155:1"]
+    is_chain_match = (
+        (decoded_chain == token_chain)
+        or (decoded_chain in ["ethereum", "eip155:1"] and token_chain in ["ethereum", "eip155:1"])
+        or (decoded_chain in ["bitcoin", "btc"] and token_chain in ["bitcoin", "btc"])
     )
     if not is_chain_match:
         logger.warning(

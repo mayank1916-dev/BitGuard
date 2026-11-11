@@ -21,6 +21,8 @@ class IntentCheckResult(BaseModel):
 
 def extract_decoded_destination(decoded: DecodedTx) -> str:
     """Extracts the intended recipient address strictly from canonical decoded transaction bytes."""
+    if decoded.chain.strip().lower() in ["bitcoin", "btc", "bitcoin_regtest", "bitcoin_testnet"] and decoded.to_address:
+        return decoded.to_address.strip()
     if decoded.calls and decoded.calls[0].recipient:
         return decoded.calls[0].recipient.strip()
     if decoded.to_address:
@@ -30,6 +32,8 @@ def extract_decoded_destination(decoded: DecodedTx) -> str:
 
 def extract_decoded_amount(decoded: DecodedTx) -> str:
     """Extracts transfer amount strictly from canonical decoded transaction bytes."""
+    if decoded.chain.strip().lower() in ["bitcoin", "btc", "bitcoin_regtest", "bitcoin_testnet"] and decoded.amount:
+        return decoded.amount.strip()
     if decoded.calls and decoded.calls[0].amount:
         return decoded.calls[0].amount.strip()
     return decoded.amount.strip()
@@ -133,10 +137,13 @@ def check_intent(
     # 7. Chain check
     decoded_chain = decoded.chain.strip().lower()
     intent_chain = intent.chain.strip().lower()
-    # Normalize eip155 aliases
-    if decoded_chain != intent_chain and not (
+    # Normalize eip155 and bitcoin aliases
+    is_chain_match = (decoded_chain == intent_chain) or (
         decoded_chain in ["ethereum", "eip155:1"] and intent_chain in ["ethereum", "eip155:1"]
-    ):
+    ) or (
+        decoded_chain in ["bitcoin", "btc"] and intent_chain in ["bitcoin", "btc"]
+    )
+    if not is_chain_match:
         intent_metrics.record_unmatched("INTENT_MISMATCH_CHAIN")
         return IntentCheckResult(
             passed=False,

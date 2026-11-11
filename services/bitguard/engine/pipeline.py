@@ -14,6 +14,7 @@ from typing import Any
 from services.bitguard.config import settings
 from services.bitguard.decoders.base import DecodeError
 from services.bitguard.decoders.evm import evm_decoder
+from services.bitguard.decoders.psbt import psbt_decoder
 from services.bitguard.engine.breaker_store import BreakerStore, breaker_store
 from services.bitguard.engine.enrichment import (
     DefaultProfilerEnricher,
@@ -327,8 +328,22 @@ class DecisionEngine:
             context.decoded_tx = DecodedTx.model_validate(context.request.metadata["decoded_tx"])
             return
 
+        req_chain = (context.request.chain or "ethereum").strip().lower()
+        is_btc = (
+            req_chain in ["bitcoin", "btc", "bitcoin_regtest", "bitcoin_testnet", "psbt"]
+            or raw_tx.lower().startswith("70736274ff")
+            or raw_tx.startswith("cHNidP8")
+        )
+
         try:
-            context.decoded_tx = evm_decoder.decode(raw_tx)
+            if is_btc:
+                context.decoded_tx = psbt_decoder.decode(
+                    raw_tx,
+                    policy=self.active_policy_document,
+                    chain=context.request.chain or "bitcoin",
+                )
+            else:
+                context.decoded_tx = evm_decoder.decode(raw_tx)
             if (
                 context.decoded_tx
                 and context.decoded_tx.from_address
@@ -442,11 +457,14 @@ class DecisionEngine:
         native_units = 0.0
         if context.decoded_tx:
             try:
-                amt_str = (
-                    context.decoded_tx.calls[0].amount
-                    if (context.decoded_tx.calls and context.decoded_tx.calls[0].amount)
-                    else context.decoded_tx.amount
-                )
+                if asset == "BTC":
+                    amt_str = context.decoded_tx.amount
+                else:
+                    amt_str = (
+                        context.decoded_tx.calls[0].amount
+                        if (context.decoded_tx.calls and context.decoded_tx.calls[0].amount)
+                        else context.decoded_tx.amount
+                    )
                 raw_amt = float(amt_str)
                 native_units = raw_amt / (10**decimals)
             except (ValueError, TypeError):

@@ -71,6 +71,8 @@ class FeeDetail(BaseModel):
     gas_limit: int | None = None
     max_fee_per_gas: str | None = None
     max_priority_fee_per_gas: str | None = None
+    fee_satoshis: int | None = None
+    sats_per_vbyte: float | None = None
 
 
 class DecisionReason(BaseModel):

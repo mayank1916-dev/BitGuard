@@ -72,7 +72,7 @@
 - [x] S31 Price sanity and unit-based limits (F13)
 - [x] S32 Behavioural baselines per wallet (F15)
 - [x] S33 Caller identity and build attestation (F16)
-- [ ] S34 Additional chain adapters (BTC PSBT, Tron, XRP, Solana)
+- [x] S34 Additional chain adapters (BTC PSBT, Tron, XRP, Solana)
 - [ ] S35 Reporting and compliance exports (F20)
 - [ ] S36 Hardening pack: KMS/HSM adapter interface, fuzzing, security tooling, pen-test brief
 - [x] U1 Add an API client layer without changing the look

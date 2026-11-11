@@ -2266,6 +2266,18 @@
       "FeeDetail": {
         "description": "Transaction fee parameters.",
         "properties": {
+          "fee_satoshis": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fee Satoshis"
+          },
           "gas_limit": {
             "anyOf": [
               {
@@ -2301,6 +2313,18 @@
             ],
             "default": null,
             "title": "Max Priority Fee Per Gas"
+          },
+          "sats_per_vbyte": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sats Per Vbyte"
           }
         },
         "title": "FeeDetail",
