@@ -268,6 +268,68 @@
         "title": "ApprovePolicyRequest",
         "type": "object"
       },
+      "AuditChainVerificationStamp": {
+        "description": "Cryptographic audit chain verification result stamped onto reports (Invariant #7).",
+        "properties": {
+          "audit_chain_valid": {
+            "title": "Audit Chain Valid",
+            "type": "boolean"
+          },
+          "checked_entries": {
+            "title": "Checked Entries",
+            "type": "integer"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "details": {
+            "default": "",
+            "title": "Details",
+            "type": "string"
+          },
+          "first_bad_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Bad Seq"
+          },
+          "head_hash": {
+            "title": "Head Hash",
+            "type": "string"
+          },
+          "last_anchor_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Anchor Uri"
+          },
+          "verified_at": {
+            "format": "date-time",
+            "title": "Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "audit_chain_valid",
+          "checked_entries",
+          "head_hash"
+        ],
+        "title": "AuditChainVerificationStamp",
+        "type": "object"
+      },
       "AuditEntry": {
         "description": "Cryptographically chained tamper-evident audit record (Milestone S21 / F18).",
         "properties": {
@@ -2909,6 +2971,116 @@
         "title": "IncidentApproval",
         "type": "object"
       },
+      "IncidentPostMortemData": {
+        "description": "Structured data payload for Incident Post-Mortem Report.",
+        "properties": {
+          "actions_taken": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Actions Taken",
+            "type": "array"
+          },
+          "audit_verification": {
+            "$ref": "#/components/schemas/AuditChainVerificationStamp"
+          },
+          "contained_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Contained At"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "decisions_made": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Decisions Made",
+            "type": "array"
+          },
+          "detected_at": {
+            "format": "date-time",
+            "title": "Detected At",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "policy_version_at_time": {
+            "title": "Policy Version At Time",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resolved At"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "time_to_contain_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time To Contain Ms"
+          },
+          "timeline": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "trigger",
+          "severity",
+          "status",
+          "detected_at",
+          "policy_version_at_time",
+          "audit_verification"
+        ],
+        "title": "IncidentPostMortemData",
+        "type": "object"
+      },
       "IncidentStatus": {
         "description": "Operational status of an active or historical incident.",
         "enum": [
@@ -3176,6 +3348,96 @@
         "title": "ManualAnchorResponse",
         "type": "object"
       },
+      "MonthlyControlReportData": {
+        "description": "Structured data payload for Monthly Control & Decision Report.",
+        "properties": {
+          "approval_statistics": {
+            "additionalProperties": true,
+            "title": "Approval Statistics",
+            "type": "object"
+          },
+          "audit_verification": {
+            "$ref": "#/components/schemas/AuditChainVerificationStamp"
+          },
+          "breaker_history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Breaker History",
+            "type": "array"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "decision_counts_by_verdict": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Decision Counts By Verdict",
+            "type": "object"
+          },
+          "end_date": {
+            "format": "date-time",
+            "title": "End Date",
+            "type": "string"
+          },
+          "false_positive_count": {
+            "title": "False Positive Count",
+            "type": "integer"
+          },
+          "false_positive_rate_pct": {
+            "title": "False Positive Rate Pct",
+            "type": "number"
+          },
+          "hold_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Hold Counts",
+            "type": "object"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date-time",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "time_to_contain_stats": {
+            "additionalProperties": true,
+            "title": "Time To Contain Stats",
+            "type": "object"
+          },
+          "total_decisions": {
+            "title": "Total Decisions",
+            "type": "integer"
+          },
+          "uptime_and_heartbeat": {
+            "additionalProperties": true,
+            "title": "Uptime And Heartbeat",
+            "type": "object"
+          }
+        },
+        "required": [
+          "period",
+          "start_date",
+          "end_date",
+          "total_decisions",
+          "decision_counts_by_verdict",
+          "hold_counts",
+          "false_positive_count",
+          "false_positive_rate_pct",
+          "time_to_contain_stats",
+          "approval_statistics",
+          "audit_verification"
+        ],
+        "title": "MonthlyControlReportData",
+        "type": "object"
+      },
       "OIDCLoginRequest": {
         "description": "Payload to exchange OIDC identity tokens for BitGuard access tokens.",
         "properties": {
@@ -3306,6 +3568,36 @@
           "webauthn_assertion"
         ],
         "title": "PolicyApproval",
+        "type": "object"
+      },
+      "PolicyChangeHistoryData": {
+        "description": "Structured data payload for Policy Change and Approval History Report.",
+        "properties": {
+          "audit_verification": {
+            "$ref": "#/components/schemas/AuditChainVerificationStamp"
+          },
+          "data_label": {
+            "$ref": "#/components/schemas/DataLabel",
+            "default": "REAL"
+          },
+          "total_versions": {
+            "title": "Total Versions",
+            "type": "integer"
+          },
+          "versions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total_versions",
+          "audit_verification"
+        ],
+        "title": "PolicyChangeHistoryData",
         "type": "object"
       },
       "PolicyConfig": {
@@ -3686,6 +3978,16 @@
         ],
         "title": "ProposePolicyRequest",
         "type": "object"
+      },
+      "ReportFormat": {
+        "description": "Supported export media formats.",
+        "enum": [
+          "pdf",
+          "csv",
+          "json"
+        ],
+        "title": "ReportFormat",
+        "type": "string"
       },
       "RevokeBreakGlassRequest": {
         "description": "Payload to instantly terminate break-glass override.",
@@ -12842,6 +13144,503 @@
         "summary": "Evaluate wallet group promotion readiness",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/api/v1/reports/incident/{incident_id}": {
+      "get": {
+        "description": "Generates an executive post-mortem report (PDF or CSV) with timeline, containment metrics, and audit-chain stamp.",
+        "operationId": "get_incident_post_mortem_report_api_v1_reports_incident__incident_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Report output format: pdf, csv, or json",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReportFormat",
+              "default": "pdf",
+              "description": "Report output format: pdf, csv, or json"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Incident Post Mortem Report Api V1 Reports Incident  Incident Id  Get"
+                }
+              },
+              "application/pdf": {},
+              "text/csv": {}
+            },
+            "description": "Generated incident post-mortem report."
+          },
+          "403": {
+            "description": "Access denied: Compliance role permission required."
+          },
+          "404": {
+            "description": "Incident not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Incident Post-Mortem Report",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Compliance Reports"
+        ]
+      }
+    },
+    "/api/v1/reports/monthly": {
+      "get": {
+        "description": "Generates monthly control report with decision counts by verdict, holds, false-positive rate, and breaker history.",
+        "operationId": "get_monthly_control_report_api_v1_reports_monthly_get",
+        "parameters": [
+          {
+            "description": "Report calendar year",
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "default": 2026,
+              "description": "Report calendar year",
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Report calendar month (1-12)",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "default": 11,
+              "description": "Report calendar month (1-12)",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Report output format: pdf, csv, or json",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReportFormat",
+              "default": "pdf",
+              "description": "Report output format: pdf, csv, or json"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Monthly Control Report Api V1 Reports Monthly Get"
+                }
+              },
+              "application/pdf": {},
+              "text/csv": {}
+            },
+            "description": "Generated monthly control report."
+          },
+          "403": {
+            "description": "Access denied: Compliance role permission required."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Monthly Control and Decision Report",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Compliance Reports"
+        ]
+      }
+    },
+    "/api/v1/reports/policy-history": {
+      "get": {
+        "description": "Generates policy change history report with version diffs, approvers, cool-down, and backtest reports.",
+        "operationId": "get_policy_change_history_report_api_v1_reports_policy_history_get",
+        "parameters": [
+          {
+            "description": "Optional policy version filter",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional policy version filter",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Report output format: pdf, csv, or json",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReportFormat",
+              "default": "pdf",
+              "description": "Report output format: pdf, csv, or json"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Policy Change History Report Api V1 Reports Policy History Get"
+                }
+              },
+              "application/pdf": {},
+              "text/csv": {}
+            },
+            "description": "Generated policy change history report."
+          },
+          "403": {
+            "description": "Access denied: Compliance role permission required."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Policy Change and Approval History",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Compliance Reports"
         ]
       }
     },
@@ -22594,6 +23393,503 @@
         "summary": "Evaluate wallet group promotion readiness",
         "tags": [
           "V1 Policy Decision Point"
+        ]
+      }
+    },
+    "/v1/reports/incident/{incident_id}": {
+      "get": {
+        "description": "Generates an executive post-mortem report (PDF or CSV) with timeline, containment metrics, and audit-chain stamp.",
+        "operationId": "get_incident_post_mortem_report_v1_reports_incident__incident_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Report output format: pdf, csv, or json",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReportFormat",
+              "default": "pdf",
+              "description": "Report output format: pdf, csv, or json"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Incident Post Mortem Report V1 Reports Incident  Incident Id  Get"
+                }
+              },
+              "application/pdf": {},
+              "text/csv": {}
+            },
+            "description": "Generated incident post-mortem report."
+          },
+          "403": {
+            "description": "Access denied: Compliance role permission required."
+          },
+          "404": {
+            "description": "Incident not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Incident Post-Mortem Report",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Compliance Reports"
+        ]
+      }
+    },
+    "/v1/reports/monthly": {
+      "get": {
+        "description": "Generates monthly control report with decision counts by verdict, holds, false-positive rate, and breaker history.",
+        "operationId": "get_monthly_control_report_v1_reports_monthly_get",
+        "parameters": [
+          {
+            "description": "Report calendar year",
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "default": 2026,
+              "description": "Report calendar year",
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Report calendar month (1-12)",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "default": 11,
+              "description": "Report calendar month (1-12)",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Report output format: pdf, csv, or json",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReportFormat",
+              "default": "pdf",
+              "description": "Report output format: pdf, csv, or json"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Monthly Control Report V1 Reports Monthly Get"
+                }
+              },
+              "application/pdf": {},
+              "text/csv": {}
+            },
+            "description": "Generated monthly control report."
+          },
+          "403": {
+            "description": "Access denied: Compliance role permission required."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Monthly Control and Decision Report",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Compliance Reports"
+        ]
+      }
+    },
+    "/v1/reports/policy-history": {
+      "get": {
+        "description": "Generates policy change history report with version diffs, approvers, cool-down, and backtest reports.",
+        "operationId": "get_policy_change_history_report_v1_reports_policy_history_get",
+        "parameters": [
+          {
+            "description": "Optional policy version filter",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional policy version filter",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Report output format: pdf, csv, or json",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReportFormat",
+              "default": "pdf",
+              "description": "Report output format: pdf, csv, or json"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Role"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-User-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Dev-User",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Anonymous",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Anonymous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Policy Change History Report V1 Reports Policy History Get"
+                }
+              },
+              "application/pdf": {},
+              "text/csv": {}
+            },
+            "description": "Generated policy change history report."
+          },
+          "403": {
+            "description": "Access denied: Compliance role permission required."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Policy Change and Approval History",
+        "tags": [
+          "V1 Policy Decision Point",
+          "Compliance Reports"
         ]
       }
     },

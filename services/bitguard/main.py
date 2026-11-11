@@ -118,6 +118,12 @@ from services.bitguard.policy.models import (
     WalletGroupPolicy,
 )
 from services.bitguard.rate_limiter import RateLimitingMiddleware
+from services.bitguard.reports import (
+    AuditChainVerificationStamp,
+    IncidentPostMortemData,
+    MonthlyControlReportData,
+    PolicyChangeHistoryData,
+)
 from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.timelock.store import TimelockItem
 from services.bitguard.v1.router import CancelTimelockRequest
@@ -251,6 +257,10 @@ def create_app() -> FastAPI:
             SignTransactionResult,
             TimelockItem,
             CancelTimelockRequest,
+            AuditChainVerificationStamp,
+            IncidentPostMortemData,
+            MonthlyControlReportData,
+            PolicyChangeHistoryData,
             OIDCLoginRequest,
             OIDCLoginResponse,
             WebAuthnAuthenticateOptionsRequest,

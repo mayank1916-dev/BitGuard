@@ -47,6 +47,7 @@ from services.bitguard.rbac import (
     require_permission,
     require_role,
 )
+from services.bitguard.reports import reports_router
 from services.bitguard.stream.broadcaster import stream_broadcaster
 from services.bitguard.timelock.store import TimelockItem, timelock_store
 from services.bitguard.v1.break_glass_router import router as break_glass_router
@@ -63,6 +64,7 @@ router.include_router(incidents_router)
 router.include_router(policy_router)
 router.include_router(break_glass_router)
 router.include_router(exposure_router)
+router.include_router(reports_router)
 
 
 # --- Core Policy Evaluation & Signing Endpoints ---
