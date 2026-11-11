@@ -171,6 +171,35 @@ class BaselinePolicy(BaseModel):
     )
 
 
+class CallerAttestationPolicy(BaseModel):
+    """Configuration for caller identity, build attestation, and SPIFFE verification (Milestone S33 / F16)."""
+
+    enabled: bool = True
+    require_attestation: bool = False
+    allowed_images_path: str = "policy/allowed_images.json"
+    allowed_digests: list[str] = Field(default_factory=list)
+    recent_deploy_window_seconds: int = Field(
+        default=3600,
+        description="Window in seconds during which a newly deployed caller is flagged as CALLER_RECENT_DEPLOY",
+    )
+    recent_deploy_weight: int = Field(
+        default=25,
+        description="Risk weight for CALLER_RECENT_DEPLOY",
+    )
+    unknown_digest_weight: int = Field(
+        default=60,
+        description="Risk weight for CALLER_UNKNOWN_DIGEST (guarantees HOLD)",
+    )
+    allowed_source_networks: list[str] = Field(
+        default_factory=lambda: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128"],
+        description="Allowed source CIDR networks for callers",
+    )
+    unusual_source_weight: int = Field(
+        default=40,
+        description="Risk weight for CALLER_UNUSUAL_SOURCE",
+    )
+
+
 class PolicyDocument(BaseModel):
     """Complete, self-contained declarative policy manifest document."""
 
@@ -185,6 +214,7 @@ class PolicyDocument(BaseModel):
     time_lock: TimeLockPolicy = Field(default_factory=TimeLockPolicy)
     pricing: PricingPolicy = Field(default_factory=PricingPolicy)
     baselines: BaselinePolicy = Field(default_factory=BaselinePolicy)
+    attestation: CallerAttestationPolicy = Field(default_factory=CallerAttestationPolicy)
     risk_weights: dict[str, int] = Field(default_factory=dict)  # rule code -> risk weight (0-100)
 
 

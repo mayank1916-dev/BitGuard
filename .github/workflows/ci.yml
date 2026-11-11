@@ -35,6 +35,10 @@ jobs:
         run: |
           mypy --explicit-package-bases services backend tests
 
+      - name: Publish Built Image Attestation (Milestone S33 / F16)
+        run: |
+          python scripts/publish_image_digest.py --image "bitguard/custody-workload" --tag "ci" --output policy/allowed_images.json
+
       - name: Run Pytest Test Suite
         run: |
           python -m pytest backend/tests tests -v

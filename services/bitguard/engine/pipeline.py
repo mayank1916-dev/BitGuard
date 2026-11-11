@@ -824,6 +824,51 @@ class DecisionEngine:
                     is_hard_deny=False,
                 )
 
+        # Caller Identity & Build Attestation evaluation (Milestone S33 / F16)
+        c_identity = context.request.caller_identity or context.request.metadata.get("caller_identity")
+        c_digest = (
+            context.request.caller_image_digest
+            or context.request.metadata.get("caller_image_digest")
+            or context.request.metadata.get("image_digest")
+        )
+        c_deploy_time = (
+            context.request.caller_deploy_time
+            or context.request.metadata.get("caller_deploy_time")
+            or context.request.metadata.get("deploy_time")
+        )
+        c_source_ip = (
+            context.request.caller_source_ip
+            or context.request.metadata.get("caller_source_ip")
+            or context.request.metadata.get("source_ip")
+        )
+
+        from services.bitguard.gateway.mtls import parse_attestation_timestamp
+        parsed_deploy_time = parse_attestation_timestamp(c_deploy_time)
+
+        attestation_policy = None
+        if self.active_policy_document and hasattr(self.active_policy_document, "attestation"):
+            attestation_policy = self.active_policy_document.attestation
+        elif "policy" in context.metadata and hasattr(context.metadata["policy"], "attestation"):
+            attestation_policy = context.metadata["policy"].attestation
+
+        from services.bitguard.attestation.verifier import caller_attestation_verifier
+
+        att_res = caller_attestation_verifier.verify(
+            caller_identity=c_identity,
+            image_digest=c_digest,
+            deploy_time=parsed_deploy_time,
+            source_ip=c_source_ip,
+            policy=attestation_policy,
+            now_ts=b_ts,
+        )
+        for r in att_res.reasons:
+            context.add_reason(
+                code=r.code,
+                weight=r.weight,
+                detail=r.detail,
+                is_hard_deny=False,
+            )
+
     def _stage_decide(self, context: PipelineContext, start_time: datetime) -> Decision:
         """Stage 6: Computes final verdict, respects circuit breaker, and resolves mode."""
         # Check circuit breaker state
@@ -866,6 +911,7 @@ class DecisionEngine:
                 "TIMELOCK_DELAY",
                 "UNPRICED_TOKEN",
                 "UNIT_LIMIT_EXCEEDED",
+                "CALLER_UNKNOWN_DIGEST",
             ]
             for r in context.reasons
         )
@@ -1043,6 +1089,25 @@ class DecisionEngine:
         if not context.is_dry_run and final_verdict == Verdict.ALLOW and context.request.intent_id:
             self.ledger_connector.mark_consumed(context.request.intent_id)
 
+        c_id = context.request.caller_identity or context.request.metadata.get("caller_identity")
+        c_dig = (
+            context.request.caller_image_digest
+            or context.request.metadata.get("caller_image_digest")
+            or context.request.metadata.get("image_digest")
+        )
+        c_dep = (
+            context.request.caller_deploy_time
+            or context.request.metadata.get("caller_deploy_time")
+            or context.request.metadata.get("deploy_time")
+        )
+        c_ip = (
+            context.request.caller_source_ip
+            or context.request.metadata.get("caller_source_ip")
+            or context.request.metadata.get("source_ip")
+        )
+        from services.bitguard.gateway.mtls import parse_attestation_timestamp
+        parsed_dt = parse_attestation_timestamp(c_dep)
+
         decision = Decision(
             request_id=context.request.id,
             verdict=final_verdict,
@@ -1055,6 +1120,10 @@ class DecisionEngine:
             wallet_group=context.wallet_group,
             wallet=context.decoded_tx.from_address if context.decoded_tx else context.request.wallet,
             chain=context.decoded_tx.chain if context.decoded_tx else context.request.chain,
+            caller_identity=c_id,
+            caller_image_digest=c_dig,
+            caller_deploy_time=parsed_dt,
+            caller_source_ip=c_ip,
             created_at=dec_time,
             evaluation_latency_ms=0.0,
             timings={},

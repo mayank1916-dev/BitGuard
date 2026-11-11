@@ -300,6 +300,45 @@ def classify_change(old: PolicyDocument, new: PolicyDocument) -> ChangeClassific
         if len(new_oh) > len(old_oh) or (new_oh - old_oh):
             has_tighten = True
 
+    # 13. Compare caller attestation policy (Milestone S33 / F16)
+    if hasattr(old, "attestation") and hasattr(new, "attestation"):
+        if old.attestation.enabled and not new.attestation.enabled:
+            has_loosen = True
+        elif not old.attestation.enabled and new.attestation.enabled:
+            has_tighten = True
+
+        if not old.attestation.require_attestation and new.attestation.require_attestation:
+            has_tighten = True
+        elif old.attestation.require_attestation and not new.attestation.require_attestation:
+            has_loosen = True
+
+        if new.attestation.recent_deploy_window_seconds > old.attestation.recent_deploy_window_seconds:
+            has_tighten = True
+        elif new.attestation.recent_deploy_window_seconds < old.attestation.recent_deploy_window_seconds:
+            has_loosen = True
+
+        if new.attestation.unknown_digest_weight > old.attestation.unknown_digest_weight:
+            has_tighten = True
+        elif new.attestation.unknown_digest_weight < old.attestation.unknown_digest_weight:
+            has_loosen = True
+
+        if new.attestation.recent_deploy_weight > old.attestation.recent_deploy_weight:
+            has_tighten = True
+        elif new.attestation.recent_deploy_weight < old.attestation.recent_deploy_weight:
+            has_loosen = True
+
+        if new.attestation.unusual_source_weight > old.attestation.unusual_source_weight:
+            has_tighten = True
+        elif new.attestation.unusual_source_weight < old.attestation.unusual_source_weight:
+            has_loosen = True
+
+        old_nets = set(old.attestation.allowed_source_networks)
+        new_nets = set(new.attestation.allowed_source_networks)
+        if len(new_nets) > len(old_nets) or (new_nets - old_nets):
+            has_loosen = True
+        if len(new_nets) < len(old_nets) or (old_nets - new_nets):
+            has_tighten = True
+
     if has_loosen and has_tighten:
         return ChangeClassification.MIXED
     if has_loosen:

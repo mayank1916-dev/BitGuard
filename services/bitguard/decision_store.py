@@ -86,6 +86,10 @@ class DecisionStore:
             wallet_group=decision.wallet_group,
             wallet=decision.wallet,
             chain=decision.chain,
+            caller_identity=decision.caller_identity,
+            caller_image_digest=decision.caller_image_digest,
+            caller_deploy_time=decision.caller_deploy_time,
+            caller_source_ip=decision.caller_source_ip,
             is_false_positive=decision.is_false_positive,
             evaluation_latency_ms=decision.evaluation_latency_ms,
             timings=decision.timings,
@@ -122,6 +126,10 @@ class DecisionStore:
             request_id=decision.request_id,
             verdict=decision.verdict.value,
             data_label=decision.data_label,
+            caller_identity=decision.caller_identity,
+            caller_image_digest=decision.caller_image_digest,
+            caller_deploy_time=decision.caller_deploy_time.isoformat() if decision.caller_deploy_time else None,
+            caller_source_ip=decision.caller_source_ip,
         )
 
         # 4. Broadcast live typed event to WebSocket stream subscribers
@@ -131,6 +139,8 @@ class DecisionStore:
             logger.warning("stream_broadcast_error: %s", exc)
 
         return decision
+
+    save = save_decision
 
     def get_decision(self, decision_id: str, db: Session | None = None) -> Decision | None:
         """Retrieves a single decision by request ID from memory or Postgres."""

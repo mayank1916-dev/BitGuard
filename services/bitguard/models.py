@@ -100,6 +100,10 @@ class SigningRequest(BaseModel):
         default="STANDARD",
         description="Request classification: STANDARD, COLD_TRANSFER, SWEEP, TOP_UP",
     )
+    caller_identity: str | None = Field(default=None, description="Authenticated caller workload SAN or SPIFFE ID")
+    caller_image_digest: str | None = Field(default=None, description="Attested container image digest (e.g. sha256:...)")
+    caller_deploy_time: datetime | None = Field(default=None, description="Attested deployment timestamp")
+    caller_source_ip: str | None = Field(default=None, description="Caller source network IP address")
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -147,6 +151,10 @@ class Decision(BaseModel):
     decoded_tx: DecodedTx | None = Field(default=None, description="Decoded transaction payload if available")
     wallet: str | None = Field(default=None, description="Originating wallet address")
     chain: str | None = Field(default=None, description="Target blockchain identifier")
+    caller_identity: str | None = Field(default=None, description="Authenticated caller workload SAN or SPIFFE ID")
+    caller_image_digest: str | None = Field(default=None, description="Attested container image digest (e.g. sha256:...)")
+    caller_deploy_time: datetime | None = Field(default=None, description="Attested deployment timestamp")
+    caller_source_ip: str | None = Field(default=None, description="Caller source network IP address")
 
 
 class Approval(BaseModel):

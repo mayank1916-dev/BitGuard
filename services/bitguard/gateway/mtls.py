@@ -13,7 +13,8 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import unquote
+from typing import Any
+from urllib.parse import parse_qs, unquote, urlparse
 
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -24,6 +25,35 @@ from services.bitguard.config import settings
 
 logger = logging.getLogger("bitguard.gateway.mtls")
 
+# Custom OIDs for certificate-attested attributes (simulating SPIFFE/SPIRE extensions)
+OID_IMAGE_DIGEST = x509.ObjectIdentifier("1.3.6.1.4.1.99999.1")
+OID_DEPLOY_TIME = x509.ObjectIdentifier("1.3.6.1.4.1.99999.2")
+
+
+def parse_attestation_timestamp(val: Any) -> datetime | None:
+    """Parses ISO-8601 strings, UNIX epoch seconds, or datetimes into UTC datetimes."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val if val.tzinfo is not None else val.replace(tzinfo=UTC)
+    if isinstance(val, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(val), tz=UTC)
+        except Exception:
+            return None
+    if isinstance(val, str):
+        v = val.strip().strip('"').strip("'")
+        if not v:
+            return None
+        try:
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                return datetime.fromtimestamp(float(v), tz=UTC)
+            except ValueError:
+                return None
+    return None
+
 
 @dataclass
 class WorkloadIdentity:
@@ -32,6 +62,9 @@ class WorkloadIdentity:
     san: str
     cert_subject: str | None = None
     auth_method: str = "mtls"
+    image_digest: str | None = None
+    deploy_time: datetime | None = None
+    source_ip: str | None = None
 
 
 def _verify_cert_against_ca(cert: x509.Certificate, ca_cert_path: str) -> bool:
@@ -106,6 +139,31 @@ def extract_workload_identity(request: Request) -> WorkloadIdentity | None:
     """
     candidate_sans: list[str] = []
     subject_summary: str | None = None
+    extracted_image_digest: str | None = None
+    extracted_deploy_time: datetime | None = None
+
+    # Helper to parse attributes from SAN URI
+    def _inspect_san_attributes(san_str: str) -> str:
+        nonlocal extracted_image_digest, extracted_deploy_time
+        try:
+            parsed = urlparse(san_str)
+            if parsed.query:
+                qs = parse_qs(parsed.query)
+                if "image_digest" in qs and not extracted_image_digest:
+                    extracted_image_digest = qs["image_digest"][0]
+                if "digest" in qs and not extracted_image_digest:
+                    extracted_image_digest = qs["digest"][0]
+                if "deploy_time" in qs and not extracted_deploy_time:
+                    extracted_deploy_time = parse_attestation_timestamp(qs["deploy_time"][0])
+                if "deployed" in qs and not extracted_deploy_time:
+                    extracted_deploy_time = parse_attestation_timestamp(qs["deployed"][0])
+            # Return base SAN without query string for authorization matching
+            if parsed.scheme and parsed.netloc:
+                base_san = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                return base_san.rstrip("/") if base_san != f"{parsed.scheme}://{parsed.netloc}/" else base_san
+        except Exception:
+            pass
+        return san_str
 
     # 1. Inspect direct client cert PEM header (e.g. X-Client-Cert-Pem or X-SSL-Client-Cert)
     pem_header = request.headers.get("x-client-cert-pem") or request.headers.get("x-ssl-client-cert")
@@ -132,7 +190,43 @@ def extract_workload_identity(request: Request) -> WorkloadIdentity | None:
                     return None
 
             subject_summary = cert.subject.rfc4514_string()
-            candidate_sans.extend(_extract_sans_from_cert(cert))
+            raw_sans = _extract_sans_from_cert(cert)
+            for s in raw_sans:
+                base_s = _inspect_san_attributes(s)
+                candidate_sans.append(s)
+                if base_s != s:
+                    candidate_sans.append(base_s)
+
+            # Extract custom extensions if present
+            try:
+                ext_digest = cert.extensions.get_extension_for_oid(OID_IMAGE_DIGEST)
+                if ext_digest and not extracted_image_digest:
+                    val_digest = ext_digest.value
+                    if isinstance(val_digest, x509.UnrecognizedExtension):
+                        extracted_image_digest = val_digest.value.decode("utf-8", errors="ignore").strip()
+                    elif hasattr(val_digest, "value"):
+                        raw_bytes = val_digest.value
+                        if isinstance(raw_bytes, bytes):
+                            extracted_image_digest = raw_bytes.decode("utf-8", errors="ignore").strip()
+            except x509.ExtensionNotFound:
+                pass
+
+            try:
+                ext_deploy = cert.extensions.get_extension_for_oid(OID_DEPLOY_TIME)
+                if ext_deploy and not extracted_deploy_time:
+                    val_deploy = ext_deploy.value
+                    raw_dt = ""
+                    if isinstance(val_deploy, x509.UnrecognizedExtension):
+                        raw_dt = val_deploy.value.decode("utf-8", errors="ignore").strip()
+                    elif hasattr(val_deploy, "value"):
+                        raw_bytes = val_deploy.value
+                        if isinstance(raw_bytes, bytes):
+                            raw_dt = raw_bytes.decode("utf-8", errors="ignore").strip()
+                    if raw_dt:
+                        extracted_deploy_time = parse_attestation_timestamp(raw_dt)
+            except x509.ExtensionNotFound:
+                pass
+
         except Exception as exc:
             logger.warning("client_cert_pem_parsing_failed: %s", exc)
             return None
@@ -142,7 +236,11 @@ def extract_workload_identity(request: Request) -> WorkloadIdentity | None:
     if xfcc_header:
         uris = re.findall(r'URI="?([^;"]+)"?', xfcc_header)
         dns_names = re.findall(r'DNS="?([^;"]+)"?', xfcc_header)
-        candidate_sans.extend(uris)
+        for u in uris:
+            base_u = _inspect_san_attributes(u)
+            candidate_sans.append(u)
+            if base_u != u:
+                candidate_sans.append(base_u)
         candidate_sans.extend(dns_names)
 
     # 3. Inspect reverse proxy direct SAN header: X-Client-Cert-SAN
@@ -151,7 +249,10 @@ def extract_workload_identity(request: Request) -> WorkloadIdentity | None:
         for s in san_header.split(","):
             s_clean = s.strip()
             if s_clean:
+                base_s = _inspect_san_attributes(s_clean)
                 candidate_sans.append(s_clean)
+                if base_s != s_clean:
+                    candidate_sans.append(base_s)
 
     # 4. Check ASGI client cert extension if present
     asgi_cert = request.scope.get("client_cert")
@@ -159,13 +260,42 @@ def extract_workload_identity(request: Request) -> WorkloadIdentity | None:
         try:
             cert_bytes = asgi_cert.encode("utf-8") if isinstance(asgi_cert, str) else asgi_cert
             cert = x509.load_pem_x509_certificate(cert_bytes)
-            candidate_sans.extend(_extract_sans_from_cert(cert))
+            raw_sans = _extract_sans_from_cert(cert)
+            for s in raw_sans:
+                base_s = _inspect_san_attributes(s)
+                candidate_sans.append(s)
+                if base_s != s:
+                    candidate_sans.append(base_s)
         except Exception as exc:
             logger.debug("asgi_client_cert_extraction_failed: %s", exc)
 
     if not candidate_sans:
         logger.info("unauthenticated_caller_missing_mtls_identity")
         return None
+
+    # 5. Extract image digest and deploy time from headers if not in cert
+    if not extracted_image_digest:
+        header_digest = request.headers.get("x-caller-image-digest") or request.headers.get("x-client-image-digest")
+        if header_digest:
+            extracted_image_digest = header_digest.strip()
+
+    if not extracted_deploy_time:
+        header_deploy = request.headers.get("x-caller-deploy-time") or request.headers.get("x-client-deploy-time")
+        if header_deploy:
+            extracted_deploy_time = parse_attestation_timestamp(header_deploy)
+
+    # 6. Extract caller source IP
+    source_ip: str | None = None
+    header_ip = request.headers.get("x-caller-source-ip") or request.headers.get("x-real-ip")
+    if not header_ip:
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            header_ip = xff.split(",")[0].strip()
+    if not header_ip and request.client and request.client.host:
+        header_ip = request.client.host
+    if header_ip:
+        header_ip_clean = header_ip.strip()
+        source_ip = "127.0.0.1" if header_ip_clean == "testclient" else header_ip_clean
 
     # Filter against allowed SAN identities
     allowed_sans = set(settings.mtls_allowed_sans)
@@ -175,6 +305,9 @@ def extract_workload_identity(request: Request) -> WorkloadIdentity | None:
                 san=san,
                 cert_subject=subject_summary,
                 auth_method="mtls",
+                image_digest=extracted_image_digest,
+                deploy_time=extracted_deploy_time,
+                source_ip=source_ip,
             )
 
     logger.warning("caller_san_not_in_allowed_list: candidate_sans=%s", candidate_sans)

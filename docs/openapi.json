@@ -1181,6 +1181,67 @@
         "title": "CallItem",
         "type": "object"
       },
+      "CallerAttestationPolicy": {
+        "description": "Configuration for caller identity, build attestation, and SPIFFE verification (Milestone S33 / F16).",
+        "properties": {
+          "allowed_digests": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Digests",
+            "type": "array"
+          },
+          "allowed_images_path": {
+            "default": "policy/allowed_images.json",
+            "title": "Allowed Images Path",
+            "type": "string"
+          },
+          "allowed_source_networks": {
+            "description": "Allowed source CIDR networks for callers",
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Source Networks",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "recent_deploy_weight": {
+            "default": 25,
+            "description": "Risk weight for CALLER_RECENT_DEPLOY",
+            "title": "Recent Deploy Weight",
+            "type": "integer"
+          },
+          "recent_deploy_window_seconds": {
+            "default": 3600,
+            "description": "Window in seconds during which a newly deployed caller is flagged as CALLER_RECENT_DEPLOY",
+            "title": "Recent Deploy Window Seconds",
+            "type": "integer"
+          },
+          "require_attestation": {
+            "default": false,
+            "title": "Require Attestation",
+            "type": "boolean"
+          },
+          "unknown_digest_weight": {
+            "default": 60,
+            "description": "Risk weight for CALLER_UNKNOWN_DIGEST (guarantees HOLD)",
+            "title": "Unknown Digest Weight",
+            "type": "integer"
+          },
+          "unusual_source_weight": {
+            "default": 40,
+            "description": "Risk weight for CALLER_UNUSUAL_SOURCE",
+            "title": "Unusual Source Weight",
+            "type": "integer"
+          }
+        },
+        "title": "CallerAttestationPolicy",
+        "type": "object"
+      },
       "CancelHoldRequest": {
         "description": "Request payload to cancel a quarantined hold ticket (tightening action).",
         "properties": {
@@ -1423,6 +1484,59 @@
       "Decision": {
         "description": "Deterministic evaluation outcome issued by BitGuard Decision Point.",
         "properties": {
+          "caller_deploy_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Attested deployment timestamp",
+            "title": "Caller Deploy Time"
+          },
+          "caller_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Authenticated caller workload SAN or SPIFFE ID",
+            "title": "Caller Identity"
+          },
+          "caller_image_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Attested container image digest (e.g. sha256:...)",
+            "title": "Caller Image Digest"
+          },
+          "caller_source_ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Caller source network IP address",
+            "title": "Caller Source Ip"
+          },
           "chain": {
             "anyOf": [
               {
@@ -3206,6 +3320,9 @@
       "PolicyDocument": {
         "description": "Complete, self-contained declarative policy manifest document.",
         "properties": {
+          "attestation": {
+            "$ref": "#/components/schemas/CallerAttestationPolicy"
+          },
           "baselines": {
             "$ref": "#/components/schemas/BaselinePolicy"
           },
@@ -3914,6 +4031,55 @@
       "SigningRequest": {
         "description": "Incoming transaction signing request dispatched to BitGuard.",
         "properties": {
+          "caller_deploy_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attested deployment timestamp",
+            "title": "Caller Deploy Time"
+          },
+          "caller_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Authenticated caller workload SAN or SPIFFE ID",
+            "title": "Caller Identity"
+          },
+          "caller_image_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attested container image digest (e.g. sha256:...)",
+            "title": "Caller Image Digest"
+          },
+          "caller_source_ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Caller source network IP address",
+            "title": "Caller Source Ip"
+          },
           "chain": {
             "default": "ethereum",
             "description": "Target blockchain identifier",

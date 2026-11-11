@@ -36,12 +36,14 @@ def configure_test_redis_and_db():
     from services.bitguard.profiler.worker import profile_worker
     profile_worker.set_redis_client(client)
     profile_worker.clear_cache()
+    from services.bitguard.attestation.store import allowed_images_store
     from services.bitguard.baselines.store import baseline_store
     from services.bitguard.break_glass import break_glass_store
     from services.signer_shim.heartbeat import heartbeat_tracker
     break_glass_store.set_sync_redis(client)
     baseline_store.set_redis_client(client)
     baseline_store.reset()
+    allowed_images_store.reset()
     heartbeat_tracker.last_heartbeat_time = time.time()
     mock_ledger_connector._ledger_url = ""
     audit_service.clear()

@@ -130,9 +130,16 @@ class GatewayHandler:
                 wallet="0x0000000000000000000000000000000000000000",  # Decoded from raw bytes in Stage 1
                 wallet_group=wallet_group.id,
                 intent_id=params.intent_id,
+                caller_identity=workload_identity.san,
+                caller_image_digest=workload_identity.image_digest,
+                caller_deploy_time=workload_identity.deploy_time,
+                caller_source_ip=workload_identity.source_ip,
                 metadata={
                     "amount_usd": params.amount_usd or 0.0,
                     "caller_identity": workload_identity.san,
+                    "caller_image_digest": workload_identity.image_digest,
+                    "caller_deploy_time": workload_identity.deploy_time.isoformat() if workload_identity.deploy_time else None,
+                    "caller_source_ip": workload_identity.source_ip,
                     **(params.metadata or {}),
                 },
             )

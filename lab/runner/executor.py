@@ -175,8 +175,8 @@ class LabScenarioExecutor:
         token_epoch_store.set_redis_client(fake_redis)
         stream_broadcaster.set_sync_redis(fake_redis)
         rate_limiter.set_sync_redis(fake_redis)
-        from services.bitguard.break_glass import break_glass_store
         from services.bitguard.baselines.store import baseline_store
+        from services.bitguard.break_glass import break_glass_store
         break_glass_store.set_sync_redis(fake_redis)
         baseline_store.set_redis_client(fake_redis)
         baseline_store.reset()

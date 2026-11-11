@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-11-11T12:00:00Z",
+  "allowed_images": [
+    {
+      "image": "bitguard/trade-executor",
+      "tag": "v1.0.0",
+      "digest": "sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+      "built_at": "2026-11-11T10:00:00Z"
+    },
+    {
+      "image": "bitguard/custody-workload",
+      "tag": "v2.1.0",
+      "digest": "sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069",
+      "built_at": "2026-11-11T11:00:00Z"
+    }
+  ],
+  "allowed_digests": [
+    "sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+    "sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069"
+  ]
+}
