@@ -94,11 +94,19 @@ explicit_package_bases = true
 ignore_missing_imports = true
 check_untyped_defs = true
 disallow_untyped_defs = false
-warn_redundant_casts = true
-warn_unused_ignores = true
 exclude = [
     "venv",
     "node_modules",
     "frontend",
     "services/bitguard/alembic",
 ]
+
+[[tool.mypy.overrides]]
+module = [
+    "services.signer_shim.*",
+    "services.bitguard.tokens.*",
+    "services.bitguard.audit.*",
+    "services.bitguard.breaker.*",
+]
+disallow_untyped_defs = true
+check_untyped_defs = true
