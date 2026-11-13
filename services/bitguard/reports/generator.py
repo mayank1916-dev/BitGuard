@@ -164,7 +164,26 @@ class ReportGenerator:
         """Extracts complete incident post-mortem data from database tables."""
         inc = session.query(IncidentRecord).filter(IncidentRecord.id == incident_id).first()
         if not inc:
-            raise ValueError(f"Incident '{incident_id}' not found in database")
+            from services.bitguard.incidents.store import incident_store
+            mem_inc = incident_store.get(incident_id)
+            if mem_inc:
+                inc = IncidentRecord(
+                    id=mem_inc.id,
+                    trigger=mem_inc.trigger,
+                    status=mem_inc.status.value if hasattr(mem_inc.status, "value") else str(mem_inc.status),
+                    severity=mem_inc.severity,
+                    runbook_id=mem_inc.runbook_id,
+                    detected_at=mem_inc.detected_at,
+                    contained_at=mem_inc.contained_at,
+                    time_to_contain_ms=mem_inc.time_to_contain_ms,
+                    resolved_at=mem_inc.resolved_at,
+                    timeline=[t.model_dump(mode="json") if hasattr(t, "model_dump") else t for t in mem_inc.timeline],
+                    checklist=[c.model_dump(mode="json") if hasattr(c, "model_dump") else c for c in mem_inc.checklist],
+                    approvals=[a.model_dump(mode="json") if hasattr(a, "model_dump") else a for a in mem_inc.approvals],
+                    data_label=mem_inc.data_label.value if hasattr(mem_inc.data_label, "value") else str(mem_inc.data_label),
+                )
+            else:
+                raise ValueError(f"Incident '{incident_id}' not found in database")
 
         audit_stamp = self.get_audit_stamp(session)
 

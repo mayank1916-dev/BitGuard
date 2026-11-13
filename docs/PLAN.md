@@ -83,6 +83,6 @@
 - [x] U6 Circuit breaker pill and BREAKER LOCKDOWN with real effect
 - [x] U7 7702 Radar: multi-provider scan and 'My addresses' panel
 - [x] U8 Sensitivity Lab: backtests, signed policy editor, diff and RBAC
-- [ ] U9 Reports and Audit tab: chain verification, anchors, timeline, exports
+- [x] U9 Reports and Audit tab: chain verification, anchors, timeline, exports
 - [ ] W1 Reword over-claims across UI and docs
 - [ ] V1 Final verification against the success metrics

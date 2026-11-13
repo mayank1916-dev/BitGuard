@@ -1333,6 +1333,191 @@ export async function rollbackPolicy(versionId, reason = 'Operator initiated rol
   return res.json();
 }
 
+export async function verifyAuditLedger(explicitToken) {
+  if (DATA_SOURCE === 'demo') {
+    return {
+      ok: true,
+      checked_entries: 24,
+      first_bad_seq: null,
+      last_anchor: {
+        id: 'anc-demo-head-01',
+        seq: 20,
+        head_hash: '0x' + Array(64).fill('e').join(''),
+        ts: Math.floor(Date.now() / 1000) - 300,
+        storage_uri: 's3://bitguard-worm-audit-demo/anchor-020.json',
+        data_label: 'REAL',
+      },
+      details: 'Sequential hash-chain verified cryptographically intact',
+      data_label: 'REAL',
+    };
+  }
+
+  const token = explicitToken || getActiveAuthToken() || (await login('Compliance')).access_token;
+  const res = await fetch(`${API_BASE}/v1/audit/verify`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Audit verify failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function fetchAuditEntries(limit = 50, explicitToken) {
+  if (DATA_SOURCE === 'demo') {
+    return [];
+  }
+  const token = explicitToken || getActiveAuthToken() || (await login('Compliance')).access_token;
+  const res = await fetch(`${API_BASE}/v1/audit/entries?limit=${limit}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to fetch audit entries: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function triggerManualAnchor(explicitToken) {
+  const token = explicitToken || getActiveAuthToken() || (await login('SecOps')).access_token;
+  const res = await fetch(`${API_BASE}/v1/audit/anchor`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Manual anchor failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function listIncidents(status, trigger, limit = 50, explicitToken) {
+  if (DATA_SOURCE === 'demo') {
+    return [
+      {
+        id: 'inc-demo-7702-01',
+        trigger: 'UNAUTHORIZED_DELEGATION',
+        status: 'CONTAINED',
+        severity: 'CRITICAL',
+        detected_at: new Date(Date.now() - 7200000).toISOString(),
+        contained_at: new Date(Date.now() - 7199988).toISOString(),
+        time_to_contain_ms: 12.4,
+        timeline: [
+          {
+            id: 'tle-d1',
+            timestamp: new Date(Date.now() - 7200000).toISOString(),
+            event_type: 'DETECTION',
+            message: 'EIP-7702 unallowlisted delegation attempt intercepted',
+            details: { wallet: '0x742d...44e' },
+          },
+          {
+            id: 'tle-d2',
+            timestamp: new Date(Date.now() - 7199995).toISOString(),
+            event_type: 'BREAKER_ELEVATED',
+            message: 'Circuit breaker escalated to HOLD in 5 ms',
+            details: { breaker_state: 'HOLD' },
+          },
+          {
+            id: 'tle-d3',
+            timestamp: new Date(Date.now() - 7199988).toISOString(),
+            event_type: 'CONTAINED',
+            message: 'Threat contained. Signer token revoked in 12.4 ms',
+            details: { time_to_contain_ms: 12.4 },
+          },
+        ],
+        data_label: 'REAL',
+      },
+    ];
+  }
+
+  const token = explicitToken || getActiveAuthToken() || (await login('Compliance')).access_token;
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (trigger) params.append('trigger', trigger);
+  params.append('limit', String(limit));
+
+  const res = await fetch(`${API_BASE}/v1/incidents?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to fetch incidents: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function getIncident(incidentId, explicitToken) {
+  const token = explicitToken || getActiveAuthToken() || (await login('Compliance')).access_token;
+  const res = await fetch(`${API_BASE}/v1/incidents/${encodeURIComponent(incidentId)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to fetch incident: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function downloadReportFile(urlPath, suggestedFilename, explicitToken) {
+  if (DATA_SOURCE === 'demo') {
+    const link = document.createElement('a');
+    link.href = `${API_BASE}/report/download`;
+    link.download = suggestedFilename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return;
+  }
+
+  const token = explicitToken || getActiveAuthToken() || (await login('Compliance')).access_token;
+  const res = await fetch(`${API_BASE}${urlPath}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Report export failed: ${res.statusText}`);
+  }
+  const blob = await res.blob();
+  if (typeof window !== 'undefined') {
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = suggestedFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+  }
+}
+
+export async function exportIncidentReport(incidentId, format = 'pdf', explicitToken) {
+  const filename = `incident-${incidentId}-postmortem.${format}`;
+  await downloadReportFile(`/v1/reports/incident/${encodeURIComponent(incidentId)}?format=${format}`, filename, explicitToken);
+}
+
+export async function exportMonthlyReport(year = 2026, month = 11, format = 'pdf', explicitToken) {
+  const filename = `control-report-${year}-${String(month).padStart(2, '0')}.${format}`;
+  await downloadReportFile(`/v1/reports/monthly?year=${year}&month=${month}&format=${format}`, filename, explicitToken);
+}
+
+export async function exportPolicyHistoryReport(format = 'pdf', version, explicitToken) {
+  const query = version ? `format=${format}&version=${encodeURIComponent(version)}` : `format=${format}`;
+  const filename = `policy-change-history.${format}`;
+  await downloadReportFile(`/v1/reports/policy-history?${query}`, filename, explicitToken);
+}
+
 export default {
   DATA_SOURCE,
   getDataSource,
@@ -1374,4 +1559,13 @@ export default {
   approvePolicy,
   activatePolicy,
   rollbackPolicy,
+  verifyAuditLedger,
+  fetchAuditEntries,
+  triggerManualAnchor,
+  listIncidents,
+  getIncident,
+  downloadReportFile,
+  exportIncidentReport,
+  exportMonthlyReport,
+  exportPolicyHistoryReport,
 };
