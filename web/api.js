@@ -1118,6 +1118,221 @@ export async function fetchWatcherAlerts(explicitToken) {
   return res.json();
 }
 
+/**
+ * Classifies a draft policy against the active baseline (Task U8).
+ */
+export async function classifyPolicy(draft, baselineVersionId) {
+  if (getDataSource() === 'demo') {
+    const singleTx = Number(draft?.single_tx_usd ?? 50_000);
+    const walletLimit = Number(draft?.wallet_limit_usd ?? 100_000);
+    const isTighten = singleTx <= 50_000 && walletLimit <= 100_000;
+    const isLoosen = singleTx >= 50_000 && walletLimit >= 100_000 && (singleTx > 50_000 || walletLimit > 100_000);
+    const badge = isTighten ? 'TIGHTENS' : isLoosen ? 'LOOSENS' : 'MIXED';
+    return {
+      classification: isTighten ? 'TIGHTEN' : isLoosen ? 'LOOSEN' : 'MIXED',
+      badge,
+      diff: {
+        single_tx_usd: { old: 50000, new: singleTx, direction: singleTx > 50000 ? 'LOOSEN' : 'TIGHTEN' },
+        wallet_limit_usd: { old: 100000, new: walletLimit, direction: walletLimit > 100000 ? 'LOOSEN' : 'TIGHTEN' },
+      },
+      text_diff: `--- active (v1.0.0)\n+++ draft\n- single_tx_usd: 50000\n+ single_tx_usd: ${singleTx}\n- wallet_limit_usd: 100000\n+ wallet_limit_usd: ${walletLimit}`,
+      requirements: {
+        approvers_required: isTighten ? 1 : 2,
+        cooldown_seconds: isTighten ? 0 : 60,
+        backtest_required: !isTighten,
+        can_instant_activate: isTighten,
+      },
+      active_version: 'v1.0.0',
+      active_id: 'pv-baseline-v1.0.0',
+      draft_hash: '0x' + Array(64).fill('a').join(''),
+    };
+  }
+
+  const res = await fetch(`${API_BASE}/v1/policies/classify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ draft, baseline_version_id: baselineVersionId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Classification failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Runs S22 backtesting on a draft policy (Task U8).
+ */
+export async function runPolicyBacktest(draftPolicy, scenarios, explicitToken) {
+  if (getDataSource() === 'demo') {
+    return {
+      id: `btr-demo-${Date.now().toString(36)}`,
+      held_count: 5,
+      holds_per_day: 1.2,
+      estimated_false_positives: 1,
+      synthetic_loss_prevented_usd: 4_390_000_000,
+      synthetic_loss_allowed_usd: 0,
+      total_events: 72,
+      draft_policy_id: 'pv-demo-draft',
+      draft_policy_hash: '0x' + Array(64).fill('b').join(''),
+    };
+  }
+
+  const token = explicitToken || getActiveAuthToken() || (await login('Approver')).access_token;
+  const res = await fetch(`${API_BASE}/v1/policies/draft/backtest`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ draft_policy: draftPolicy, scenarios: scenarios || ['split_under_limit', 'rapid_velocity'] }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Backtest failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Lists policy versions (Task U8).
+ */
+export async function listPolicies(limit = 50, explicitToken) {
+  if (getDataSource() === 'demo') {
+    return [
+      {
+        id: 'pv-baseline-v1.0.0',
+        version: 'v1.0.0',
+        author: 'admin@bitguard.local',
+        created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+        status: 'ACTIVE',
+        content: {},
+        content_hash: '0x' + Array(64).fill('0').join(''),
+        change_type: 'TIGHTEN',
+        approvals: [],
+      },
+    ];
+  }
+
+  const token = explicitToken || getActiveAuthToken() || (await login('Operator')).access_token;
+  const res = await fetch(`${API_BASE}/v1/policies?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to list policies: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Gets currently active policy (Task U8).
+ */
+export async function getActivePolicy(explicitToken) {
+  if (getDataSource() === 'demo') {
+    const list = await listPolicies(1);
+    return list[0];
+  }
+
+  const token = explicitToken || getActiveAuthToken() || (await login('Operator')).access_token;
+  const res = await fetch(`${API_BASE}/v1/policies/active`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to get active policy: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Proposes a new policy version (Task U8).
+ */
+export async function proposePolicy(payload, explicitToken) {
+  const token = explicitToken || getActiveAuthToken() || (await login('Operator')).access_token;
+  const res = await fetch(`${API_BASE}/v1/policies`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to propose policy: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Submits WebAuthn approval signature for policy (Task U8).
+ */
+export async function approvePolicy(versionId, assertion, explicitToken) {
+  const defaultAssertion = assertion || {
+    credential_id: 'cred-approver-fido2',
+    client_data_json: btoa(JSON.stringify({ type: 'webauthn.get', challenge: 'policy-hash', origin: window.location.origin })),
+    authenticator_data: btoa('auth-data-policy-sample'),
+    signature: btoa('sig-sample-policy-webauthn'),
+    user_handle: 'usr-approver-01',
+  };
+
+  const token = explicitToken || getActiveAuthToken() || (await login('Approver')).access_token;
+  const res = await fetch(`${API_BASE}/v1/policies/${encodeURIComponent(versionId)}/approve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ assertion: defaultAssertion }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Policy approval failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Activates policy change (Task U8).
+ */
+export async function activatePolicy(versionId, explicitToken) {
+  const token = explicitToken || getActiveAuthToken() || (await login('Operator')).access_token;
+  const res = await fetch(`${API_BASE}/v1/policies/${encodeURIComponent(versionId)}/activate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Policy activation failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Rolls back policy to target version (Task U8).
+ */
+export async function rollbackPolicy(versionId, reason = 'Operator initiated rollback', explicitToken) {
+  const token = explicitToken || getActiveAuthToken() || (await login('Admin')).access_token;
+  const res = await fetch(`${API_BASE}/v1/policies/${encodeURIComponent(versionId)}/rollback`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Policy rollback failed: ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export default {
   DATA_SOURCE,
   getDataSource,
@@ -1151,4 +1366,12 @@ export default {
   deleteWatchedAddress,
   triggerWatcherScan,
   fetchWatcherAlerts,
+  classifyPolicy,
+  runPolicyBacktest,
+  listPolicies,
+  getActivePolicy,
+  proposePolicy,
+  approvePolicy,
+  activatePolicy,
+  rollbackPolicy,
 };

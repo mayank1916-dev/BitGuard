@@ -290,3 +290,43 @@ class PolicyIntegrityResponse(BaseModel):
     ed25519_verified: bool
     details: str
     data_label: DataLabel = DataLabel.REAL
+
+
+class ClassifyPolicyRequest(BaseModel):
+    """Payload to classify a proposed draft policy against the active baseline."""
+
+    draft: dict[str, Any] | PolicyDocument
+    baseline_version_id: str | None = None
+
+
+class PolicyRequirements(BaseModel):
+    """Governance requirements required to activate a policy version."""
+
+    approvers_required: int = 1
+    cooldown_seconds: int = 0
+    backtest_required: bool = False
+    can_instant_activate: bool = True
+
+
+class ClassifyPolicyResponse(BaseModel):
+    """Outcome of policy change classification."""
+
+    classification: ChangeClassification
+    badge: str = Field(description="Clear classification badge: TIGHTENS, LOOSENS, or MIXED")
+    diff: dict[str, Any] = Field(default_factory=dict, description="Structured diff of modified fields")
+    text_diff: str = Field(default="", description="Unified text diff of active vs draft policy")
+    requirements: PolicyRequirements
+    active_version: str
+    active_id: str
+    draft_hash: str
+    draft_doc: dict[str, Any] = Field(default_factory=dict)
+    data_label: DataLabel = DataLabel.REAL
+
+
+class DraftBacktestRequest(BaseModel):
+    """Request payload to execute S22 backtesting on a draft policy."""
+
+    draft_policy: dict[str, Any] | PolicyDocument | None = None
+    draft_policy_id: str | None = None
+    scenarios: list[str] = Field(default_factory=lambda: ["split_under_limit", "rapid_velocity"])
+

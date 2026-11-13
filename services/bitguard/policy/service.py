@@ -133,9 +133,9 @@ class PolicyService:
         author_user: UserResponse,
     ) -> PolicyVersion:
         """Proposes a new versioned policy manifest, classifies changes, and schedules requirements."""
-        # Check for duplicate version
+        # Check for duplicate version (allow formalizing an existing DRAFT)
         existing = policy_store.get_by_version(request.version)
-        if existing:
+        if existing and existing.status != PolicyStatus.DRAFT:
             raise ValueError(f"Policy version '{request.version}' already exists")
 
         # Get current active baseline to classify change
@@ -153,8 +153,9 @@ class PolicyService:
             cooldown_seconds = getattr(settings, "policy_cooldown_seconds", 60)
             cool_down_until = now + timedelta(seconds=cooldown_seconds)
 
+        new_id = existing.id if (existing and existing.status == PolicyStatus.DRAFT) else f"pv-{uuid4().hex[:12]}"
         new_version = PolicyVersion(
-            id=f"pv-{uuid4().hex[:12]}",
+            id=new_id,
             version=request.version,
             author=author_user.id,
             created_at=now,
@@ -476,6 +477,53 @@ class PolicyService:
             "AUTO_ROLLBACK_EXECUTED: Reverted from %s to %s. Reason: %s",
             active_id,
             reverted_version.version,
+            reason,
+        )
+        return reverted_version
+
+    def rollback_to_version(
+        self,
+        target_version_id: str,
+        reason: str = "Operator rollback",
+        actor_email: str = "operator",
+    ) -> PolicyVersion:
+        """Rolls back the active policy version to a specific target version."""
+        current_active = policy_store.get_active() or self.get_or_create_baseline()
+        reverted_version = policy_store.rollback(
+            current_active_id=current_active.id,
+            target_version_id=target_version_id,
+            reason=reason,
+        )
+        decision_engine.reload_policy(reverted_version.content, content_hash=reverted_version.content_hash)
+        self.last_healthy_version_id = reverted_version.id
+        self.last_healthy_version_hash = reverted_version.content_hash
+
+        audit_service.append_entry(
+            action=f"POLICY_ROLLEDBACK:{reverted_version.version}",
+            actor=actor_email,
+            payload={
+                "rolled_back_from": current_active.id,
+                "restored_version": reverted_version.version,
+                "reason": reason,
+            },
+            data_label=DataLabel.REAL,
+        )
+
+        stream_broadcaster.publish_event(
+            event_type="POLICY_ROLLBACK",
+            payload={
+                "rolled_back_from": current_active.id,
+                "restored_version": reverted_version.version,
+                "reason": reason,
+            },
+            data_label="REAL",
+        )
+
+        logger.warning(
+            "POLICY_ROLLBACK_EXECUTED: Reverted from %s to %s by %s. Reason: %s",
+            current_active.id,
+            reverted_version.version,
+            actor_email,
             reason,
         )
         return reverted_version
