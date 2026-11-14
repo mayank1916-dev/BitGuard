@@ -577,7 +577,7 @@ class BacktestService:
             "synthetic_loss_allowed_usd": synthetic_loss_allowed,
             "classification": policy_diff.get("classification", "TIGHTEN"),
             "time_span_days": round(time_span_days, 2),
-            "protection_note": "Policy reduces and contains unauthorized outflows; target p99 under 15 ms, measured.",
+            "protection_note": "Policy reduces and contains unauthorized outflows (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection); target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per docs/PERF.md). Production-ready architecture; pilot after audit and shadow-mode validation.",
         }
 
         report = BacktestReport(

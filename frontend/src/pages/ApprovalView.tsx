@@ -220,7 +220,7 @@ export const ApprovalView: React.FC = () => {
           </div>
           <p className="text-xs text-slate-400 mt-1">
             Hardware WebAuthn signatures bound to raw transaction digest. Quorum requires 2 distinct approvers.
-            Reduces and contains unauthorized signing. Target p99 under 15 ms, measured.
+            Reduces and contains unauthorized signing (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection). Target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per docs/PERF.md). Production-ready architecture; pilot after audit and shadow-mode validation.
           </p>
         </div>
 

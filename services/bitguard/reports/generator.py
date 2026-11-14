@@ -51,8 +51,10 @@ DISCLAIMER_TEXT = (
 )
 
 INVARIANT_CLAIM_TEXT = (
-    "BitGuard reduces and contains unauthorized transaction signing. Operating performance target "
-    "p99 under 15 ms, measured. Production-ready architecture; pilot after audit and shadow-mode validation."
+    "BitGuard reduces and contains unauthorized transaction signing (a limit-aware attacker can still move value; "
+    "the goal is to shrink and slow loss and force detection). Operating performance target p99 under 15 ms for the "
+    "local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, "
+    "and 2.633 ms at 500 concurrency per docs/PERF.md). Production-ready architecture; pilot after audit and shadow-mode validation."
 )
 
 
@@ -775,7 +777,7 @@ class ReportGenerator:
                     self.body_style,
                 ),
                 Paragraph("<b>Performance Benchmark:</b>", self.body_style),
-                Paragraph("target p99 under 15 ms, measured [REAL]", self.body_style),
+                Paragraph("target p99 under 15 ms for the local fast path, measured under load (pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per docs/PERF.md) [REAL]", self.body_style),
             ],
         ]
 

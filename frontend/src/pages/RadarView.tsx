@@ -425,7 +425,7 @@ export const RadarView: React.FC = () => {
         <div className="mt-4 p-3 rounded-lg bg-slate-950/70 border border-slate-800 flex items-start space-x-2.5 text-xs text-slate-300">
           <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <strong className="text-white">Multi-RPC Consensus Guard (Invariant #3 & #4):</strong> BitGuard queries <code>eth_getCode</code> across N independent RPC providers simultaneously. Any unallowlisted EIP-7702 delegate (prefix <code>0xef0100</code>) or provider disagreement immediately trips the circuit breaker to <strong>HOLD</strong>, containing unauthorized key actions within target p99 under 15 ms, measured.
+            <strong className="text-white">Multi-RPC Consensus Guard (Invariant #3 & #4):</strong> BitGuard queries <code>eth_getCode</code> across N independent RPC providers simultaneously. Any unallowlisted EIP-7702 delegate (prefix <code>0xef0100</code>) or provider disagreement immediately trips the circuit breaker to <strong>HOLD</strong>, reducing and containing unauthorized key actions within target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per docs/PERF.md; a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection).
           </p>
         </div>
       </div>
@@ -438,25 +438,45 @@ export const RadarView: React.FC = () => {
           {/* Telemetry Stat Cards for My Addresses */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-              <span className="text-xs text-slate-400 font-mono uppercase block">Total Hot Wallets</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-slate-400 font-mono uppercase block">Total Hot Wallets</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-2xl font-bold font-mono text-cyan-400 mt-1 block">
                 {totalWatched} Addresses
               </span>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/90 border border-emerald-950/60">
-              <span className="text-xs text-emerald-400 font-mono uppercase block">Allowlisted Delegates</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-emerald-400 font-mono uppercase block">Allowlisted Delegates</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">
                 {allowedDelegateCount}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/90 border border-rose-950/60">
-              <span className="text-xs text-rose-400 font-mono uppercase block">Unapproved Delegations</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-rose-400 font-mono uppercase block">Unapproved Delegations</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-rose-500/40 bg-rose-500/20 text-rose-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-2xl font-bold font-mono text-rose-400 mt-1 block">
                 {unapprovedCount}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-              <span className="text-xs text-slate-400 font-mono uppercase block">Provider Consensus</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-slate-400 font-mono uppercase block">Provider Consensus</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className={cn('text-2xl font-bold font-mono mt-1 block', providerDisagreements > 0 ? 'text-amber-400' : 'text-slate-200')}>
                 {providerDisagreements > 0 ? `${providerDisagreements} Disagreements` : '100% Agreement'}
               </span>
@@ -664,25 +684,45 @@ export const RadarView: React.FC = () => {
           {/* Telemetry Stat Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-              <span className="text-xs text-slate-400 font-mono uppercase block">Latest Block</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-slate-400 font-mono uppercase block">Latest Block</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-2xl font-bold font-mono text-cyan-400 mt-1 block">
                 {radarResult ? `#${radarResult.latest_block.toLocaleString()}` : '—'}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-              <span className="text-xs text-slate-400 font-mono uppercase block">Type-4 Txs Discovered</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-slate-400 font-mono uppercase block">Type-4 Txs Discovered</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-2xl font-bold font-mono text-white mt-1 block">
                 {radarResult?.findings_count ?? 0}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/90 border border-rose-950/60">
-              <span className="text-xs text-rose-400 font-mono uppercase block">Anomalies Detected</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-rose-400 font-mono uppercase block">Anomalies Detected</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-rose-500/40 bg-rose-500/20 text-rose-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-2xl font-bold font-mono text-rose-400 mt-1 block">
                 {radarResult?.suspicious_count ?? 0}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-              <span className="text-xs text-slate-400 font-mono uppercase block">Blocks Analyzed</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-slate-400 font-mono uppercase block">Blocks Analyzed</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 uppercase">
+                  {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-2xl font-bold font-mono text-slate-200 mt-1 block">
                 {radarResult?.blocks_scanned ?? 5} Blocks
               </span>

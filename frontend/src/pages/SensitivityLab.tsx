@@ -820,21 +820,26 @@ export const SensitivityLab: React.FC = () => {
 
           {/* Current Baseline Status Callout */}
           <div className="mt-6 p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300">
-            <div className="flex items-center space-x-1.5 font-bold mb-1">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{isApiMode ? 'S22 Backtest Result Summary' : 'Current 1.0x Baseline Status'}</span>
+            <div className="flex items-center justify-between font-bold mb-1">
+              <div className="flex items-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{isApiMode ? 'S22 Backtest Result Summary' : 'Current 1.0x Baseline Status'}</span>
+              </div>
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 uppercase">
+                {isApiMode ? 'REPORTED' : 'SYNTHETIC'}
+              </span>
             </div>
             <p className="text-[11px] text-emerald-200/80 leading-relaxed">
               {isApiMode && backtestResult ? (
                 <>
                   Reduces and contains{' '}
-                  <strong>{formatCurrency(backtestResult.synthetic_loss_prevented_usd)}</strong> of synthetic exploit loss
+                  <strong>{formatCurrency(backtestResult.synthetic_loss_prevented_usd)}</strong> of synthetic exploit loss (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection)
                   with <strong>{backtestResult.estimated_false_positives} false positive hold(s)</strong> and{' '}
                   <strong>{backtestResult.held_count} total hold(s)</strong> across {backtestResult.total_events} requests.
                 </>
               ) : baselinePoint ? (
                 <>
-                  Reduces and contains <strong>{formatCurrency(baselinePoint.capitalSaved)} ({((baselinePoint.capitalSaved / 4.39e9) * 100).toFixed(1)}%)</strong> of exploit loss with <strong>{baselinePoint.falsePositives} false positive hold(s)</strong>.
+                  Reduces and contains <strong>{formatCurrency(baselinePoint.capitalSaved)} ({((baselinePoint.capitalSaved / 4.39e9) * 100).toFixed(1)}%)</strong> of exploit loss (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection) with <strong>{baselinePoint.falsePositives} false positive hold(s)</strong>.
                 </>
               ) : (
                 'Recalculating status...'

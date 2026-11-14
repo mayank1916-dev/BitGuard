@@ -14,9 +14,9 @@
 4. **Data Provenance:** In accordance with Invariant #8 (Explicit Data Provenance), every figure, count, and dollar volume in this report is tagged with its provenance classification (**REAL**, **SYNTHETIC**, or **REPORTED**).
 
 ### Technical Claims & Verifications
-- **Containment Claim:** BitGuard reduces and contains unauthorized transaction signing through raw-byte source of truth evaluation and fail-closed isolation.
+- **Containment Claim:** BitGuard reduces and contains unauthorized transaction signing through raw-byte source of truth evaluation and fail-closed isolation (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection).
 - **Maturity Rating:** Production-ready architecture; pilot after audit and shadow-mode validation.
-- **Latency Invariant:** Achieves **target p99 under 15 ms, measured** for the local fast path.
+- **Latency Invariant:** Achieves **target p99 under 15 ms for the local fast path, measured under load** (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)).
 
 ---
 
@@ -220,6 +220,6 @@ sequenceDiagram
 ## 8. Summary & Next Steps
 
 1. **Shadow Mode Validation Complete:** Shadow execution over 4,102 transactions verified that BitGuard's policy firewall architecture accurately identifies and flags threats without impacting production availability.
-2. **Empirical Gate Defense:** The promotion checklist successfully prevented premature promotion of an uncalibrated policy, avoiding 59 false holds on legitimate customer withdrawals.
+2. **Empirical Gate Defense:** The promotion checklist successfully reduced risk by containing premature promotion of an uncalibrated policy, avoiding 59 false holds on legitimate customer withdrawals.
 3. **Governance Integrity Confirmed:** Asymmetric policy evolution was experimentally proven: instant tightening protects hot wallets in emergencies, while governed loosening guarantees multi-party review, cool-down delays, and empirical backtest evidence.
 4. **Milestone Complete:** S26 is complete; ready for contract profiling and sanctions screening (**S27**).

@@ -97,6 +97,6 @@ redis-server --replicaof redis-promoted 6379 --appendonly yes
   - `bitguard_breaker_state`: Monitored gauge reflecting distributed breaker status.
 - **Health Probes:**
   - `GET /healthz`: Verifies BitGuard instance status.
-  - Performance target: target p99 under 15 ms, measured, maintained across all healthy and degraded modes.
+  - Performance target: target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)), maintained across all healthy and degraded modes.
 - **Production Status:**
   - Production-ready architecture; pilot after audit and shadow-mode validation.

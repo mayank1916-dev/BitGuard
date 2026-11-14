@@ -3,9 +3,9 @@
 > [!IMPORTANT]
 > **System Scope & Defensive Boundary:**
 > BitGuard is an autonomous policy **decision point** (firewall) paired with an isolated signer shim **enforcement point**.
-> BitGuard reduces and contains unauthorized transaction signing risks for exchange hot wallets.
+> BitGuard reduces and contains unauthorized transaction signing risks for exchange hot wallets (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection).
 > Architecture target: production-ready architecture; pilot after audit and shadow-mode validation.
-> Target p99 under 15 ms, measured on synthetic and testnet traffic.
+> Target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)). Compensating controls cataloged in [docs/LIMITS.md](LIMITS.md).
 
 ---
 

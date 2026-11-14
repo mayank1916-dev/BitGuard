@@ -4,14 +4,14 @@
 
 In enterprise transaction signing environments, validating transaction payload bytes alone is necessary but insufficient. Attackers compromising a node or cluster might deploy modified containers, inject rogue execution binaries, or attempt lateral RPC injection from untrusted internal subnets.
 
-**BitGuard** integrates cryptographic **caller identity and build attestation** (Milestone S33 / Feature F16). This architecture **reduces and contains** unauthorized signing exposure by binding each incoming signing request to:
+**BitGuard** integrates cryptographic **caller identity and build attestation** (Milestone S33 / Feature F16). This architecture **reduces and contains** unauthorized signing exposure (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection) by binding each incoming signing request to:
 1. **Authenticated Workload Identity (mTLS SAN / SPIFFE ID)**: Cryptographically verified X.509 SVID issued by a trusted SPIRE server.
 2. **Attested Container Image Digest (`image_digest`)**: Immutable SHA-256 digest of the running container image, verified against CI-published manifests.
 3. **Deployment Freshness Window (`deploy_time`)**: Time-since-deployment evaluation to flag newly deployed callers undergoing early runtime scrutiny.
 4. **Source Network Boundary (`source_ip`)**: Network CIDR allowlists ensuring calls originate only from authorized VPC service meshes.
 
 > [!IMPORTANT]
-> **Production Readiness Statement:** This design represents a production-ready architecture; pilot after audit and shadow-mode validation. Local fast-path local policy decision has a **target p99 under 15 ms, measured**.
+> **Production Readiness Statement:** This design represents a production-ready architecture; pilot after audit and shadow-mode validation. Local fast-path local policy decision has a **target p99 under 15 ms for the local fast path, measured under load** (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)). System boundaries detailed in [docs/LIMITS.md](LIMITS.md).
 
 ---
 

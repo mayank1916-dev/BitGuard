@@ -14,7 +14,7 @@
 
 Modeled on modern hot wallet compromise vectors (including the late-October 2026 multi-billion-dollar automated pipeline drains and EIP-7702 delegation sweeps), BitGuard sits between untrusted custody applications and automated signing nodes. It enforces independent raw transaction decoding, atomic distributed velocity limits, EIP-7702 set-code delegation guards, multi-party hardware quorums, and cryptographic tamper-evident audit logging.
 
-> **Defensive Scope & Target:** Production-ready architecture tested on local forks (Foundry Anvil) and testnets using disposable keys. Reduces and contains exploit blast radius; never holds or uses long-term private signing keys.
+> **Defensive Scope & Target:** Production-ready architecture; pilot after audit and shadow-mode validation. Tested on local forks (Foundry Anvil) and testnets using disposable keys. Reduces and contains exploit blast radius (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection); never holds or uses long-term private signing keys. Latency benchmark: target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](docs/PERF.md)). System boundaries and compensating controls documented in [docs/LIMITS.md](docs/LIMITS.md).
 
 ## 🏛️ Core Architecture: Separation of Policy & Signing
 
@@ -238,11 +238,11 @@ Navigate to http://localhost:3000.
 ---
 To maintain institutional security rigor, BitGuard operates under explicitly stated boundaries:
 
-Signing Boundary: BitGuard protects the automated signing path against pipeline compromise, replay, and unauthorized delegation. It does not replace internal HSM key ceremonies or protect against compromised developer endpoints directly.
+Signing Boundary: BitGuard reduces and contains risks on the automated signing path against pipeline compromise, replay, and unauthorized delegation (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection). It does not replace internal HSM key ceremonies or protect against compromised developer endpoints directly.
 
-Velocity Evasion: An attacker who stays strictly below configured thresholds can move capital up to that limit. BitGuard relies on Intent Reconciliation (F2) and EIP-7702 Allowlisting (S09) to stop unauthorized withdrawals regardless of size.
+Velocity Evasion: An attacker who stays strictly below configured thresholds can move capital up to that limit. BitGuard relies on Intent Reconciliation (F2) and EIP-7702 Allowlisting (S09) to reduce and contain unauthorized withdrawals regardless of size (the goal is to shrink and slow loss and force detection). Detailed boundaries and compensating controls are cataloged in [docs/LIMITS.md](docs/LIMITS.md).
 
-Fail-Closed Stance: If the atomic limit store (Redis) or ledger database becomes unreachable, the firewall defaults to DENY to prevent race-condition drains.
+Fail-Closed Stance: If the atomic limit store (Redis) or ledger database becomes unreachable, the firewall defaults to DENY to reduce and contain race-condition drains. Performance target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](docs/PERF.md)). Classification: production-ready architecture; pilot after audit and shadow-mode validation.
 
 ## 📜 License
 ---

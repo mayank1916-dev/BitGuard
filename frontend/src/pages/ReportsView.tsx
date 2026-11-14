@@ -315,7 +315,7 @@ export const ReportsView: React.FC = () => {
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Append-only tamper-evident hash chain logging every signing decision. BitGuard reduces and contains unauthorized transaction signing with verified audit non-repudiation.
+                Append-only tamper-evident hash chain logging every signing decision. BitGuard reduces and contains unauthorized transaction signing with verified audit non-repudiation (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection). Operating performance target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per docs/PERF.md). Production-ready architecture; pilot after audit and shadow-mode validation.
               </p>
             </div>
           </div>
@@ -353,6 +353,36 @@ export const ReportsView: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Defensive Boundary & Architectural Limits Note linking to docs/LIMITS.md */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-start space-x-2.5">
+          <AlertCircle className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+          <div>
+            <span className="font-bold text-slate-200">System Boundaries & Compensating Controls: </span>
+            <span>
+              BitGuard reduces and contains blast radius from compromised credentials or rogue callers; a limit-aware attacker can still move value up to configured velocity caps. Defense-in-depth requires paired compensating controls for Cloud HSM root access, compromised approver laptops, low-and-slow velocity evasion, and bytecode decoder gaps. Review the comprehensive limitation matrix in{' '}
+              <a
+                href="/docs/LIMITS.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-cyan-400 hover:text-cyan-300 underline font-mono font-semibold"
+              >
+                docs/LIMITS.md
+              </a>.
+            </span>
+          </div>
+        </div>
+        <a
+          href="/docs/LIMITS.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-semibold text-xs transition-all cursor-pointer"
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>docs/LIMITS.md</span>
+        </a>
       </div>
 
       {actionNotice && (
@@ -430,9 +460,14 @@ export const ReportsView: React.FC = () => {
           {/* Root Hash & Specs Grid */}
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 font-mono">
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">
-                Ledger Head / Root Hash (SHA-256)
-              </span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                  Ledger Head / Root Hash (SHA-256)
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded border uppercase font-mono font-bold bg-cyan-500/20 text-cyan-300 border-cyan-500/40">
+                  {isApiMode ? 'REAL' : 'SYNTHETIC'}
+                </span>
+              </div>
               <span className="text-xs text-cyan-300 break-all select-all font-semibold">
                 {rootHash || '0'.repeat(64)}
               </span>
@@ -440,9 +475,14 @@ export const ReportsView: React.FC = () => {
 
             <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 font-mono flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">
-                  Chained Audit Blocks
-                </span>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                    Chained Audit Blocks
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded border uppercase font-mono font-bold bg-cyan-500/20 text-cyan-300 border-cyan-500/40">
+                    {isApiMode ? 'REAL' : 'SYNTHETIC'}
+                  </span>
+                </div>
                 <span className="text-lg text-white font-bold">
                   {apiAuditVerify?.checked_entries ?? records.length}{' '}
                   <span className="text-xs text-slate-400 font-normal">Entries Checked</span>
@@ -705,9 +745,14 @@ export const ReportsView: React.FC = () => {
                 Security Incidents & Automated Containment (Milestone S19 / F14)
               </h4>
             </div>
-            <span className="text-[10px] font-mono text-slate-500">
-              {incidents.length} Incident Record(s) Logged
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono text-slate-500">
+                {incidents.length} Incident Record(s) Logged
+              </span>
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 uppercase">
+                {isApiMode ? 'REAL' : 'SYNTHETIC'}
+              </span>
+            </div>
           </div>
 
           <div className="divide-y divide-slate-800/80">
@@ -755,9 +800,14 @@ export const ReportsView: React.FC = () => {
                       {/* Containment Latency & Action Buttons */}
                       <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <span className="text-[10px] uppercase font-mono text-slate-500 block">
-                            Time to Contain
-                          </span>
+                          <div className="flex items-center justify-end gap-1 mb-0.5">
+                            <span className="text-[10px] uppercase font-mono text-slate-500 block">
+                              Time to Contain
+                            </span>
+                            <span className="px-1 py-0.2 rounded text-[8px] font-mono font-bold border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 uppercase">
+                              REAL
+                            </span>
+                          </div>
                           <span className="text-xs font-mono font-bold text-emerald-400">
                             {inc.time_to_contain_ms != null ? `${inc.time_to_contain_ms.toFixed(1)} ms` : 'N/A'}
                           </span>

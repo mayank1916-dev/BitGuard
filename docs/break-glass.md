@@ -4,7 +4,7 @@
 
 BitGuard is designed to operate under strict defensive policy constraints with fail-closed defaults. However, severe infrastructure anomalies—such as core custody system network partitions, upstream provider outages, or degraded operational modes—may require emergency fund migration (e.g. sweeping hot-wallet balances to cold storage multisig vaults).
 
-The **Break-Glass Emergency Protocol** provides a production-ready architecture; pilot after audit and shadow-mode validation. This mechanism reduces and contains risk during catastrophic events by establishing a time-boxed, two-person quorum override that permits transactions **only** to pre-approved destination allowlists.
+The **Break-Glass Emergency Protocol** provides a production-ready architecture; pilot after audit and shadow-mode validation. This mechanism reduces and contains risk during catastrophic events by establishing a time-boxed, two-person quorum override that permits transactions **only** to pre-approved destination allowlists (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection). Performance target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)). System boundaries detailed in [docs/LIMITS.md](LIMITS.md).
 
 ---
 
@@ -92,7 +92,7 @@ Content-Type: application/json
 During the active window:
 - Signing requests destined for addresses in `allowed_destinations` receive verdict `ALLOW` with reason code `BREAK_GLASS_OVERRIDE`.
 - Requests to any destination not in `allowed_destinations` are evaluated under standard rules (or held/denied if circuit breaker remains in `HOLD`/`LOCKDOWN`).
-- Performance targets remain intact: target p99 under 15 ms, measured, across all evaluations.
+- Performance targets remain intact: target p99 under 15 ms for the local fast path, measured under load (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)), across all evaluations.
 
 ### Stage 5: Emergency Termination / Revocation
 When the incident is contained, or if suspicious activity is observed:

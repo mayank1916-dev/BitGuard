@@ -3,7 +3,7 @@
 This document provides a comprehensive reference of JSON-RPC 2.0 error codes, HTTP status mappings, and deterministic reason codes issued by the BitGuard Defensive Signing Firewall.
 
 > [!NOTE]
-> **Defensive Architecture Invariant:** BitGuard is a policy **DECISION point**. A separate signer shim is the **ENFORCEMENT point**. BitGuard never stores or uses private signing keys. BitGuard **reduces and contains** blast radius from compromised credentials or rogue callers. Target latency: **target p99 under 15 ms, measured**.
+> **Defensive Architecture Invariant:** BitGuard is a policy **DECISION point**. A separate signer shim is the **ENFORCEMENT point**. BitGuard never stores or uses private signing keys. BitGuard **reduces and contains** blast radius from compromised credentials or rogue callers (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection). Target latency: **target p99 under 15 ms for the local fast path, measured under load** (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)). Production-ready architecture; pilot after audit and shadow-mode validation. Compensating controls in [docs/LIMITS.md](LIMITS.md).
 
 ---
 

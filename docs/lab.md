@@ -30,9 +30,9 @@ The **BitGuard Integration Lab** is an automated integration test environment de
    - **Dual-Control WebAuthn (Invariant #5 & #6):** Quarantine releases and de-escalations require dual-custody hardware WebAuthn assertions over the digest/challenge.
 
 3. **Strict Wording & Claims (Invariant #11):**
-   - BitGuard **reduces and contains** unauthorized transaction signing.
-   - Performance benchmark: **target p99 under 15 ms, measured**.
-   - Deployment status: **production-ready architecture; pilot after audit and shadow-mode validation**.
+   - BitGuard **reduces and contains** unauthorized transaction signing (a limit-aware attacker can still move value; the goal is to shrink and slow loss and force detection).
+   - Performance benchmark: **target p99 under 15 ms for the local fast path, measured under load** (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)).
+   - Deployment status: **production-ready architecture; pilot after audit and shadow-mode validation**. System boundaries cataloged in [docs/LIMITS.md](LIMITS.md).
 
 ---
 

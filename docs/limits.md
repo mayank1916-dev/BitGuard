@@ -4,7 +4,7 @@
 > **Defensive Scope & Language Standards (Invariant #11):**
 > BitGuard is a defense-in-depth policy firewall that **reduces and contains** unauthorized transaction signing risks for exchange hot wallets. It does not provide absolute prevention against all imaginable threat vectors.
 > Architecture classification: **production-ready architecture; pilot after audit and shadow-mode validation**.
-> Latency benchmark: **target p99 under 15 ms, measured**.
+> Latency benchmark: **target p99 under 15 ms for the local fast path, measured under load** (measured pipeline p99: 2.398 ms at 50 concurrency, 2.814 ms at 200 concurrency, and 2.633 ms at 500 concurrency per [docs/PERF.md](PERF.md)).
 
 ---
 

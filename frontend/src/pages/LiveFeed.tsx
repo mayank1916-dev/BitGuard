@@ -512,19 +512,39 @@ export const LiveFeed: React.FC<LiveFeedProps> = ({ steps, currentStep, isPlayin
       {/* 1. Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
-          <span className="text-xs text-slate-400 font-mono uppercase block">Total Streamed</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-slate-400 font-mono uppercase block">Total Streamed</span>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 uppercase">
+              {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+            </span>
+          </div>
           <span className="text-2xl font-bold font-mono text-white mt-1 block">{totalCount}</span>
         </div>
         <div className="p-4 rounded-xl bg-slate-900/90 border border-emerald-950/60">
-          <span className="text-xs text-emerald-400 font-mono uppercase block">Allowed Signing</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-emerald-400 font-mono uppercase block">Allowed Signing</span>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 uppercase">
+              {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+            </span>
+          </div>
           <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">{allowCount}</span>
         </div>
         <div className="p-4 rounded-xl bg-slate-900/90 border border-amber-950/60">
-          <span className="text-xs text-amber-400 font-mono uppercase block">Manual Holds</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-amber-400 font-mono uppercase block">Manual Holds</span>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-amber-500/40 bg-amber-500/20 text-amber-300 uppercase">
+              {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+            </span>
+          </div>
           <span className="text-2xl font-bold font-mono text-amber-400 mt-1 block">{holdCount}</span>
         </div>
         <div className="p-4 rounded-xl bg-slate-900/90 border border-rose-950/60">
-          <span className="text-xs text-rose-400 font-mono uppercase block">Firewall Denies</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-rose-400 font-mono uppercase block">Firewall Denies</span>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border border-rose-500/40 bg-rose-500/20 text-rose-300 uppercase">
+              {DATA_SOURCE === 'api' ? 'REAL' : 'SYNTHETIC'}
+            </span>
+          </div>
           <span className="text-2xl font-bold font-mono text-rose-400 mt-1 block">{denyCount}</span>
         </div>
       </div>
